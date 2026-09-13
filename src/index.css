@@ -1,0 +1,542 @@
+:root {
+  color-scheme: dark;
+  font-family: 'Courier New', ui-monospace, monospace;
+}
+
+body {
+  margin: 0;
+  background: #000;
+  color: #f2f2f2;
+}
+
+/* The mount point holds the page; `.set` *is* the page. */
+#root {
+  min-height: 100vh;
+  display: grid;
+}
+
+.set {
+  position: relative;
+  /* The room bleeds a viewport past the stage on every side so the wall and
+     the floor reach the edges of the page. Clipped here, or that bleed is a
+     scrollbar. */
+  overflow: clip;
+  display: grid;
+  /* The set takes the space above; anything that is not the television sits
+     under it. Stretching rather than centring the columns matters — the
+     cabinet sizes itself from its own max-width, and `justify-items: center`
+     would shrink it to its content instead. */
+  grid-template-rows: 1fr auto;
+  gap: 1rem;
+  padding: clamp(0.75rem, 3vh, 2.5rem) clamp(0.75rem, 2vw, 2rem);
+  box-sizing: border-box;
+}
+
+/*
+  The two things in the flow, named rather than excepted.
+
+  This was written as everything-but-the-corner, and an exception list is the
+  wrong shape for a rule like this: it is right until the next child is added,
+  and then it is silently wrong. Both corners are out of the flow, and
+  `width: 100%` on one of them stretches an invisible box across the whole page
+  that swallows every click underneath it — which is how the second corner
+  broke the first one's buttons the moment it was added.
+
+  `safe` on the centring matters too: on a short window the set is taller than
+  the space it has, and plain centring pushes its top off screen with no way to
+  scroll back to it. Safe centring gives up and aligns to the start instead.
+*/
+.set__stage,
+.set__footer {
+  align-self: safe center;
+  width: 100%;
+}
+
+/*
+  The set, and the void either side of it.
+
+  `minmax(0, 1fr)` on the outer tracks is the whole trick, and it is why
+  opening the guide cannot move the television: a `1fr` track with a zero
+  minimum takes only what is left over, so nothing put in one can push the
+  middle track wider. The middle track is the cabinet's own width, and it does
+  not care what the columns beside it contain.
+
+  Toggling this used to resize the set, which is the bug this replaces.
+*/
+/*
+  `isolation` so the room can sit at z-index -1 and still be inside the stage
+  rather than behind the page's own black. Lifting the *siblings* instead
+  sounds equivalent and is not: `position: relative` on every child but the
+  room reaches absolutely positioned children too, and undoes them.
+*/
+.set__stage {
+  position: relative;
+  isolation: isolate;
+}
+
+
+/*
+  The corner of the room: signing in, and the paper. Out of the flow, so the
+  set keeps every pixel of height it can get — an ordinary row under the
+  cabinet cost about fifty of them, and fifty pixels of cabinet is a bigger
+  picture.
+*/
+.set__corner {
+  position: absolute;
+  top: clamp(0.75rem, 3vh, 2.5rem);
+  left: clamp(0.75rem, 2vw, 2rem);
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/*
+  The other corner, and the way out of the room. Same treatment as the left
+  one, and out of the flow for the same reason: the television gets the height.
+*/
+.set__source {
+  position: absolute;
+  top: clamp(0.75rem, 3vh, 2.5rem);
+  right: clamp(0.75rem, 2vw, 2rem);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+}
+
+/* Visible to a screen reader, and to nothing else. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+  Not the Google button, which is sized to Google's specification and must stay
+  that way. Everything else down here is a plain control, and a plain control
+  on a phone needs a thumb-sized target rather than the browser's default
+  twenty-one pixels.
+*/
+.off-set button:not(.gsi),
+.guide-toggle {
+  min-height: 2.5rem;
+  padding: 0 0.9rem;
+  border: 1px solid #3a3f44;
+  border-radius: 4px;
+  background: #16191c;
+  color: #e7e9ea;
+  font: inherit;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.guide-toggle:hover { background: #1e2226; }
+.guide-toggle:focus-visible {
+  outline: 3px solid #ffe6a8;
+  outline-offset: 2px;
+}
+
+.guide-toggle[aria-pressed='true'] {
+  background: #2a2f34;
+  border-color: #5d646b;
+}
+
+/*
+  The carpet, doing a second job. Everything that is not the television lives
+  down here: any fault, and the links this site is obliged to make reachable
+  from the page itself.
+
+  Positioned on purpose. `.set__stage` is `position: relative`, and a
+  positioned sibling paints above the in-flow content of a later one — so the
+  room's floor, which bleeds a viewport downward out of the stage, was painting
+  straight over this row. The element was there, the right size, in the right
+  place, topmost to hit-testing, and completely invisible.
+*/
+.set__footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem 1.4rem;
+  max-width: 72rem;
+  justify-self: center;
+}
+
+.set__fault {
+  flex-basis: 100%;
+  text-align: center;
+}
+
+/*
+  Written on the carpet, so it reads as part of the room rather than as a
+  browser chrome bar: dim, small, and warm enough to belong to the floor it is
+  lying on. It must not compete with the set.
+*/
+.set__legal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 1.2rem;
+}
+.set__legal a {
+  /* A target you can hit, without the ink growing to match. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.9rem;
+  padding: 0 0.1rem;
+  color: #9c8a6b;
+  font: 500 0.7rem/1 ui-monospace, Menlo, monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+.set__legal a:hover,
+.set__legal a:focus-visible {
+  color: #d8c6a4;
+  text-decoration: underline;
+  text-underline-offset: 0.28em;
+}
+
+.screen {
+  /* Fills the screen box it is given. This used to be `min-height: 100vh`,
+     from when the card was the whole page — inside the cabinet that forced it
+     to viewport height and the card overflowed, losing its caption off the
+     bottom of the well. */
+  position: relative;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 4 / 3;
+  background: #000;
+  overflow: hidden;
+}
+
+.testcard {
+  display: block;
+  /* Fills whatever it is given — the cabinet well decides the size, not the
+     viewport. preserveAspectRatio keeps the card square-on and centres it, so
+     any leftover is black around the picture, exactly as a real set. */
+  /* Absolute so the percentages resolve against the screen box rather than
+     wandering up to the viewport — a plain height:100% here overflowed and
+     the card lost its caption off the bottom. */
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+
+
+
+/* ---- The tube ---------------------------------------------------------- */
+
+.screen__tube {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+  will-change: transform, filter, opacity;
+}
+
+/* ---- The deflection oscillators ---------------------------------------- */
+
+/*
+  Frame and line. Both are the same fault at two speeds: an oscillator running
+  at the wrong rate, so the picture starts each frame — or each line — a little
+  before or after it should, and walks.
+*/
+.screen__raster,
+.screen__line {
+  position: absolute;
+  inset: 0;
+}
+
+/*
+  Rolling. The picture walks off one edge and the next frame follows it on, so
+  what sweeps through is the gap between frames: the blanking bar, black with
+  the lit edge of the next frame at its leading edge. Drawn above and below,
+  because which one shows depends on which way the oscillator is out.
+*/
+.screen__raster::before,
+.screen__raster::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+}
+/*
+  The lit edge goes *next to* the picture, not at the far end of the bar. It is
+  the boundary of the frame that has just left, so it has to travel with it —
+  put the banding at the outer end and it spends the whole roll off-screen,
+  which is a black gap rather than a rolling picture.
+*/
+.screen__raster::after {
+  top: 100%;
+  background: linear-gradient(to bottom, #2e3439 0 1.5%, #14171a 1.5% 9%, #000 9% 100%);
+}
+.screen__raster::before {
+  bottom: 100%;
+  background: linear-gradient(to top, #2e3439 0 1.5%, #14171a 1.5% 9%, #000 9% 100%);
+}
+.screen__raster[data-rolling='true'] {
+  animation: crt-roll var(--roll-period, 1s) linear infinite;
+}
+.screen__raster[data-rolling='true']::before,
+.screen__raster[data-rolling='true']::after {
+  opacity: 1;
+}
+
+@keyframes crt-roll {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(var(--roll-dir, -1) * -100%));
+  }
+}
+
+/*
+  Tearing. Each line starts at the wrong moment, so the picture shears — and
+  because the error accumulates, it also slips sideways. Skew plus slip is the
+  cheap approximation of a diagonal tear, and it reads correctly at speed.
+*/
+.screen__line[data-tearing='true'] {
+  animation: crt-tear var(--slip-period, 0.3s) linear infinite;
+}
+
+@keyframes crt-tear {
+  from {
+    transform: skewX(var(--shear, 0deg)) translateX(-6%);
+  }
+  to {
+    transform: skewX(var(--shear, 0deg)) translateX(6%);
+  }
+}
+
+/*
+  A rolling picture is genuinely nauseating, and a viewer who has asked for
+  less movement has asked not to be given one. The fault is still *shown* —
+  offset picture, blanking bar across the screen, shear held at its angle —
+  it simply stands still, which is a set caught mid-roll rather than one that
+  is holding.
+*/
+@media (prefers-reduced-motion: reduce) {
+  .screen__raster[data-rolling='true'],
+  .screen__line[data-tearing='true'] {
+    animation: none;
+  }
+  .screen__raster[data-rolling='true'] {
+    transform: translateY(calc(var(--roll-dir, -1) * -22%));
+  }
+  .screen__line[data-tearing='true'] {
+    transform: skewX(var(--shear, 0deg));
+  }
+}
+
+/* ---- The picture controls ---------------------------------------------- */
+
+/*
+  Gain and saturation belong on the picture itself. They sit on the line layer
+  rather than the tube because the tube's own filter is the power collapse,
+  and two things cannot own one property.
+*/
+.screen__line {
+  filter: brightness(var(--gain, 1)) saturate(var(--saturation, 1));
+}
+
+/*
+  A lifted black level, laid over the picture rather than multiplied into it.
+  Plain alpha compositing over the picture is exactly what a beam bias does:
+  everything moves towards white and the contrast falls with it, so the blacks
+  go milky instead of the highlights going brighter.
+*/
+.screen__lift {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: #fff;
+  opacity: var(--lift, 0);
+}
+
+/*
+  Snow. Baked from feTurbulence into a data URI — the same generator the
+  cabinet's grain uses, resolved once rather than run every frame, because a
+  full-screen turbulence filter animating at 20fps is a fan coming on.
+  Jumped between positions on a stepped animation, which is what makes a
+  static tile read as moving static.
+*/
+.screen__snow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--snow, 0);
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27160%27%20height%3D%27160%27%3E%3Cfilter%20id%3D%27n%27%20color-interpolation-filters%3D%27sRGB%27%3E%3CfeTurbulence%20type%3D%27fractalNoise%27%20baseFrequency%3D%270.72%27%20numOctaves%3D%272%27%20stitchTiles%3D%27stitch%27%2F%3E%3CfeColorMatrix%20type%3D%27saturate%27%20values%3D%270%27%2F%3E%3CfeComponentTransfer%3E%3CfeFuncR%20type%3D%27linear%27%20slope%3D%273.4%27%20intercept%3D%27-1.2%27%2F%3E%3CfeFuncG%20type%3D%27linear%27%20slope%3D%273.4%27%20intercept%3D%27-1.2%27%2F%3E%3CfeFuncB%20type%3D%27linear%27%20slope%3D%273.4%27%20intercept%3D%27-1.2%27%2F%3E%3CfeFuncA%20type%3D%27linear%27%20slope%3D%270%27%20intercept%3D%271%27%2F%3E%3C%2FfeComponentTransfer%3E%3C%2Ffilter%3E%3Crect%20width%3D%27160%27%20height%3D%27160%27%20filter%3D%27url%28%23n%29%27%2F%3E%3C%2Fsvg%3E");
+  background-size: 160px 160px;
+  /*
+    Composited normally, not screened. A screen blend can only lighten, so
+    snow laid that way greys the picture up uniformly and leaves it perfectly
+    readable underneath — a veil rather than static. Straight alpha lets the
+    dark speckles through too, and at the far end of the tuner the noise
+    genuinely swamps the signal, which is the point of coming off station.
+  */
+}
+.screen__snow[data-snowing='true'] {
+  animation: crt-snow 0.32s steps(1) infinite;
+}
+
+@keyframes crt-snow {
+  0% { background-position: 0 0; }
+  12.5% { background-position: -53px 71px; }
+  25% { background-position: 91px -37px; }
+  37.5% { background-position: -19px -104px; }
+  50% { background-position: 67px 43px; }
+  62.5% { background-position: -88px 12px; }
+  75% { background-position: 29px -61px; }
+  87.5% { background-position: -41px 96px; }
+}
+
+/*
+  Snow is flicker, and flicker is the thing reduced motion exists to stop. The
+  fault is still shown — the noise lies over the picture — it simply does not
+  jump.
+*/
+@media (prefers-reduced-motion: reduce) {
+  .screen__snow[data-snowing='true'] {
+    animation: none;
+  }
+}
+
+/*
+  The set's own display. Above the snow and outside the deflection layers,
+  because the characters are made in the cabinet and mixed in after the tuner:
+  a set that hid its volume display whenever there was no signal would hide it
+  exactly when you were most likely to be turning something.
+*/
+.screen__osd {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* The spot the collapse leaves behind, and the one the warm-up grows from. */
+.screen__spot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 34%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 255, 248, 0.95) 0 2%,
+    rgba(210, 235, 255, 0.5) 5%,
+    rgba(160, 205, 255, 0.12) 12%,
+    transparent 40%
+  );
+}
+
+/*
+  Switching off: the scan collapses vertically first — the picture squeezes to
+  a bright horizontal line, because the vertical deflection fails before the
+  horizontal does — then that line shortens to a point. Brightness rises as it
+  goes, since the same beam current is landing on a shrinking area.
+*/
+[data-phase='collapsing'] .screen__tube {
+  animation: crt-collapse 900ms cubic-bezier(0.5, 0, 0.25, 1) forwards;
+}
+[data-phase='collapsing'] .screen__spot {
+  animation: crt-spot 900ms ease-out forwards;
+}
+
+/* Switching on: the same sequence, run backwards and quicker. */
+[data-phase='warming'] .screen__tube {
+  animation: crt-warm 620ms cubic-bezier(0.3, 0.8, 0.35, 1) forwards;
+}
+[data-phase='warming'] .screen__spot {
+  animation: crt-spot-warm 620ms ease-out forwards;
+}
+
+@keyframes crt-collapse {
+  0% {
+    transform: scale(1, 1);
+    filter: brightness(1);
+    opacity: 1;
+  }
+  38% {
+    transform: scale(1, 0.012);
+    filter: brightness(2.6) saturate(0.6);
+    opacity: 1;
+  }
+  62% {
+    transform: scale(0.22, 0.01);
+    filter: brightness(3.4) saturate(0.2);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(0.006, 0.006);
+    filter: brightness(4) saturate(0);
+    opacity: 0;
+  }
+}
+
+@keyframes crt-spot {
+  0%,
+  50% {
+    opacity: 0;
+  }
+  66% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes crt-warm {
+  0% {
+    transform: scale(0.02, 0.006);
+    filter: brightness(3.6) saturate(0);
+    opacity: 0;
+  }
+  22% {
+    transform: scale(1, 0.014);
+    filter: brightness(2.4) saturate(0.5);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1, 1);
+    filter: brightness(1) saturate(1);
+    opacity: 1;
+  }
+}
+
+@keyframes crt-spot-warm {
+  0% {
+    opacity: 0.9;
+  }
+  35%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* A viewer who asked for less movement gets the switch, not the theatre. */
+@media (prefers-reduced-motion: reduce) {
+  .screen__tube,
+  .screen__spot {
+    animation: none !important;
+  }
+}

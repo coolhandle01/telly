@@ -1,0 +1,42 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Secrets and local configuration. `*.local` above already covers .env.local,
+# but a bare .env is the file people actually reach for, and it must never be
+# committed even though the only thing that belongs in it is a public client ID.
+.env
+.env.*
+!.env.example
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Coverage
+coverage
+
+# Session review papers: kept locally, published as artifacts, not in the repo.
+docs/security-review.md
+docs/verification-roadmap.md
+
+# Mutation testing: the sandbox is a full copy of the project.
+.stryker-tmp/
+reports/

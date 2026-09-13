@@ -1,0 +1,53 @@
+# telly
+
+> Five television channels built from one person's YouTube subscriptions. Each
+> has its own schedule, its own hours and its own taste. They join programmes
+> already in progress and show a test card when nothing is on. You do not pick
+> what to watch; you switch the set on, press a preset, and see what is on.
+
+telly is a browser-only single-page app — no backend, no database, no server of
+any kind. It signs in with Google Identity Services, reads the visitor's own
+subscriptions with the `youtube.readonly` scope, and plays them in YouTube's
+own embedded player. The access token lives in memory for its hour and is never
+written to storage, never logged and never put in a URL.
+
+## The one idea
+
+Wall-clock time is the only input. The app never asks *what shall we play
+next?* It asks **what should be on air at 14:32:07, and how far into it are
+we?** That question gives join-in-progress, closedown, overruns and the test
+card for nothing, and collapses the whole thing into two pure functions:
+
+    plan(pool, options) -> Schedule   // deterministic, once per broadcast day
+    tune(schedule, now) -> OnAir      // pure, called every tick
+
+The broadcast day runs 06:00 to 06:00. News junctions start on time; everything
+else may overrun and push the day along. Gaps become the test card.
+
+## Five stations
+
+Subscriptions are divided between five broadcasters and belong to one each.
+Which station a channel goes to comes from what YouTube says it is about;
+when it goes out comes from how long its videos run, how often it posts and how
+well watched it is. Nothing age-rated goes out before nine and nothing made for
+children goes out after six. One station opens at eleven, another at three in
+the afternoon, and a fifth never closes down at all.
+
+## The set
+
+The television itself is drawn, not photographed: the teak cabinet, the
+bakelite keys and the aluminium fascia are SVG filters, so there are no image
+assets. The controls work — volume, six channel presets, and five trimmers
+behind the flap. V and H are the frame and line oscillators, and turning either
+off its lock rolls or tears the picture. B is black level, C is saturation, and
+T is the tuner, which loses the colour before it loses the picture. Two presets
+were set carelessly and have to be found with the tuner; the sixth has no
+station on it at all.
+
+## Source
+
+- [Privacy policy](/privacy/): what telly reads, and why there is nowhere for it to go.
+- [Terms of service](/terms/): the terms for using it.
+- [Repository](https://github.com/coolhandle01/telly): MIT licensed.
+- [Architecture](https://github.com/coolhandle01/telly/tree/main/docs/architecture): how it is built and why.
+- [Research](https://github.com/coolhandle01/telly/tree/main/docs/research): the period detail and the CRT physics behind the set.

@@ -1,0 +1,75 @@
+name: bump version
+
+# A merge to main that warrants a release bumps the version, writes the
+# changelog, commits and tags. The tag push is what fires release.yml.
+#
+# The App token is load-bearing: GitHub does not fire workflows for pushes made
+# with GITHUB_TOKEN, so a bump authenticated that way would push the tag and
+# release.yml would never run.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: bump
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    name: bump version and tag
+    runs-on: ubuntu-latest
+    environment: commitlint
+    # The bump is itself a push to main. Without this it loops.
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
+    steps:
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: app-token
+        with:
+          client-id: ${{ vars.COMMITLINT_CLIENT_ID }}
+          private-key: ${{ secrets.COMMITLINT_CLIENT_SECRET }}
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: identify as the app
+        env:
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          git config user.name "$APP_SLUG[bot]"
+          git config user.email "${{ steps.app-token.outputs.installation-id }}+$APP_SLUG[bot]@users.noreply.github.com"
+
+      # commit-and-tag-version cuts a patch release even when nothing warrants
+      # one, so decide first.
+      - name: is there anything to release
+        id: releasable
+        run: |
+          last=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          range=${last:+$last..HEAD}
+          if git log $range --format='%s%n%b' \
+            | grep -qE '^(feat|fix|perf)(\(.+\))?!?:|^[a-z]+(\(.+\))?!:|^BREAKING CHANGE'; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "yes=false" >> "$GITHUB_OUTPUT"
+            echo "nothing since ${last:-the beginning} warrants a release"
+          fi
+
+      - name: bump
+        if: steps.releasable.outputs.yes == 'true'
+        run: npx commit-and-tag-version
+
+      - name: push the commit and the tag
+        if: steps.releasable.outputs.yes == 'true'
+        run: git push --follow-tags origin main

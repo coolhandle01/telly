@@ -89,15 +89,6 @@ jobs:
           cache: npm
       - run: npm ci
 
-      # The title, and only the title. Squash is the only merge method the
-      # ruleset allows, so a branch's own commit subjects are discarded and the
-      # title becomes the commit subject on main — which commit-and-tag-version
-      # then reads to decide the next version.
       - name: conventional pull request title
-        env:
-          # Through the environment rather than interpolated into the script:
-          # the title is text somebody typed, and inlining it into `run` would
-          # be a command-injection seam.
-          PR_TITLE: ${{ github.event.pull_request.title }}
-        run: echo "$PR_TITLE" | npx commitlint
+        run: echo "${{ github.event.pull_request.title }}" | npx commitlint
 

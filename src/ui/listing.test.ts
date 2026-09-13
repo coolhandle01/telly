@@ -9,8 +9,10 @@ const programme = (title: string): Content => ({
   channelId: 'c',
   videoStartSec: 0,
 })
-const card = (variant: 'closedown' | 'interlude'): Content => ({ kind: 'filler', variant })
-const caption = (message: string): Content => ({ kind: 'continuity', message })
+const card = (variant: 'closedown' | 'interlude' | 'ident'): Content => ({
+  kind: 'filler',
+  variant,
+})
 
 function scheduleOf(
   items: readonly [number, number, DaypartId, Content][],
@@ -51,9 +53,9 @@ describe('listing', () => {
     expect(entries).toHaveLength(2)
   })
 
-  it('collapses a run of card and captions into one line', () => {
-    // No paper ever printed "18.42 Caption". Four and a half hours of test
-    // card is one line reading Closedown, and no apology.
+  it('collapses a run of card into one line', () => {
+    // Four and a half hours of test card is one line reading Closedown, and
+    // no apology.
     const entries = listing(
       scheduleOf([
         [0, 100, 'closedown', card('closedown')],
@@ -77,8 +79,10 @@ describe('listing', () => {
     expect(entries.map((e) => e.label)).toEqual(['Interlude', 'Closedown'])
   })
 
-  it('counts a continuity caption as an interlude rather than a programme', () => {
-    const entries = listing(scheduleOf([[0, 40, 'breakfast', caption('NEXT: THE NEWS')]]))
+  it('counts a lone ident as an interlude rather than a programme', () => {
+    // An ident normally belongs to the line above it, but a day that opens on
+    // one has no line above it to join.
+    const entries = listing(scheduleOf([[0, 40, 'breakfast', card('ident')]]))
 
     expect(entries[0]).toMatchObject({ kind: 'interlude', label: 'Interlude' })
   })

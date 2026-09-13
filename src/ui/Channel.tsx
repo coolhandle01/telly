@@ -8,7 +8,6 @@ import type { PlanOptions } from '../schedule/plan'
 import { TestCard } from '../testcard/TestCard'
 import { nextServiceResume } from '../testcard/serviceResume'
 import { DEFAULT_TONE_HZ, type Sound } from '../audio/sound'
-import { Caption } from './Caption'
 import { GoogleSignInButton } from './GoogleSignInButton'
 import { Guide, type GuidePage } from './Guide'
 import { SourceLink } from './SourceLink'
@@ -557,8 +556,6 @@ export function Channel({
               </div>
             ) : null}
           </>
-        ) : onAir.kind === 'continuity' ? (
-          <Caption>{onAir.message}</Caption>
         ) : onAir.variant === 'ident' && station ? (
           /*
             The station's own symbol, held for the minute or two it takes to

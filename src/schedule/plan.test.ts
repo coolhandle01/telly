@@ -411,32 +411,42 @@ describe('plan, gaps', () => {
   const one = video({ id: 'one', durationSec: 10 * MINUTE })
   const classifier = classifierOf({ one: { breakfast: 1 } })
 
-  it('makes a gap of ninety seconds or more an interlude', () => {
+  it('makes a gap longer than a held ident an interlude', () => {
     const schedule = plan(poolOf([one]), {
       dayStart: DAY_START,
-      dayparts: twoPartDay(12),
+      dayparts: twoPartDay(15),
       classifier,
     })
     assertCoversDayExactly(schedule)
     expect(schedule.items[0].endSec).toBe(10 * MINUTE)
     expect(schedule.items[1]).toEqual({
       startSec: 10 * MINUTE,
-      endSec: 12 * MINUTE,
+      endSec: 15 * MINUTE,
       daypart: 'breakfast',
       content: { kind: 'filler', variant: 'interlude' },
     })
   })
 
-  it('makes a gap shorter than ninety seconds a continuity caption', () => {
+  it('pads the last couple of minutes to a junction with the ident', () => {
+    // Not a caption saying what is coming. A station with two minutes to fill
+    // before the hour put its own mark up, and this is that.
     const schedule = plan(poolOf([one]), {
       dayStart: DAY_START,
-      dayparts: twoPartDay(11),
+      dayparts: twoPartDay(12),
       classifier,
     })
     assertCoversDayExactly(schedule)
-    expect(schedule.items[1].content).toEqual({ kind: 'continuity', message: 'NEXT: CLOSEDOWN' })
+    expect(schedule.items[1].content).toEqual({ kind: 'filler', variant: 'ident' })
     expect(schedule.items[1].startSec).toBe(10 * MINUTE)
-    expect(schedule.items[1].endSec).toBe(11 * MINUTE)
+    expect(schedule.items[1].endSec).toBe(12 * MINUTE)
+  })
+
+  it('never captions what is coming next — a schedule has no continuity kind', () => {
+    // The whole vocabulary of a gap is card, ident, closedown. A station that
+    // had something to say said it over its own symbol.
+    const schedule = plan(fixturePool(), { dayStart: DAY_START })
+    const kinds = new Set(schedule.items.map((item) => item.content.kind))
+    expect([...kinds].sort()).toEqual(['filler', 'programme'])
   })
 })
 

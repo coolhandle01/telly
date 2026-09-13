@@ -119,8 +119,9 @@ with three minutes is put its own ident up and start the next one at nine. Each
 station has its own, and they are five different mechanisms rather than five
 colours of one.
 
-Gaps too long for that become the card, very short ones a continuity caption,
-and a daypart with nothing eligible fills with card. A station that has run out
+Padding to a junction is the ident too, up to the three minutes a station
+would hold one for; longer gaps become the card, and a daypart with nothing
+eligible fills with card. A station that has run out
 is showing the card, which is both the honest outcome and the thematically
 correct one.
 

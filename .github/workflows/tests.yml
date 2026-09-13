@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-  # Callable so the deploy runs this exact suite before it publishes.
   workflow_call:
 
 permissions:
@@ -33,9 +32,5 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Its own check because its own failure means something specific. The
-      # runner is UTC, where the clocks never change, so the ordinary suite
-      # cannot see a British Summer Time bug — three were sitting there. These
-      # run under TZ=Europe/London and are excluded from the ordinary run,
-      # where they would fail for the wrong reason.
+      # The runner is UTC, where the clocks never change.
       - run: npm run test:dst

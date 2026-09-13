@@ -1,22 +1,14 @@
 name: analysers
 
-# The checks that read the code without running it. The suite is tests.yml.
-
 on:
   push:
     branches: [main]
   pull_request:
-  # Callable, so the deploy runs this exact gate rather than a copy of it: a
-  # merge to main exercises everything a pull request did, and the publish
-  # steps on top. Deliberately not `push: main` as well — that would run it
-  # twice there, once alone and once inside the deploy.
   workflow_call:
 
 permissions:
   contents: read
 
-# Every action is pinned to a commit rather than a tag. A tag is a moving
-# pointer somebody else controls, and these run with a token.
 jobs:
   lint:
     name: oxlint
@@ -25,7 +17,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          # `.nvmrc` is the pin; repeating the number here would make two.
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
@@ -41,21 +32,13 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Its own check rather than a step of the build: Vite strips types
-      # without checking them, so a type error is not a build failure and
-      # should not have to be read as one.
+      # Its own check: vite strips types without checking them, so a type error
+      # is not a build failure.
       - run: npm run typecheck
-
-      # The types describe a runtime, and which runtime is in `.nvmrc` — a
-      # file no package manager reads and Dependabot cannot see. Types from a
-      # newer line than the one installed typecheck clean and then crash, so
-      # the two majors have to agree. This is not hypothetical: they had
-      # already drifted apart by one.
       - name: the node types match the pinned node
         run: |
           pinned=$(tr -d 'v \n' < .nvmrc | cut -d. -f1)
           types=$(node -p "require('./package.json').devDependencies['@types/node'].replace(/[^0-9.]/g,'').split('.')[0]")
-          echo "node $pinned, @types/node $types"
           if [ "$pinned" != "$types" ]; then
             echo "::error::.nvmrc pins Node $pinned but @types/node is $types"
             exit 1
@@ -71,15 +54,11 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # `vite build` rather than `npm run build`, which would typecheck a
-      # second time. No client ID: the app is built to run on the fixture pool
-      # without one, and this bundle is thrown away.
       - run: npx vite build
 
   commits:
     name: commit messages
     runs-on: ubuntu-latest
-    # Only meaningful on a pull request, where there is a title to check.
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -88,7 +67,6 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-
+      # Squash is the only merge method, so the title is the commit subject.
       - name: conventional pull request title
         run: echo "${{ github.event.pull_request.title }}" | npx commitlint
-

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="A television">
+  <!--
+    The set, at sixteen pixels.
+
+    Everything here is the same object the app draws, with every detail
+    removed that does not survive being a quarter of an inch across: a teak
+    carcass, a dark 4:3 tube, the control column down the right, two tapered
+    legs, and one band of colour bars so it reads as a colour set showing a
+    test card rather than as a generic screen glyph.
+
+    Coordinates sit on whole units of a 32 grid, so halving to 16 lands on
+    pixel boundaries instead of blurring across them.
+  -->
+  <g>
+    <!-- The carcass, and the thin lit arris along its top. -->
+    <rect x="1" y="5" width="30" height="20" rx="2" fill="#8a6038"/>
+    <rect x="1" y="5" width="30" height="2" rx="1" fill="#b98c56"/>
+
+    <!-- The tube: 4:3, generous corners, near-black rather than black. -->
+    <rect x="3" y="8" width="20" height="15" rx="2" fill="#0f1316"/>
+
+    <!-- A band of bars across it. Four is as many as sixteen pixels can hold. -->
+    <g>
+      <rect x="4" y="13" width="4.5" height="5" fill="#f2f2f2"/>
+      <rect x="8.5" y="13" width="4.5" height="5" fill="#ffff00"/>
+      <rect x="13" y="13" width="4.5" height="5" fill="#00ffff"/>
+      <rect x="17.5" y="13" width="4.5" height="5" fill="#00ff00"/>
+    </g>
+
+    <!-- The control column, and the speaker grille under it. -->
+    <rect x="25" y="8" width="4" height="15" rx="1" fill="#c9c4bc"/>
+    <rect x="26" y="16" width="2" height="6" fill="#3a3630"/>
+
+    <!-- Two legs, because head-on the back pair stand behind the front pair. -->
+    <path d="M6 25h3l-1 6H7z" fill="#9a7048"/>
+    <path d="M23 25h3l-1 6h-1z" fill="#9a7048"/>
+  </g>
+</svg>

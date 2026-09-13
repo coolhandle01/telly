@@ -1,0 +1,51 @@
+# Weekly, grouped, and small enough to actually read.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # Dependabot infers the commit style from recent history, and this
+    # repository's history is narrative, so left alone it writes `Bump x from
+    # 1 to 2` — which the conventional commits check rejects. Naming the
+    # prefixes means its pull requests arrive mergeable instead of needing a
+    # title edited by hand every week.
+    commit-message:
+      prefix: build
+      prefix-development: chore
+      include: scope
+    # Two majors that are not Dependabot's to decide, because what makes them
+    # safe is not in any manifest it reads.
+    #
+    # `typescript`, because the type gate is `tsc -b` against solution-style
+    # configs and a major has moved what that means before. TypeScript 7 is the
+    # native port: it ships platform binaries and no longer puts `tsserver` in
+    # `bin` at all. That is an afternoon with the release notes, not a line in
+    # a grouped pull request titled "dev-dependencies".
+    #
+    # `@types/node`, because it describes the runtime — and which runtime is in
+    # `.nvmrc` and `engines`, neither of which Dependabot reads. Types from a
+    # newer line than you run typecheck clean and then crash.
+    ignore:
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+    groups:
+      # One pull request for the toolchain rather than a dozen. Runtime
+      # dependencies stay separate: React and React DOM are the only two, and
+      # a bump to either is worth looking at on its own.
+      dev-dependencies:
+        dependency-type: development
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      actions:
+        patterns: ['*']

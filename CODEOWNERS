@@ -1,0 +1,7 @@
+# Every path, one owner. See https://docs.github.com/articles/about-code-owners
+*                       @coolhandle01
+
+# The parts where a mistake is expensive rather than merely annoying.
+/src/library/           @coolhandle01
+/SECURITY.md            @coolhandle01
+/.github/               @coolhandle01

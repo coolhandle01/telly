@@ -1,0 +1,104 @@
+name: bump version
+
+# Versioning is automatic. Every merge to main that warrants a release bumps
+# the version, writes the changelog, commits and tags — and the tag push is
+# what triggers release.yml, which builds and publishes the site. Nobody runs
+# the bump by hand; doing so locally races other merges and strands a version
+# commit that only a force push can land.
+#
+# commit-and-tag-version rather than commitizen: same convention, but this is a
+# TypeScript stack and the version comes from package.json like every other
+# tool here. A Python tool to read JavaScript commits would be a second
+# toolchain to install, pin and explain.
+#
+# The GitHub App token is load-bearing, not a preference. GitHub deliberately
+# does not fire workflows for pushes made with the default GITHUB_TOKEN, so a
+# bump authenticated that way would push the tag and release.yml would never
+# run — the site would silently stop updating. An App installation token does
+# trigger downstream workflows, and unlike a personal access token it is
+# short-lived, scoped to this repository, and not tied to anybody's account.
+
+on:
+  push:
+    branches: [main]
+
+# One bump at a time. Two merges landing together would otherwise both compute
+# a version from the same base.
+concurrency:
+  group: bump
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    name: bump version and tag
+    runs-on: ubuntu-latest
+    # The App credentials are environment-scoped, so the job joins the
+    # environment to read them. Deliberately not github-pages: that one belongs
+    # to the publish, and a protection rule there would stop every merge to
+    # main waiting for a click before it could even compute a version.
+    environment: commitlint
+    # The bump is itself a push to main, which re-triggers this workflow.
+    # Without this guard that is an infinite loop.
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
+    steps:
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: app-token
+        with:
+          client-id: ${{ vars.COMMITLINT_CLIENT_ID }}
+          # The App's private key (the .pem), not its OAuth client secret. The
+          # secret is named for the pair it sits beside on the App settings
+          # page; this input takes the key.
+          private-key: ${{ secrets.COMMITLINT_CLIENT_SECRET }}
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The increment comes from the commits since the last tag, so the
+          # full history and the tags both have to be here.
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: identify as the app
+        env:
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          git config user.name "$APP_SLUG[bot]"
+          git config user.email "${{ steps.app-token.outputs.installation-id }}+$APP_SLUG[bot]@users.noreply.github.com"
+
+      # Decide first, because commit-and-tag-version does not. Given nothing
+      # but docs: and ci: since the last tag it still cuts a patch release,
+      # where commitizen simply exits - so a docs-only merge would ship a
+      # version that changes nothing. Nothing to release is a normal outcome,
+      # not a failure, so this skips rather than fails.
+      - name: is there anything to release
+        id: releasable
+        run: |
+          last=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          range=${last:+$last..HEAD}
+          if git log $range --format='%s%n%b' \
+            | grep -qE '^(feat|fix|perf)(\(.+\))?!?:|^[a-z]+(\(.+\))?!:|^BREAKING CHANGE'; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "yes=false" >> "$GITHUB_OUTPUT"
+            echo "nothing since ${last:-the beginning} warrants a release"
+          fi
+
+      # Reads the conventional commits since the last tag: bumps the version in
+      # package.json, writes CHANGELOG.md, commits as `chore(release): x.y.z`
+      # and tags `vx.y.z`.
+      - name: bump
+        if: steps.releasable.outputs.yes == 'true'
+        run: npx commit-and-tag-version
+
+      - name: push the commit and the tag
+        if: steps.releasable.outputs.yes == 'true'
+        run: git push --follow-tags origin main

@@ -1,0 +1,143 @@
+name: release
+
+# Fires only on a version tag, which bumpversion.yml creates automatically when
+# a merge to main warrants a release. Nothing here runs on a normal push or
+# pull request, so an accidental publish is not reachable from ordinary
+# development.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  # A release runs the full pull request gate first, by calling the very same
+  # reusable workflows a pull request runs - not a copy of them. If oxlint, the
+  # typecheck, the bundle, the commit-message check, the suite, the British
+  # Summer Time run or CodeQL would fail on a pull request, the release stops
+  # here, before build.
+  #
+  # Left unnamed on purpose: a called workflow's checks are prefixed with the
+  # calling job's name, so each one already answers to two names - `oxlint` on a
+  # pull request, `checks / oxlint` on a tag. Naming these for the caller's
+  # context ("pr checks", say) makes the tag copy claim to be a PR check, and
+  # that copy is what the required-status-check picker offers, since it lists
+  # whatever ran most recently.
+  checks:
+    uses: ./.github/workflows/analysers.yml
+
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  # CodeQL against the exact tag being published. This is the "release happens
+  # last" guarantee: on an ordinary merge the scan runs in parallel with the
+  # bump, so a tag could otherwise be published before its results landed. The
+  # caller job grants security-events:write, which the called workflow inherits
+  # (reusable-workflow permissions downgrade only, so this is the ceiling).
+  codeql:
+    uses: ./.github/workflows/codeql.yml
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+  build:
+    name: build
+    needs: [checks, tests, codeql]
+    runs-on: ubuntu-latest
+    # The client ID is inlined into the bundle at build time and lives on this
+    # environment, so the build has to join it. Public by design, which is why
+    # it is a variable and not a secret.
+    environment: github-pages
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_YOUTUBE_CLIENT_ID: ${{ vars.VITE_YOUTUBE_CLIENT_ID }}
+      # Twice over, deliberately. The Pages artefact is the one deploy-pages
+      # consumes; the plain one is what smoke pulls down to prove the bundle
+      # works before any of it goes near the live site.
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: dist
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: dist
+          path: dist/
+
+  smoke:
+    name: smoke test the bundle
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: dist
+          path: dist/
+      # The suite runs against source; this proves the *built artefact* serves.
+      # python3 and curl are preinstalled on ubuntu runners, which keeps this
+      # dependency-free.
+      - name: serve it
+        run: |
+          python3 -m http.server 8000 --directory dist &
+          for _ in $(seq 1 20); do curl -fsS http://localhost:8000/ >/dev/null 2>&1 && break; sleep 0.5; done
+      - name: the set is there
+        run: |
+          title=$(curl -fsS http://localhost:8000/ | grep -o '<title>[^<]*</title>')
+          echo "$title"
+          case "$title" in *telly*) ;; *) echo "unexpected homepage"; exit 1 ;; esac
+      # A bundle whose asset paths are wrong renders a blank page and returns
+      # 200 for the document, so the document alone proves nothing.
+      - name: its bundle is reachable
+        run: |
+          asset=$(curl -fsS http://localhost:8000/ | grep -o 'src="[^"]*\.js"' | head -1 | sed 's/src="//;s/"//')
+          echo "asset: $asset"
+          [ -n "$asset" ] || { echo "no script referenced"; exit 1; }
+          curl -fsS -o /dev/null "http://localhost:8000/${asset#./}"
+      # Reachable terms and privacy are a condition of the OAuth verification,
+      # and they have been broken before by exactly this - a link that resolves
+      # in development and not in the artefact.
+      - name: the terms and the privacy policy are reachable
+        run: |
+          for page in privacy terms; do
+            got=$(curl -fsS "http://localhost:8000/$page/index.html" | grep -o '<title>[^<]*</title>')
+            echo "$page -> $got"
+            case "$got" in *telly*) ;; *) echo "$page did not serve"; exit 1 ;; esac
+          done
+
+  publish:
+    name: publish to GitHub Pages
+    needs: smoke
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+  github-release:
+    name: github release
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" --title "$TAG" --generate-notes

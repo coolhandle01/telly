@@ -709,3 +709,122 @@ describe('YouTubePoolSource', () => {
     })
   })
 })
+
+describe('YouTubePoolSource, two hundred subscriptions', () => {
+  const tokens: AccessTokenProvider = { getAccessToken: async () => 'test-access-token' }
+
+  /**
+   * Holds every request open for a turn of the event loop, so requests made
+   * together actually overlap and the peak can be counted. Without this the
+   * fake answers inside a microtask and nothing is ever in flight beside
+   * anything else, concurrent or not.
+   */
+  function held(fetch: FetchLike, delayFor: (url: URL) => number = () => 0) {
+    const seen = { inFlight: 0, peak: 0 }
+    const wrapped: FetchLike = async (url, init) => {
+      seen.inFlight += 1
+      seen.peak = Math.max(seen.peak, seen.inFlight)
+      await new Promise((resolve) => setTimeout(resolve, delayFor(new URL(url))))
+      seen.inFlight -= 1
+      return fetch(url, init)
+    }
+    return { fetch: wrapped, seen }
+  }
+
+  /** Thirty subscriptions: more than one batch of channels, plenty of playlists. */
+  const channelIds = ids(30, 'UC')
+  const uploadsOf = (id: string) => `UU${id.slice(2)}`
+  const videoOf = (id: string) => `v${id.slice(2)}`
+
+  const fakeAccount = () =>
+    fakeYouTube({
+      subscriptions: () => subscriptionPage(channelIds),
+      channels: (params) => channelsPage(params.get('id')!.split(',')),
+      playlistItems: (params) => {
+        const playlist = params.get('playlistId')!
+        return playlistItemsPage([videoOf(`UC${playlist.slice(2)}`)])
+      },
+      videos: (params) =>
+        videosPage(params.get('id')!.split(',').map((id) => ({ id, channelId: `UC${id.slice(1)}` }))),
+    })
+
+  it('has several playlist calls in the air at once', async () => {
+    // The per-channel call is the one the API will not batch, so it is the
+    // whole of the wait. One at a time, thirty subscriptions is thirty round
+    // trips and two hundred is most of a minute.
+    const account = fakeAccount()
+    const { fetch, seen } = held(account.fetch)
+
+    await new YouTubePoolSource({ fetch, tokens }).load()
+
+    expect(account.callsTo('playlistItems')).toHaveLength(30)
+    expect(seen.peak).toBeGreaterThan(1)
+    expect(seen.peak).toBeLessThanOrEqual(8)
+  })
+
+  it('keeps the pool in subscription order however the requests interleave', async () => {
+    // Later playlists answered first. A pool whose order followed the network
+    // would plan a different day on every load, and the planner is only
+    // deterministic because its input is.
+    const account = fakeAccount()
+    const { fetch } = held(account.fetch, (url) => {
+      const playlist = url.searchParams.get('playlistId')
+      return playlist ? 30 - Number(playlist.slice(2)) : 0
+    })
+
+    const pool = await new YouTubePoolSource({ fetch, tokens }).load()
+
+    expect(pool.videos.map((video) => video.id)).toEqual(channelIds.map(videoOf))
+  })
+
+  it('climbs to one and never goes back', async () => {
+    const fractions: number[] = []
+
+    await new YouTubePoolSource({ fetch: fakeAccount().fetch, tokens }).load((fraction) =>
+      fractions.push(fraction),
+    )
+
+    expect(fractions.length).toBeGreaterThan(1)
+    expect(fractions.at(-1)).toBe(1)
+    expect([...fractions].sort((a, b) => a - b)).toEqual(fractions)
+    expect(fractions.every((fraction) => fraction > 0 && fraction <= 1)).toBe(true)
+  })
+
+  it('abandons the rest of the playlists once the token is refused', async () => {
+    // A 403 will refuse every remaining playlist identically. Carrying on
+    // would spend another twenty-nine calls to learn the same thing — and
+    // with requests in flight, "stop" has to mean the workers stop taking
+    // new ones, not merely that the loop breaks.
+    const account = fakeYouTube({
+      subscriptions: () => subscriptionPage(channelIds),
+      channels: (params) => channelsPage(params.get('id')!.split(',')),
+      playlistItems: () => apiError(403, 'forbidden'),
+    })
+
+    await expect(new YouTubePoolSource({ fetch: account.fetch, tokens }).load()).rejects.toBeInstanceOf(
+      YouTubeApiError,
+    )
+    expect(account.callsTo('playlistItems').length).toBeLessThanOrEqual(8)
+  })
+
+  it('loses one unreachable channel and keeps the other twenty-nine', async () => {
+    const gone = uploadsOf(channelIds[7])
+    const account = fakeYouTube({
+      subscriptions: () => subscriptionPage(channelIds),
+      channels: (params) => channelsPage(params.get('id')!.split(',')),
+      playlistItems: (params) => {
+        const playlist = params.get('playlistId')!
+        return playlist === gone
+          ? apiError(404, 'playlistNotFound')
+          : playlistItemsPage([videoOf(`UC${playlist.slice(2)}`)])
+      },
+      videos: (params) =>
+        videosPage(params.get('id')!.split(',').map((id) => ({ id, channelId: `UC${id.slice(1)}` }))),
+    })
+
+    const pool = await new YouTubePoolSource({ fetch: account.fetch, tokens }).load()
+
+    expect(pool.videos).toHaveLength(29)
+    expect(account.callsTo('playlistItems')).toHaveLength(30)
+  })
+})

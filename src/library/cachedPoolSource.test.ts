@@ -241,3 +241,69 @@ describe('CachedPoolSource', () => {
     })
   })
 })
+
+describe('CachedPoolSource, progress', () => {
+  const now = () => 1_000_000
+
+  it('passes the inner source reports straight through', async () => {
+    const inner: PoolSource = {
+      async load(onProgress) {
+        onProgress?.(0.5)
+        onProgress?.(1)
+        return poolOf('a')
+      },
+    }
+    const seen: number[] = []
+
+    await new CachedPoolSource(inner, inMemoryStore(), { now }).load((fraction) =>
+      seen.push(fraction),
+    )
+
+    expect(seen).toEqual([0.5, 1])
+  })
+
+  it('says a cache hit is finished, because it is', async () => {
+    // A caller that keeps a button disabled until the fraction reaches 1 would
+    // otherwise keep it disabled for ever on the fastest path there is.
+    const store = inMemoryStore()
+    const cached = new CachedPoolSource(countingSource(poolOf('a')), store, { now })
+    await cached.load()
+
+    const seen: number[] = []
+    await cached.load((fraction) => seen.push(fraction))
+
+    expect(seen).toEqual([1])
+  })
+
+  it('lets a second caller watch the fetch the first one started', async () => {
+    // The two callers here are the set being switched on and the listings
+    // being opened. One fetch, and both of them get to see it happen.
+    let report: ((fraction: number) => void) | undefined
+    let release: (() => void) | undefined
+    const inner: PoolSource = {
+      async load(onProgress) {
+        report = onProgress
+        await new Promise<void>((resolve) => {
+          release = resolve
+        })
+        return poolOf('a')
+      },
+    }
+    const cached = new CachedPoolSource(inner, inMemoryStore(), { now })
+    const first: number[] = []
+    const second: number[] = []
+
+    const a = cached.load((fraction) => first.push(fraction))
+    for (let tick = 0; tick < 20 && !report; tick += 1) await new Promise((r) => setTimeout(r, 0))
+    const b = cached.load((fraction) => second.push(fraction))
+    // The second caller reads the store before it joins, so give it the turn
+    // of the loop that takes.
+    await new Promise((r) => setTimeout(r, 0))
+    report?.(0.5)
+    release?.()
+    await Promise.all([a, b])
+
+    expect(first).toEqual([0.5])
+    expect(second).toEqual([0.5])
+  })
+})

@@ -156,6 +156,14 @@ export function Channel({
   const [showGuide, setShowGuide] = useState(false)
   const [hasPicture, setHasPicture] = useState(false)
   const [signedIn, setSignedIn] = useState(false)
+  /*
+    How far the set has got with programming the channels, as whole percent.
+
+    Whole percent because it is read as a number on a button, and because a
+    live subscription list reports it a few hundred times — there is no sense
+    re-rendering the room for a change nobody can see.
+  */
+  const [programmed, setProgrammed] = useState(0)
   const [signInError, setSignInError] = useState<string>()
   const [poolError, setPoolError] = useState<string>()
 
@@ -186,7 +194,9 @@ export function Channel({
     let live = true
     void signedIn
     source
-      .load()
+      .load((fraction) => {
+        if (live) setProgrammed(Math.round(fraction * 100))
+      })
       .then((loaded) => {
         if (!live) return
         /*
@@ -240,6 +250,23 @@ export function Channel({
 
   const station = stationById(channel)
   const schedule = station ? listings?.schedules.get(station.id) : undefined
+
+  /*
+    How far along programming the channels is, or absent once it is done.
+
+    Derived rather than stored, because the thing that ends it is the listings
+    arriving and not the fetch finishing — there is a fraction of a second of
+    planning five stations after the last call comes back, and a button that
+    said it was ready before it was would be a lie by exactly that much.
+
+    A failed load is not programming either. It ends up on the card and in the
+    footer; leaving the button counting for ever would be the one outcome that
+    tells the viewer nothing at all.
+  */
+  const programming =
+    (on || showGuide) && listings === undefined && poolError === undefined
+      ? programmed
+      : undefined
 
   /*
     The paper, which prints every channel whether or not the set is tuned to
@@ -388,13 +415,19 @@ export function Channel({
             }}
           />
         ) : null}
+        {/*
+          The paper is not printed until the schedules exist, so while they are
+          being worked out the button says what it is waiting for rather than
+          offering a page with nothing on it.
+        */}
         <button
           type="button"
           className="guide-toggle"
           onClick={() => setShowGuide((was) => !was)}
           aria-pressed={showGuide}
+          disabled={programming !== undefined}
         >
-          Telly Guide
+          {programming === undefined ? 'Telly Guide' : `Programming ${programming}%`}
         </button>
       </div>
 
@@ -507,6 +540,14 @@ export function Channel({
             shows — there is no station behind it to put a card up.
           */
           null
+        ) : programming !== undefined && station ? (
+          /*
+            Switched on before the schedules exist. The station has not closed
+            down and there is no fault, so neither card is true — what a
+            station with nothing to hand out yet put up is its own symbol, and
+            that is exactly the situation this is.
+          */
+          <Ident ident={station.ident} name={onScreenName} number={station.id} />
         ) : !onAir ? (
           <>
             <TestCard

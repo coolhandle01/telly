@@ -137,7 +137,16 @@ body {
   letter-spacing: 0.04em;
   cursor: pointer;
 }
-.guide-toggle:hover { background: #1e2226; }
+.guide-toggle:hover:not(:disabled) { background: #1e2226; }
+/*
+  Programming. Tabular figures so the count does not shuffle the word beside it
+  every time a digit changes.
+*/
+.guide-toggle:disabled {
+  font-variant-numeric: tabular-nums;
+  color: #8b9298;
+  cursor: default;
+}
 .guide-toggle:focus-visible {
   outline: 3px solid #ffe6a8;
   outline-offset: 2px;

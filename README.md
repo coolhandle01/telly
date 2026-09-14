@@ -95,7 +95,11 @@ Two of the presets were tuned in carelessly by whoever installed the set, so
 they come up as snow until you turn the tuner. Preset six has nothing on it at
 all.
 
-Press **Telly Guide** for the listings, which print all five.
+Press **Telly Guide** for the listings, which print all five. The first time,
+that button counts — `Programming 46%` — because there is nothing to print
+until your subscriptions are in and five days have been planned off them. A set
+switched on while that is happening holds the station's ident, which is what a
+station with nothing to hand out yet put up.
 
 ## How a day is built
 

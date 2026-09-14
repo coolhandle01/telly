@@ -105,28 +105,6 @@ believing it. A Content-Security-Policy on the delivered document names the
 origins allowed to execute here, which is what keeps the capability this
 threat assumes hard to come by.
 
-The policy lives in a `<meta>` tag in `index.html` because a static host can
-serve no other kind, and that shapes it. A meta-delivered policy silently
-drops `frame-ancestors`, `sandbox` and the reporting directives, so framing is
-not defended by it and none of those is written there pretending otherwise —
-see T11. `style-src` allows inline because the cabinet is drawn in inline
-styles and ten components ship their own `<style>` block; tightening that is a
-rebuild of how the set is drawn rather than an edit to the policy. React
-escapes what it renders and nothing in `src/` reaches for `innerHTML`, so the
-allowlist is a backstop against a mistake nobody has made yet rather than a
-hole being closed — boundary 3 is the reason to have one anyway.
-
-It was checked in a browser rather than asserted at, because a policy that
-breaks the app is invisible to jsdom: the built bundle, the dev server with a
-client ID, and the dev server on fixtures, each loaded in Chromium with no
-violation reported. Both Google scripts were fetched and then refused by the
-network rather than by the policy, which is what an allowed request looks like
-from a machine with no egress to Google — a blocked one raises a violation
-instead. `frame-src` and `connect-src` are reasoned rather than observed for
-that reason: the consent popup, the Data API and the embedded frame all need
-egress to exercise, so they want one look at devtools during sign-in and
-playback on the deployed site.
-
 **T3** is closed in code that cites the weakness it defends against: the token
 travels in an `Authorization` header because URLs reach history, referrers and
 server logs (CWE-598), and `toApiError` builds messages from the status and the

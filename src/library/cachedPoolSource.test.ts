@@ -140,6 +140,21 @@ describe('CachedPoolSource', () => {
       expect(pool.channels.size).toBe(0)
     })
 
+    // A record with no arrays is not the shape that bites. A record whose
+    // arrays are present and are not arrays is, and storage is meant to be
+    // best-effort: a record that does not read as a pool is a miss like any
+    // other, and the live source answers.
+    it('treats a stored record whose arrays are not arrays as a miss', async () => {
+      const store = inMemoryStore()
+      store.entries.set('pool', { savedAt: clock, videos: 'oops', channels: 'oops' } as unknown as StoredPool)
+      const inner = countingSource(poolOf('a'))
+
+      const pool = await new CachedPoolSource(inner, store, { now, key: 'pool' }).load()
+
+      expect(inner.loads).toBe(1)
+      expect(pool.channels.size).toBe(1)
+    })
+
     it('refetches once the TTL has passed, and re-stamps the store', async () => {
       const store = inMemoryStore()
       const inner = countingSource(poolOf('a'))

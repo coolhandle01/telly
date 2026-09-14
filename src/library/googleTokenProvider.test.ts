@@ -93,9 +93,13 @@ describe('GoogleTokenProvider', () => {
     expect(prompts).toEqual(['consent'])
   })
 
-  it('renews silently once the token is near its end', async () => {
+  // Both lifetimes, because a sane one is not what defeats the renewal. A
+  // lifetime that is not a positive finite number of seconds — Google's own
+  // script is the only thing that can send one — puts the expiry past every
+  // clock there will be, and the renewal never happens.
+  it.each([3600, Number.POSITIVE_INFINITY])('renews silently once the token is near its end (%s)', async (lifetime) => {
     let clock = 0
-    const { load, prompts } = fakeGis(() => granted(3600))
+    const { load, prompts } = fakeGis(() => granted(lifetime))
     const provider = new GoogleTokenProvider('client-1', { loadGis: load, now: () => clock })
 
     await provider.signIn()

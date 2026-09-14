@@ -27,7 +27,10 @@ describe('offsetFromQuery', () => {
   })
 
   it('ignores nonsense rather than failing', () => {
-    for (const junk of ['?at=banana', '?at=99:99', '?at=', '?at=25:00']) {
+    // The last one parses perfectly — it is the last date the platform has —
+    // and an offset that size puts the clock past the end of the calendar one
+    // tick later. Unparseable was never the only way to be nonsense.
+    for (const junk of ['?at=banana', '?at=99:99', '?at=', '?at=25:00', '?at=275760-09-13']) {
       expect(offsetFromQuery(junk, NOW)).toBe(0)
     }
   })

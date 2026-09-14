@@ -190,6 +190,25 @@ describe('YouTubePoolSource', () => {
         subscriberCount: 1234,
       })
     })
+
+    // The test above met a server that stops. Nothing in the client makes it
+    // stop, so a server that never omits the token is followed for ever; the
+    // valve below is the test stopping it, not the code.
+    it('stops paging even when the server never omits the token', async () => {
+      const VALVE = 250
+      const { fetch, callsTo } = fakeYouTube({
+        subscriptions: (_params, call) => {
+          if (call >= VALVE) throw new Error(`still asking for page ${call + 1}`)
+          return subscriptionPage(ids(1, `U${call}`), 'always-more')
+        },
+        channels: (params) => channelsPage(params.get('id')!.split(',')),
+        playlistItems: () => playlistItemsPage([]),
+      })
+
+      await new YouTubePoolSource({ fetch, tokens }).load().catch(() => undefined)
+
+      expect(callsTo('subscriptions').length).toBeLessThan(VALVE)
+    })
   })
 
   describe('batching ids 50 at a time', () => {

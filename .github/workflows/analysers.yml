@@ -68,5 +68,8 @@ jobs:
           cache: npm
       - run: npm ci
       # Squash is the only merge method, so the title is the commit subject.
+      # mitigates injection
       - name: conventional pull request title
-        run: echo "${{ github.event.pull_request.title }}" | npx commitlint
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: echo "$PR_TITLE" | npx commitlint

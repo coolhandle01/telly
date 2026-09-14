@@ -379,12 +379,7 @@ describe('TELLY-SEC-05 · the lifetime Google reports', () => {
 describe('TELLY-SEC-06 · the delivered document', () => {
   const html = () => INDEX_HTML
 
-  it('characterises the absent policy today', () => {
-    expect(html()).not.toMatch(/http-equiv=["']Content-Security-Policy["']/i)
-    expect(html()).not.toMatch(/name=["']referrer["']/i)
-  })
-
-  it.skip('DISABLED_ the document declares what may execute in it', () => {
+  it('the document declares what may execute in it', () => {
     const csp = /<meta[^>]+http-equiv=["']Content-Security-Policy["'][^>]*>/i.exec(html())?.[0]
     expect(csp, 'no Content-Security-Policy meta tag').toBeDefined()
 

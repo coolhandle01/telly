@@ -95,22 +95,89 @@ describe('TELLY-SEC-01 · workflow expressions in shell blocks', () => {
   const workflows = (): { name: string; body: string }[] =>
     Object.entries(WORKFLOWS).map(([path, body]) => ({ name: basename(path), body }))
 
-  /** `run:` lines only. An `if:` is read by the expression engine, not a shell. */
-  const injectableRunLines = (body: string): string[] =>
-    body
-      .split('\n')
-      .filter((line) => /^\s*(-\s*)?run:/.test(line) && /\$\{\{\s*github\.event\./.test(line))
-      .map((line) => line.trim())
+  const EVENT_EXPRESSION = /\$\{\{\s*github\.event\./
 
-  it('characterises the injection that exists today', () => {
-    expect(workflows().length).toBeGreaterThan(0) // the glob found them at all
-    const offenders = workflows().flatMap(({ name, body }) =>
-      injectableRunLines(body).map((line) => `${name}: ${line}`),
-    )
-    // Recorded, not asserted away: this is the finding.
-    expect(offenders).toEqual([
-      'analysers.yml: run: echo "${{ github.event.pull_request.title }}" | npx commitlint',
-    ])
+  /**
+   * Every line of shell a workflow runs, inline or in a block.
+   *
+   * Only `run:` counts. An `if:` is read by the expression engine and an
+   * `env:` value never reaches the shell as source — that second one is the
+   * whole fix, so a guard that flagged it would forbid its own remedy.
+   *
+   * The block scalars are the part worth getting right: `run: |` puts the
+   * shell on the *following* lines, so a check that reads only the `run:`
+   * line itself passes a workflow that is wide open. YAML says a block
+   * belongs to its key while it stays indented past that key, which is
+   * exactly the rule below.
+   */
+  const injectableRunLines = (body: string): string[] => {
+    const found: string[] = []
+    let blockIndent: number | undefined
+
+    for (const line of body.split('\n')) {
+      if (blockIndent !== undefined) {
+        const indent = line.search(/\S/)
+        if (indent === -1) continue // a blank line does not end a block
+        if (indent > blockIndent) {
+          if (EVENT_EXPRESSION.test(line)) found.push(line.trim())
+          continue
+        }
+        blockIndent = undefined // dedented: the block ended, judge this line afresh
+      }
+
+      const run = /^(\s*(?:-\s*)?)run:(.*)$/.exec(line)
+      if (!run) continue
+
+      if (/^\s*[|>]/.test(run[2])) blockIndent = run[1].length
+      else if (EVENT_EXPRESSION.test(line)) found.push(line.trim())
+    }
+
+    return found
+  }
+
+  /*
+    The guard's own coverage.
+
+    Hand-mutating the real workflows is what found the block-scalar hole in
+    the first place — an earlier version of this check read only the `run:`
+    line and passed a workflow that was wide open. These fixtures are those
+    mutations, kept, so the hole cannot come back the next time someone
+    simplifies the parser.
+  */
+  it('finds an event field wherever the shell actually reads it', () => {
+    const inline = '      - run: echo "${{ github.event.pull_request.title }}"\n'
+    expect(injectableRunLines(inline)).toHaveLength(1)
+
+    const block = [
+      '      - run: |',
+      '          set -e',
+      '',
+      '          if true; then',
+      '            echo "${{ github.event.pull_request.title }}"',
+      '          fi',
+      '',
+    ].join('\n')
+    // Nested, and past a blank line, which does not end a block.
+    expect(injectableRunLines(block)).toHaveLength(1)
+  })
+
+  it('leaves alone the forms that never reach a shell as source', () => {
+    const safe = [
+      // An expression the expression engine reads, not the shell.
+      '      - if: github.event.pull_request.draft == false',
+      // The remedy itself: a guard that flagged this would forbid its own fix.
+      '        env:',
+      '          PR_TITLE: ${{ github.event.pull_request.title }}',
+      '        run: echo "$PR_TITLE" | npx commitlint',
+      // A sibling key after a block must not be read as part of it.
+      '      - run: |',
+      '          echo ordinary',
+      '        env:',
+      '          BODY: ${{ github.event.pull_request.body }}',
+      '',
+    ].join('\n')
+
+    expect(injectableRunLines(safe)).toEqual([])
   })
 
   it('proves the substitution really does escape the quotes', () => {
@@ -122,7 +189,8 @@ describe('TELLY-SEC-01 · workflow expressions in shell blocks', () => {
     expect(rendered).toContain('; touch pwned;')
   })
 
-  it.skip('DISABLED_ no workflow interpolates an event field into a shell block', () => {
+  it('no workflow interpolates an event field into a shell block', () => {
+    expect(workflows().length).toBeGreaterThan(0) // the glob found them at all
     for (const { name, body } of workflows()) {
       expect(injectableRunLines(body), `${name} interpolates an event field into run:`).toEqual([])
     }

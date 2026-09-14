@@ -655,3 +655,33 @@ describe('loadYouTubeIframeApi', () => {
     await expect(pending).resolves.toBe(api)
   })
 })
+
+/*
+  The iframe is a real trust boundary — the one place content the viewer did
+  not author runs in an origin of its own. The usual way a page gets that
+  wrong is to accept `postMessage` from it and forget to check where the
+  message came from.
+
+  There is no such listener anywhere, and this is the assertion that keeps it
+  that way: no origin check can be got wrong if none is needed. Asserted
+  across every shipped module rather than this one, because the next place
+  somebody reaches for `window.addEventListener('message')` will not be here.
+*/
+describe('the cross-origin boundary', () => {
+  const SOURCES = import.meta.glob<string>('../**/*.{ts,tsx}', {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  })
+
+  it('is never crossed by a window message listener', () => {
+    const shipped = Object.entries(SOURCES).filter(([path]) => !/\.test\.tsx?$/.test(path))
+
+    expect(shipped.length).toBeGreaterThan(50) // the glob found the app at all
+    for (const [path, source] of shipped) {
+      expect(source, `${path} listens for window messages`).not.toMatch(
+        /addEventListener\(\s*['"]message['"]/,
+      )
+    }
+  })
+})

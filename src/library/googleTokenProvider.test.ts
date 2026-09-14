@@ -106,6 +106,44 @@ describe('GoogleTokenProvider', () => {
     expect(prompts).toEqual(['consent', ''])
   })
 
+  /*
+    The renewal above is the whole design, and it rests entirely on the
+    lifetime Google reports being a sane number. `TokenResponse.expires_in` is
+    typed `number | string`, so the interface already expects something other
+    than a number — and `Number()` takes it unchecked, so `Infinity` (or
+    `1e999`, which overflows to it) puts the expiry past every clock there
+    will be. `isSignedIn` then answers true for ever and the renewal never
+    runs: the held token dies on the hour as usual and every call after it is
+    a 401 nothing is looking for.
+
+    Not a live exploit — this value arrives from Google over TLS — but the
+    renewal test cannot see it, and the type says the authors expected worse
+    than they checked for.
+  */
+  const signedInTenYearsOn = async (expiresIn: number | string): Promise<boolean> => {
+    let clock = 0
+    const { load } = fakeGis(() => ({ access_token: 'tok-abc', expires_in: expiresIn }))
+    const provider = new GoogleTokenProvider('client-1', { loadGis: load, now: () => clock })
+
+    await provider.signIn()
+    clock += 10 * 365 * 24 * 60 * 60 * 1000
+    return provider.isSignedIn
+  }
+
+  it('has expired an ordinary hour-long token ten years on', async () => {
+    expect(await signedInTenYearsOn(3600)).toBe(false)
+  })
+
+  it('characterises a reported lifetime that outlives every clock', async () => {
+    expect(await signedInTenYearsOn('Infinity')).toBe(true)
+    expect(await signedInTenYearsOn('1e999')).toBe(true)
+  })
+
+  it.skip('DISABLED_ an overflowing expires_in still expires', async () => {
+    expect(await signedInTenYearsOn('Infinity')).toBe(false)
+    expect(await signedInTenYearsOn('1e999')).toBe(false)
+  })
+
   it('opens one popup even when two callers ask at once', async () => {
     const { load, prompts } = fakeGis(() => granted())
     const provider = new GoogleTokenProvider('client-1', { loadGis: load })

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildTestCard } from './buildTestCard'
-import { shapesOfRole, type Shape, type TestCardModel, type TestCardSpec } from './model'
+import { shapesOfRole, type Shape, type TestCardModel, type TestCardSpec, type TextShape } from './model'
+import { MAX_CAPTION_CHARS } from './primitives'
 
 const NOW = new Date(2026, 8, 9, 1, 30, 5)
 const RESUMES = new Date(2026, 8, 9, 6, 0, 0)
@@ -423,23 +424,30 @@ function extent(shape: Shape): [number, number, number, number] {
   run. The card stops being a card.
 */
 describe('a caption built from a title nobody would write', () => {
-  const longestRun = (message: string): number =>
-    Math.max(
-      ...(buildTestCard(spec({ design: 'crosshatch', message })).shapes as { text?: string }[])
-        .filter((shape) => typeof shape.text === 'string')
-        .map((shape) => shape.text!.length),
-    )
+  const caption = (message: string): string => {
+    const model = buildTestCard(spec({ design: 'crosshatch', message }))
+    const [drawn, ...rest] = shapesOfRole(model, 'caption-message') as TextShape[]
+    expect(rest).toEqual([])
+    return drawn.text
+  }
 
-  it('is unbothered by an ordinary title', () => {
-    expect(longestRun("THE NINE O'CLOCK NEWS")).toBeGreaterThan(0)
+  it('leaves an ordinary title exactly as it was written', () => {
+    const title = "THE NINE O'CLOCK NEWS"
+    expect(caption(title)).toBe(title)
   })
 
-  // Deletable once the one below is enabled.
-  it('characterises the uncapped caption today', () => {
-    expect(longestRun('X'.repeat(200_000))).toBe(200_000)
+  it('cuts one no card could hold down to something one can', () => {
+    const drawn = caption('X'.repeat(200_000))
+
+    expect(drawn.length).toBeLessThanOrEqual(MAX_CAPTION_CHARS)
+    // Cut, and saying so, rather than silently ending mid-word.
+    expect(drawn.endsWith('…')).toBe(true)
   })
 
-  it.skip('DISABLED_ a caption is cut to something a card could hold', () => {
-    expect(longestRun('X'.repeat(200_000))).toBeLessThanOrEqual(200)
+  it('cuts on a word when the title has one to cut on', () => {
+    const drawn = caption(`${'WORD '.repeat(100)}END`)
+
+    expect(drawn.length).toBeLessThanOrEqual(MAX_CAPTION_CHARS)
+    expect(drawn).toMatch(/WORD…$/)
   })
 })

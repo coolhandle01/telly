@@ -175,8 +175,21 @@ const TITLE_HINTS: readonly (readonly [RegExp, Genre])[] = [
   [/\b(travel|journey|road trip|tour)\b/i, 'travel'],
 ]
 
+/**
+ * Look a key up in a table without finding what the table inherited.
+ *
+ * These slugs and ids arrive over the network, and a plain `TABLE[key]` does
+ * not only answer for the keys the table has: `__proto__` finds
+ * `Object.prototype`, `constructor` finds `Object`. Both are truthy, so a
+ * caller weighing candidates takes one as real and then measures every later
+ * one against `undefined` — which nothing beats, so the genuine topic behind
+ * it is thrown away and the channel is filed as something it is not.
+ */
+const own = <T>(table: Readonly<Record<string, T>>, key: string): T | undefined =>
+  Object.hasOwn(table, key) ? table[key] : undefined
+
 /** The genre a single topic slug stands for, or undefined if it is not one. */
-export const topicGenre = (slug: string): Genre | undefined => TOPICS[slug]?.genre
+export const topicGenre = (slug: string): Genre | undefined => own(TOPICS, slug)?.genre
 
 /**
  * What a whole channel is, from its topics, the categories of its uploads and
@@ -211,7 +224,7 @@ export function genreOf(channel: Channel | undefined, videos: readonly Video[]):
 function bestTopic(topics: readonly string[] | undefined): Genre | undefined {
   let best: Topic | undefined
   for (const slug of topics ?? []) {
-    const topic = TOPICS[slug]
+    const topic = own(TOPICS, slug)
     if (topic && (best === undefined || topic.specificity > best.specificity)) best = topic
   }
   return best?.genre
@@ -221,7 +234,7 @@ function bestTopic(topics: readonly string[] | undefined): Genre | undefined {
 function modalCategory(videos: readonly Video[]): Genre | undefined {
   const counts = new Map<Genre, number>()
   for (const video of videos) {
-    const genre = video.categoryId === undefined ? undefined : CATEGORIES[video.categoryId]
+    const genre = video.categoryId === undefined ? undefined : own(CATEGORIES, video.categoryId)
     if (genre) counts.set(genre, (counts.get(genre) ?? 0) + 1)
   }
 

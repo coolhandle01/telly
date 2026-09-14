@@ -56,16 +56,16 @@ export class CachedPoolSource implements PoolSource {
   async #readFresh(): Promise<Pool | undefined> {
     if (!this.#store) return undefined
 
-    let stored: StoredPool | undefined
     try {
-      stored = await this.#store.read(this.#key)
+      const stored = await this.#store.read(this.#key)
+      if (!stored || !this.#isFresh(stored.savedAt)) return undefined
+      return toPool(stored)
     } catch {
-      // An unreadable store is a cache miss, not a fault.
+      // A cache miss, not a fault — and `toPool` is inside the guard because
+      // a record that does not read as a pool is exactly as useless as a
+      // store that will not open, however differently it fails.
       return undefined
     }
-
-    if (!stored || !this.#isFresh(stored.savedAt)) return undefined
-    return toPool(stored)
   }
 
   /** A stamp from the future means a moved clock or a corrupt record: distrust it. */

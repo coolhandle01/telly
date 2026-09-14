@@ -32,6 +32,13 @@ const MAX_PAGE_SIZE = 50
 /** Recent uploads fetched per channel. Enough to plan a week without paging. */
 const DEFAULT_VIDEOS_PER_CHANNEL = 20
 
+/**
+ * How many pages of subscriptions to follow before deciding the far end is
+ * broken. Fifty a page, so this is 5,000 subscriptions — far past anybody's
+ * list, and far short of a tab that never stops asking.
+ */
+const MAX_PAGES = 100
+
 /** What `contentDetails.contentRating.ytRating` says when a video is 18+. */
 const AGE_RESTRICTED = 'ytAgeRestricted'
 
@@ -169,7 +176,9 @@ export class YouTubePoolSource implements PoolSource {
   /** Step 1 — every subscribed channel, 50 a page, following `nextPageToken`. */
   async #listSubscriptions(): Promise<Channel[]> {
     const channels: Channel[] = []
+    const seenTokens = new Set<string>()
     let pageToken: string | undefined
+    let pages = 0
 
     do {
       const page = (await this.#get('subscriptions', {
@@ -184,7 +193,15 @@ export class YouTubePoolSource implements PoolSource {
         if (!id) continue
         channels.push({ id, title: item.snippet?.title ?? id })
       }
+
       pageToken = page.nextPageToken
+      pages += 1
+      // A token already followed is a loop, and a page count past the ceiling
+      // is a list nobody has. Either way the far end has stopped making sense,
+      // and following it costs the day's quota and hangs the tab — so the
+      // bound is ours and does not depend on the far end behaving.
+      if (pageToken !== undefined && (seenTokens.has(pageToken) || pages >= MAX_PAGES)) break
+      if (pageToken !== undefined) seenTokens.add(pageToken)
     } while (pageToken)
 
     return channels

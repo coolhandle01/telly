@@ -112,22 +112,22 @@ describe('genreOf', () => {
   live path. The cache round-trips the strings through storage all the same.
 */
 describe('genreOf, given a key that is inherited rather than a topic', () => {
-  it('reads the topic when nothing shadows it', () => {
+  const INHERITED = ['__proto__', 'constructor', 'toString', 'valueOf', 'hasOwnProperty']
+
+  it('reads the topic that follows one', () => {
     expect(genreOf(channel({ topics: ['Humour'] }), [])).toBe('comedy')
-  })
 
-  // Deletable the moment the one below is enabled: it exists so the finding
-  // cannot be argued away in the meantime.
-  it('characterises the suppression today', () => {
-    expect(genreOf(channel({ topics: ['__proto__', 'Humour'] }), [])).toBe('entertainment')
-  })
-
-  it.skip('DISABLED_ an inherited key is not a topic', () => {
-    for (const inherited of ['__proto__', 'constructor', 'toString', 'valueOf']) {
+    for (const inherited of INHERITED) {
       expect(
         genreOf(channel({ topics: [inherited, 'Humour'] }), []),
         `${inherited} shadowed the real topic`,
       ).toBe('comedy')
+    }
+  })
+
+  it('is not a topic on its own either', () => {
+    for (const inherited of INHERITED) {
+      expect(topicGenre(inherited), inherited).toBeUndefined()
     }
   })
 })

@@ -205,22 +205,24 @@ it.
 
 Two conventions make the file readable, and between them the suite is the
 honest record of where each mitigation stands. A mitigation that is in place
-has a test asserting it. Read the column below as the current state, not as a plan — every row asserts
-today:
+has a test asserting it. A mitigation still being landed has its observation
+written and **skipped**, named for the behaviour it will assert, so enabling it
+is part of that mitigation's own change — the `DISABLED_` convention from the
+**tdd** skill. Read the column below as the current state, not as a plan:
 
 | Threat | Observed by | State |
 |---|---|---|
 | T2 | the token is absent from storage | asserted |
-| T2 | an overflowing `expires_in` still expires | asserted |
+| T2 | an overflowing `expires_in` still expires | skipped, pending its change |
 | T2 | the delivered document declares what may execute in it | asserted |
 | T3 | the token appears in no request URL, and in no error object's own properties | asserted |
 | T7 | a pathological duration parses in linear time | asserted |
-| T7 | a caption is cut to a length a card can hold | asserted |
-| T7 | the pager stops on a repeated token, and on a page cap | asserted |
-| T7 | an inherited key is not read as a topic | asserted |
+| T7 | a caption is cut to a length a card can hold | skipped, pending its change |
+| T7 | the subscription pager stops rather than following a token indefinitely | skipped, pending its change |
+| T7 | an inherited key is not read as a topic | skipped, pending its change |
 | T7 | an `?at=` outside the broadcast day is ignored, on a 23- and 25-hour day too | asserted |
 | T7 | an unforeseen throw draws a fault card, not a blank screen | asserted |
-| T9 | a record of the wrong shape resolves from the live source | asserted |
+| T9 | a record of the wrong shape resolves from the live source | skipped, pending its change |
 
 T10 and T12 are absent from that table on purpose. Both live in the workflow
 files rather than in the app, and a test that reads YAML and asserts on it

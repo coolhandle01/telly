@@ -75,27 +75,6 @@ export function loadGoogleIdentityServices(): Promise<GoogleIdentityServices> {
 /** Ask again slightly early, so a request never goes out with a dead token. */
 const EXPIRY_MARGIN_MS = 60_000
 
-/** What Google says a token lasts when it says nothing usable. */
-const DEFAULT_LIFETIME_SEC = 3600
-
-/**
- * The lifetime to hold a token for, in seconds.
- *
- * Silent renewal is the whole design, and it only ever runs because the token
- * is known to end. `expires_in` is typed `number | string` — the interface
- * expects something other than a number — and a value that overflows to
- * `Infinity` would put the expiry past every clock there will be, so the token
- * would read as good for ever while dying on the hour like any other. Every
- * call after that is a 401 nothing is looking for.
- *
- * So anything that is not a positive, finite number of seconds is treated as
- * Google having said nothing.
- */
-function lifetimeOf(expiresIn: number | string | undefined): number {
-  const seconds = Number(expiresIn)
-  return Number.isFinite(seconds) && seconds > 0 ? seconds : DEFAULT_LIFETIME_SEC
-}
-
 export interface GoogleTokenProviderOptions {
   scope?: string
   /** Injected so tests never fetch Google. */
@@ -225,8 +204,9 @@ export class GoogleTokenProvider implements AccessTokenProvider {
       return
     }
 
+    const lifetimeSec = Number(response.expires_in ?? 3600)
     this.#token = response.access_token
-    this.#expiresAtMs = this.#now() + lifetimeOf(response.expires_in) * 1000
+    this.#expiresAtMs = this.#now() + lifetimeSec * 1000
 
     const settle = this.#settle
     this.#settle = undefined

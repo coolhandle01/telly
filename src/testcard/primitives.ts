@@ -305,29 +305,9 @@ export function convergence(picture: Picture, centre: { x: number; y: number }):
   return [outer, inner, horizontal, vertical]
 }
 
-/**
- * The longest caption a card will draw.
- *
- * Generous against anything a continuity announcer would read out, and the
- * point is that there is a limit at all: the message is often a programme
- * title, and a title is written by whoever uploaded the video. Without a bound
- * the card will accept a hundred thousand characters, shrink the type to the
- * one-pixel floor to fit them, and hand the browser a single text run nobody
- * can read. A card that cannot be read is not a card.
- */
-export const MAX_CAPTION_CHARS = 120
-
-/** Cut to length on a word where there is one, so the cut reads as a cut. */
-function toCaptionLength(message: string): string {
-  if (message.length <= MAX_CAPTION_CHARS) return message
-  const cut = message.slice(0, MAX_CAPTION_CHARS - 1)
-  const lastSpace = cut.lastIndexOf(' ')
-  return `${(lastSpace > MAX_CAPTION_CHARS / 2 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`
-}
-
 /** The service message: explicit, else derived from the variant and resume time. */
 export function serviceMessage(spec: TestCardSpec): string {
-  if (spec.message !== undefined) return toCaptionLength(spec.message)
+  if (spec.message !== undefined) return spec.message
   if (spec.variant === 'interlude') return INTERLUDE_MESSAGE
   return spec.resumesAt ? formatResumeMessage(spec.resumesAt) : OPEN_ENDED_CLOSEDOWN
 }

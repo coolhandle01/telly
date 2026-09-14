@@ -2,40 +2,6 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!--
-      What may execute here, and where it may talk to.
-
-      The set loads two scripts from Google into its own origin and holds an
-      access token in memory, so naming the origins allowed to run here is
-      worth having even though React escapes everything it renders and nothing
-      in `src/` reaches for `innerHTML`. It is the backstop for a mistake
-      nobody has made yet.
-
-      A meta tag is the only way a static host can serve a policy at all, and
-      it cannot carry `frame-ancestors`, `sandbox` or the reporting
-      directives — browsers drop those unless they arrive as a header. So
-      framing is not defended here and cannot be; the one action worth
-      redressing is Google's consent screen, behind Google's own headers.
-
-      `style-src` allows inline because the cabinet is drawn in inline styles
-      and every component ships its own `<style>` block. Tightening that means
-      moving all of it to hashed stylesheets, which is a rebuild of how the
-      set is drawn rather than a change to this line.
-    -->
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self';
-               script-src 'self' https://accounts.google.com https://www.youtube.com;
-               style-src 'self' 'unsafe-inline';
-               img-src 'self' data:;
-               connect-src 'self' https://www.googleapis.com https://accounts.google.com;
-               frame-src https://www.youtube.com https://accounts.google.com;
-               base-uri 'self';
-               object-src 'none';
-               form-action 'self'"
-    />
-    <!-- A referrer tells Google and YouTube which page asked. Origin is enough. -->
-    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>telly</title>

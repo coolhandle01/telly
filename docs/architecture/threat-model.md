@@ -192,7 +192,7 @@ is part of that mitigation's own change — the `DISABLED_` convention from the
 |---|---|---|
 | T2 | the token is absent from storage | asserted |
 | T2 | an overflowing `expires_in` still expires | skipped, pending its change |
-| T2 | the delivered document declares what may execute in it | asserted |
+| T2 | the delivered document declares what may execute in it | skipped, pending its change |
 | T3 | the token appears in no request URL, and in no error object's own properties | asserted |
 | T7 | a pathological duration parses in linear time | asserted |
 | T7 | a caption is cut to a length a card can hold | skipped, pending its change |

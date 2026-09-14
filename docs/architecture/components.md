@@ -94,6 +94,28 @@ inside `main` where that role does not apply. Moving `main` inward to earn the
 landmark would mean re-plumbing a layout that has cost several subtle paint
 bugs, for two links that are in the reading order regardless.
 
+## FaultBoundary
+
+`App` wraps `Channel` in one, and it is the only class component here —
+`getDerivedStateFromError` has no hook, so React offers no other way to catch a
+throw during render. It is not a style to copy.
+
+React's own answer to that throw is to unmount the tree, and an unmounted tree
+is a blank screen. A blank screen is what a set looks like when it is *off*,
+which is the one thing it must not say when it is on and broken, so the
+boundary draws the fault card instead — `Fault 02 · receiver fault`, beside
+`Fault 01` for a receiver with no service configured.
+
+It draws with a clock of its own rather than the one the set was running on.
+The fault card reads no clock, so today that changes nothing visible; the rule
+is that a fallback reading anything from the tree that just failed can fail the
+same way, and the clock is among the things that can cause a fault in the first
+place.
+
+Last resort, and reaching it is a bug worth fixing at its source. Anything
+foreseeable is handled where it happens: `Channel` already has a caption for a
+pool that will not load and a card for a programme that will not play.
+
 ## Channel
 
 `src/ui/Channel.tsx` is the only module that knows the clock, the pool source,

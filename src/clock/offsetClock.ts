@@ -32,8 +32,8 @@ export class OffsetClock implements Clock {
  * counting the small hours as belonging to the night ahead rather than sending
  * you back 22 hours. A full ISO instant works too: `?at=2026-09-12T03:14`.
  *
- * Returns 0 for anything absent or unparseable, so a typo shows you the real
- * time rather than an error.
+ * Returns 0 for anything absent, unparseable, or further off than
+ * `MAX_OFFSET_MS`, so a typo shows you the real time rather than an error.
  */
 export function offsetFromQuery(search: string, now: Date): number {
   const at = new URLSearchParams(search).get('at')
@@ -50,5 +50,21 @@ export function offsetFromQuery(search: string, now: Date): number {
   }
 
   const parsed = new Date(at)
-  return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime() - now.getTime()
+  return Number.isNaN(parsed.getTime()) ? 0 : withinRange(parsed.getTime() - now.getTime())
 }
+
+/**
+ * How far `?at=` may move the clock: a century either way.
+ *
+ * Generous past any reason to use it, and the point is not the number. A date
+ * `Date` can hold is not the same as one the set can run at: the offset is
+ * added to a clock that goes on ticking, so an instant at the very edge of the
+ * range is one tick from `Invalid Date`, and from there every piece of
+ * arithmetic downstream is `NaN` — the card rotation, the day's length, the
+ * lot. A century leaves room for the clock to keep running.
+ */
+export const MAX_OFFSET_MS = 100 * 365 * 24 * 60 * 60 * 1000
+
+/** An offset too far to run the set at is no more usable than a typo. */
+const withinRange = (offsetMs: number): number =>
+  Math.abs(offsetMs) > MAX_OFFSET_MS ? 0 : offsetMs

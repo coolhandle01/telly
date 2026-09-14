@@ -132,9 +132,16 @@ security control.
 durations arrive as third-party text and reach a schedule and a card, so the
 response is a bound on each: a caption cut to a length a card can hold, a
 duration that parses in linear time, a topic read only from the table's own
-keys, an `?at=` that resolves to a representable instant, and a subscription
-pager that stops rather than following a page token for as long as one is
-offered.
+keys, an `?at=` that resolves to an instant the set can still be running at in
+a century, and a subscription pager that stops rather than following a page
+token for as long as one is offered.
+
+Behind all of them sits `FaultBoundary` (see
+[components.md](components.md)), which catches what the next unforeseen throw
+turns out to be and draws a fault card. React unmounts the tree on a throw
+during render, and an unmounted tree is a blank screen — which is what a set
+looks like when it is *off*, and so the one thing it must not say when it is on
+and broken.
 
 **T8** is accepted. The store holds titles, durations and ids — no credentials —
 and encrypting it under a key the app must also hold buys nothing against
@@ -189,7 +196,8 @@ is part of that mitigation's own change — the `DISABLED_` convention from the
 | T7 | a caption is cut to a length a card can hold | skipped, pending its change |
 | T7 | the subscription pager stops rather than following a token indefinitely | skipped, pending its change |
 | T7 | an inherited key is not read as a topic | skipped, pending its change |
-| T7 | an `?at=` outside any representable range is ignored | skipped, pending its change |
+| T7 | an `?at=` outside any usable range is ignored | asserted |
+| T7 | an unforeseen throw draws a fault card, not a blank screen | asserted |
 | T9 | a record of the wrong shape resolves from the live source | skipped, pending its change |
 
 T10 and T12 are absent from that table on purpose. Both live in the workflow

@@ -28,7 +28,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import indexHtmlRaw from '../../index.html?raw'
 import { App } from '../App'
-import { offsetFromQuery } from '../clock/offsetClock'
+import { MAX_OFFSET_MS, offsetFromQuery } from '../clock/offsetClock'
 import { CachedPoolSource } from '../library/cachedPoolSource'
 import { GoogleTokenProvider } from '../library/googleTokenProvider'
 import { YouTubePoolSource } from '../library/youTubePoolSource'
@@ -72,14 +72,19 @@ const someTokens = { getAccessToken: () => Promise.resolve('tok') }
 
 /**
  * `?at=` takes a wall-clock time or a full ISO instant, and anything that
- * `new Date()` will parse becomes an offset. One millisecond past the largest
- * instant a `Date` can hold is `Invalid Date`, and every arithmetic result
- * downstream of it is `NaN` — through `broadcastDayStart`, into the card
- * rotation and the packer's day length, until something throws during render.
+ * `new Date()` will parse becomes an offset. Parsing was the whole of the
+ * check: an instant at the edge of what a `Date` can hold parses, and the
+ * offset it implies puts the clock one tick past that edge. From there every
+ * arithmetic result downstream is `NaN` — through `broadcastDayStart`, into
+ * the card rotation and the packer's day length — until something throws
+ * during render, and React answers a throw in render by unmounting the tree.
  *
- * React's answer to a throw in render is to unmount the tree. There is no
- * error boundary, so the whole set goes, and what the viewer gets from a link
- * someone sent them is a white page.
+ * Two things close it, and the second is the one that matters twice over.
+ * `offsetFromQuery` now checks the range and not merely the parse, which shuts
+ * this input. `FaultBoundary` catches what the next one turns out to be: a
+ * set with a fault puts a caption up, because a blank screen is what a set
+ * looks like when it is *off*, and those are not the same thing to anyone
+ * watching.
  */
 const MAX_DATE_ISO = '%2B275760-09-13T00:00:00.000Z'
 /**
@@ -115,32 +120,64 @@ describe('TELLY-SEC-02 · a crafted ?at= link', () => {
     expect((await switchOnAt('/?at=03:14')).length).toBeGreaterThan(10_000)
   })
 
-  it('characterises the blank screen a crafted link produces today', async () => {
-    // An empty root is an unmounted tree: React's answer to a throw in render.
-    expect(await switchOnAt(`/?at=${MAX_DATE_ISO}`)).toBe('')
-  })
-
-  it('characterises the same crash from a link needing no escaping at all', async () => {
-    expect(await switchOnAt(`/?at=${MIN_DATE_ISO}`)).toBe('')
-  })
-
-  it('shows that the guard is a range check, not a parse check', () => {
-    const now = new Date(2026, 8, 12, 20, 15, 0)
-    // One millisecond further out stops parsing, and is correctly ignored.
-    expect(offsetFromQuery(`?at=${MAX_DATE_ISO.replace('000Z', '001Z')}`, now)).toBe(0)
-    // Just inside the range parses, and is not checked against anything.
-    expect(offsetFromQuery(`?at=${MIN_DATE_ISO}`, now)).toBeLessThan(-8e15)
-  })
-
-  it.skip('DISABLED_ an ?at= outside any sane range is ignored, as an unparseable one is', () => {
+  it('an ?at= outside any sane range is ignored, as an unparseable one is', () => {
     const now = new Date(2026, 8, 12, 20, 15, 0)
     expect(offsetFromQuery(`?at=${MAX_DATE_ISO}`, now)).toBe(0)
     expect(offsetFromQuery(`?at=${MIN_DATE_ISO}`, now)).toBe(0)
+    // A century out is refused for the same reason, without needing the edge
+    // of what a `Date` can hold to make the point.
+    expect(offsetFromQuery('?at=2400-01-01', now)).toBe(0)
   })
 
-  it.skip('DISABLED_ a set switched on at an unrepresentable instant still shows a picture', async () => {
+  /** The limit itself is allowed; a millisecond past it is not. */
+  it('draws the line inclusively, so the limit is a usable offset', () => {
+    const now = new Date(2026, 8, 12, 20, 15, 0)
+    const iso = (offsetMs: number) => new Date(now.getTime() + offsetMs).toISOString()
+
+    expect(offsetFromQuery(`?at=${iso(MAX_OFFSET_MS)}`, now)).toBe(MAX_OFFSET_MS)
+    expect(offsetFromQuery(`?at=${iso(MAX_OFFSET_MS + 1)}`, now)).toBe(0)
+    expect(offsetFromQuery(`?at=${iso(-MAX_OFFSET_MS)}`, now)).toBe(-MAX_OFFSET_MS)
+    expect(offsetFromQuery(`?at=${iso(-MAX_OFFSET_MS - 1)}`, now)).toBe(0)
+  })
+
+  it('shows television at the far end of a crafted link', async () => {
     expect((await switchOnAt(`/?at=${MAX_DATE_ISO}`)).length).toBeGreaterThan(10_000)
+  })
+
+  it('shows television at the end that needs no escaping either', async () => {
     expect((await switchOnAt(`/?at=${MIN_DATE_ISO}`)).length).toBeGreaterThan(10_000)
+  })
+
+  /*
+    The range check closes the one input that was reaching it. This is the
+    class rather than the input: whatever the next unforeseen throw turns out
+    to be, the viewer should get a caption and not a blank screen.
+
+    A clock reporting an instant nothing can do arithmetic on is the same
+    cascade the crafted link used to cause, reached without the query string.
+  */
+  it('shows a fault card, not a blank screen, when the set throws', async () => {
+    const stopped = {
+      now: () => new Date(Number.NaN),
+      subscribe: () => () => {},
+    }
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { container, user } = render(
+      <App
+        clock={stopped}
+        sound={createFakeSound()}
+        poolSource={new FixturePoolSource()}
+        player={new FakePlayer()}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Power' }))
+    await waitFor(() => expect(container.querySelector('[role="alert"]')).not.toBeNull())
+    quiet.mockRestore()
+
+    // The set says what is wrong, where a station says things. The card puts
+    // every line in capitals, as it does for Fault 01.
+    expect(container.textContent).toContain('SERVICE FAULT')
+    expect(container.textContent).toContain('FAULT 02')
   })
 })
 

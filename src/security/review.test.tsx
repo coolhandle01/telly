@@ -610,6 +610,28 @@ describe('checked and found sound', () => {
     }
   })
 
+  /**
+   * A floating tag is a promise that whoever holds it will not change what it
+   * points at. A commit is not a promise, it is the thing itself — which is
+   * the difference between a reviewed build and a reproducible one.
+   */
+  it('pins every third-party action to a commit, and installs from the lockfile', () => {
+    const workflows = Object.entries(WORKFLOWS)
+    expect(workflows.length).toBeGreaterThan(0)
+
+    for (const [path, body] of workflows) {
+      for (const [, action] of body.matchAll(/^\s*(?:-\s*)?uses:\s*(\S+)/gm)) {
+        // A local reusable workflow is this repository, so there is nothing to
+        // pin it to; everything else arrives from somewhere else.
+        if (action.startsWith('./')) continue
+        expect(action, `${path} does not pin ${action} to a commit`).toMatch(/@[0-9a-f]{40}$/)
+      }
+
+      // `npm install` resolves afresh and may not agree with the lockfile.
+      expect(body, `${path} installs without the lockfile`).not.toMatch(/npm\s+install\b/)
+    }
+  })
+
   /** No listener means no origin check to get wrong. */
   it('registers no window message listener for the cross-origin player', () => {
     const shipped = Object.entries(SOURCES).filter(([path]) => !/\.test\.tsx?$/.test(path))

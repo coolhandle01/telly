@@ -29,6 +29,7 @@ Everything else — sign-in, the Data API, IndexedDB, the iframe player, WebAudi
 | [tokens.md](tokens.md) | Google Identity Services, the user-gesture rule, and why a token never reaches storage. |
 | [google.md](google.md) | The Data API pipeline, the quota arithmetic, error triage, and sign-in brand compliance. |
 | [testing.md](testing.md) | The gates, the seams, and the precise shape of jsdom's blind spot. |
+| [threat-model.md](threat-model.md) | The eight trust boundaries, what STRIDE finds on them, and which risks are accepted on purpose. |
 
 ## The layout, and what each directory is allowed to know
 

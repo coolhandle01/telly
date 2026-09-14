@@ -414,32 +414,3 @@ function extent(shape: Shape): [number, number, number, number] {
       return [shape.x, shape.x, shape.y, shape.y]
   }
 }
-
-/*
-  A title is written by whoever uploaded the video, and the card puts it up as
-  the caption, so how long a caption may be is a question about untrusted
-  input. `fitFontSize` is closed-form, so an enormous one is not a hang — it
-  shrinks the type to the 1px floor and hands the browser one very long text
-  run. The card stops being a card.
-*/
-describe('a caption built from a title nobody would write', () => {
-  const longestRun = (message: string): number =>
-    Math.max(
-      ...(buildTestCard(spec({ design: 'crosshatch', message })).shapes as { text?: string }[])
-        .filter((shape) => typeof shape.text === 'string')
-        .map((shape) => shape.text!.length),
-    )
-
-  it('is unbothered by an ordinary title', () => {
-    expect(longestRun("THE NINE O'CLOCK NEWS")).toBeGreaterThan(0)
-  })
-
-  // Deletable once the one below is enabled.
-  it('characterises the uncapped caption today', () => {
-    expect(longestRun('X'.repeat(200_000))).toBe(200_000)
-  })
-
-  it.skip('DISABLED_ a caption is cut to something a card could hold', () => {
-    expect(longestRun('X'.repeat(200_000))).toBeLessThanOrEqual(200)
-  })
-})

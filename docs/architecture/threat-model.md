@@ -1,5 +1,7 @@
 # Threat model
 
+`src/security/review.test.tsx`
+
 ## What this is
 
 telly runs entirely in one browser tab. It holds a read-only Google access
@@ -194,14 +196,12 @@ the release smoke-tests the built bundle before it is published.
 ## Where the mitigations are observed
 
 Every **mitigate** row has a test, written as an abuse case: hostile input,
-and the assertion that the system holds. Each sits beside the unit it belongs
-to, and where one already had a test that should have caught it, that test was
-the thing to widen rather than something to write around: a weakness that
-slips past a green test is first of all a statement about that test. The
-record of a stored pool losing its arrays, the silent renewal, the page token,
-the query string that could not be used — each of those tests existed and each
-was too narrow, and the hostile case now sits next to the case that missed
-it.
+and the assertion that the system holds. Most gather in
+`src/security/review.test.tsx`, because a weakness is a path from an input to a
+sink and those paths do not respect module boundaries. The two the token's own
+module already proved — that it reaches no storage, and appears in no error
+object's own properties — stay beside it in `googleTokenProvider.test.ts` and
+`youTubePoolSource.test.ts`, where they were written.
 
 Two conventions make the file readable, and between them the suite is the
 honest record of where each mitigation stands. A mitigation that is in place

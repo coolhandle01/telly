@@ -190,46 +190,6 @@ describe('YouTubePoolSource', () => {
         subscriberCount: 1234,
       })
     })
-
-    /*
-      The test above meets a server that eventually stops. Nothing makes it.
-      `#listSubscriptions` follows `nextPageToken` in a `do..while` with no cap
-      and no memory of the tokens it has already seen, so a response that
-      always offers another page is followed for ever: the tab hangs and the
-      day's quota goes with it.
-
-      Google is not the attacker. `baseUrl` is documented as an override "for a
-      proxy deployment", and it is that proxy — or a paging bug upstream — this
-      has no defence against. The point of a bound is that it does not depend
-      on the other end behaving.
-    */
-    const CEILING = 200
-
-    /** Always another page. The ceiling is the harness's, not the source's. */
-    const endlessSubscriptions = () =>
-      fakeYouTube({
-        subscriptions: (_params, call) => {
-          if (call >= CEILING) throw new Error('runaway pagination: harness ceiling hit')
-          return subscriptionPage([], 'always-one-more')
-        },
-      })
-
-    it('characterises the loop having no bound of its own', async () => {
-      const { fetch, callsTo } = endlessSubscriptions()
-
-      await new YouTubePoolSource({ fetch, tokens }).load().catch(() => {})
-
-      // Only the harness stopped it. The source imposed nothing.
-      expect(callsTo('subscriptions').length).toBeGreaterThanOrEqual(CEILING)
-    })
-
-    it.skip('DISABLED_ stops chasing a page token that never ends', async () => {
-      const { fetch, callsTo } = endlessSubscriptions()
-
-      await new YouTubePoolSource({ fetch, tokens }).load().catch(() => {})
-
-      expect(callsTo('subscriptions').length).toBeLessThan(CEILING)
-    })
   })
 
   describe('batching ids 50 at a time', () => {

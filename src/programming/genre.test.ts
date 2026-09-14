@@ -100,34 +100,3 @@ describe('genreOf', () => {
     expect(mixed).toBe('gaming')
   })
 })
-
-/*
-  `topicCategories` arrives over the network, and the tables it is looked up
-  in are object literals — so a key that is not a topic can still find
-  something. `TOPICS['__proto__']` is `Object.prototype`, which is truthy, so
-  it becomes the best topic seen so far and then loses every later comparison
-  because `2 > undefined` is false: the real topic behind it is suppressed.
-
-  YouTube writes these, not the uploader, so this is hardening rather than a
-  live path. The cache round-trips the strings through storage all the same.
-*/
-describe('genreOf, given a key that is inherited rather than a topic', () => {
-  it('reads the topic when nothing shadows it', () => {
-    expect(genreOf(channel({ topics: ['Humour'] }), [])).toBe('comedy')
-  })
-
-  // Deletable the moment the one below is enabled: it exists so the finding
-  // cannot be argued away in the meantime.
-  it('characterises the suppression today', () => {
-    expect(genreOf(channel({ topics: ['__proto__', 'Humour'] }), [])).toBe('entertainment')
-  })
-
-  it.skip('DISABLED_ an inherited key is not a topic', () => {
-    for (const inherited of ['__proto__', 'constructor', 'toString', 'valueOf']) {
-      expect(
-        genreOf(channel({ topics: [inherited, 'Humour'] }), []),
-        `${inherited} shadowed the real topic`,
-      ).toBe('comedy')
-    }
-  })
-})

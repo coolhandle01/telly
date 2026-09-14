@@ -1,5 +1,4 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
-import { SystemClock } from '../clock/clock'
 import { buildTestCard } from '../testcard/buildTestCard'
 import { TestCardSvg } from '../testcard/TestCardSvg'
 
@@ -28,25 +27,7 @@ const UNEXPECTED_FAULT = {
   detail: ['This receiver has developed', 'a fault. Please switch off.'],
 } as const
 
-/**
- * Its own clock, rather than the one the set was running on, and read once
- * rather than subscribed to.
- *
- * The card is built here instead of through `TestCard` for that second half:
- * `TestCard` subscribes to the clock so its own card can tick, and the fault
- * card has nothing that ticks — it draws neither a clock nor a date, which is
- * the point of it, since a fault card quietly keeping time looks like a
- * service. Drawing it once means the last-resort path holds no subscription
- * and no state, which is the right amount of machinery for the screen you
- * reach when everything else has already gone wrong.
- *
- * The instant is still injected rather than fetched: `TestCardSpec` is plain
- * that nothing calls `new Date()` itself, and a fallback is no place to be
- * the exception. It is its *own* clock because a fallback reading anything
- * from the tree that just failed can fail the same way, and the clock is
- * among the things that can cause a fault in the first place.
- */
-const ownClock = new SystemClock()
+const EPOCH = new Date(0)
 
 const screenStyle = {
   position: 'absolute',
@@ -88,7 +69,8 @@ export class FaultBoundary extends Component<FaultBoundaryProps, FaultBoundarySt
     const card = buildTestCard({
       variant: 'closedown',
       design: 'fault',
-      now: ownClock.now(),
+      // The fault card draws no clock and no date, so this is never read.
+      now: EPOCH,
       channelName: this.props.channelName ?? 'TELEVISION',
       faultCode: UNEXPECTED_FAULT.code,
       faultDetail: UNEXPECTED_FAULT.detail,

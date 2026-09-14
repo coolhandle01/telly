@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { SystemClock } from '../clock/clock'
-import { TestCard } from '../testcard/TestCard'
+import { buildTestCard } from '../testcard/buildTestCard'
+import { TestCardSvg } from '../testcard/TestCardSvg'
 
 /**
  * What the set does when something in it throws.
@@ -28,15 +29,22 @@ const UNEXPECTED_FAULT = {
 } as const
 
 /**
- * Its own clock, rather than the one the set was running on.
+ * Its own clock, rather than the one the set was running on, and read once
+ * rather than subscribed to.
  *
- * The fault card is the one design that draws neither a clock nor a date, so
- * today this changes nothing you can see — hand it a stopped clock and the
- * card is identical. It is here for the rule rather than the symptom: a
- * fallback that reads anything from the tree that just failed can fail the
- * same way, and the clock is squarely among the things that can cause the
- * fault in the first place. A card that reads no clock is a property of the
- * card, and it is not this component's to rely on.
+ * The card is built here instead of through `TestCard` for that second half:
+ * `TestCard` subscribes to the clock so its own card can tick, and the fault
+ * card has nothing that ticks — it draws neither a clock nor a date, which is
+ * the point of it, since a fault card quietly keeping time looks like a
+ * service. Drawing it once means the last-resort path holds no subscription
+ * and no state, which is the right amount of machinery for the screen you
+ * reach when everything else has already gone wrong.
+ *
+ * The instant is still injected rather than fetched: `TestCardSpec` is plain
+ * that nothing calls `new Date()` itself, and a fallback is no place to be
+ * the exception. It is its *own* clock because a fallback reading anything
+ * from the tree that just failed can fail the same way, and the clock is
+ * among the things that can cause a fault in the first place.
  */
 const ownClock = new SystemClock()
 
@@ -77,16 +85,18 @@ export class FaultBoundary extends Component<FaultBoundaryProps, FaultBoundarySt
   override render(): ReactNode {
     if (!this.state.faulted) return this.props.children
 
+    const card = buildTestCard({
+      variant: 'closedown',
+      design: 'fault',
+      now: ownClock.now(),
+      channelName: this.props.channelName ?? 'TELEVISION',
+      faultCode: UNEXPECTED_FAULT.code,
+      faultDetail: UNEXPECTED_FAULT.detail,
+    })
+
     return (
       <div style={screenStyle} role="alert">
-        <TestCard
-          variant="closedown"
-          design="fault"
-          channelName={this.props.channelName ?? 'TELEVISION'}
-          clock={ownClock}
-          faultCode={UNEXPECTED_FAULT.code}
-          faultDetail={UNEXPECTED_FAULT.detail}
-        />
+        <TestCardSvg model={card} label="fault card" />
       </div>
     )
   }

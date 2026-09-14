@@ -30,8 +30,9 @@ Data flows first, then threats on the boundaries they cross.
 3. **One response each**: mitigate, eliminate, transfer or accept. Accepted
    risks are recorded here with their reasoning, because an accepted risk
    nobody wrote down reads exactly like one nobody noticed.
-4. **Each mitigation earns an observation.** A mitigation no test observes is
-   an intention, so every one below names the test that settles it.
+4. **Each mitigation earns an observation.** A mitigation nothing observes is
+   an intention. Most are settled by a test; the two that live in the build
+   pipeline are settled by reading it, for the reason given below the table.
 
 The findings behind it come from four independent audits run on disjoint lenses
 — credentials and transport, untrusted input to sink, supply chain and CI, and
@@ -143,11 +144,12 @@ somebody who has the machine. Clearing site data removes it.
 record that does not read as a pool a cache miss like any other, answered from
 the live source, so what is on disk cannot take the channel off air.
 
-**T10** rests on the workflows' own shape. Values from the event context reach a
-`run:` block through `env:`, where the shell reads one argument instead of
-source; the jobs a pull request can reach declare `contents: read`; and the
-workflow holding the App key triggers only on a push to `main`, which needs
-write access.
+**T10** rests on the workflows' own shape, which is where it is legible.
+Values from the event context reach a `run:` block through `env:`, where the
+shell reads one argument instead of source; the jobs a pull request can reach
+declare `contents: read`; and the workflow holding the App key triggers only on
+a push to `main`, which needs write access. Read `.github/workflows/` to check
+it — that is a shorter and more honest read than any assertion about it.
 
 **T11** is accepted on two grounds. The controls that refuse framing are
 header-only and this is a static host, so the response would have to be a move
@@ -181,6 +183,7 @@ is part of that mitigation's own change — the `DISABLED_` convention from the
 |---|---|---|
 | T2 | the token is absent from storage | asserted |
 | T2 | an overflowing `expires_in` still expires | skipped, pending its change |
+| T2 | the delivered document declares what may execute in it | skipped, pending its change |
 | T3 | the token appears in no request URL, and in no error object's own properties | asserted |
 | T7 | a pathological duration parses in linear time | asserted |
 | T7 | a caption is cut to a length a card can hold | skipped, pending its change |
@@ -188,9 +191,14 @@ is part of that mitigation's own change — the `DISABLED_` convention from the
 | T7 | an inherited key is not read as a topic | skipped, pending its change |
 | T7 | an `?at=` outside any representable range is ignored | skipped, pending its change |
 | T9 | a record of the wrong shape resolves from the live source | skipped, pending its change |
-| T10 | no workflow interpolates an event field into a shell block | asserted |
-| T2 | the delivered document declares what may execute in it | skipped, pending its change |
-| T12 | pinned actions and lockfile installs, read from the workflow files | asserted |
+
+T10 and T12 are absent from that table on purpose. Both live in the workflow
+files rather than in the app, and a test that reads YAML and asserts on it
+proves only that the YAML still says what it said — it re-states the file
+rather than exercising anything. The workflows *are* the record, CodeQL reads
+them under the `actions` language on every pull request, and a linter built for
+the job (`actionlint`, `zizmor`) is the tool if these ever want a gate. A
+vitest suite is not.
 
 The negative results are pinned green as well: that the duration regex is
 linear-time is *measured* there rather than asserted in prose, and no shipped

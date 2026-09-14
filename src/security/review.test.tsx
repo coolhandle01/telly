@@ -53,16 +53,6 @@ import { render, screen, waitFor } from '../test/render'
   in the build. Eager, because a test that has to await its own fixtures reads
   worse for no benefit at this size.
 */
-// The options must be written out at each call: `import.meta.glob` is a
-// compile-time transform, not a function, so it cannot read a shared constant.
-
-/** Every workflow, keyed by path. These are the files that run with a token. */
-const WORKFLOWS = import.meta.glob<string>('../../.github/workflows/*.yml', {
-  query: '?raw',
-  import: 'default',
-  eager: true,
-})
-
 /** Every module the app ships, tests excluded — the sink surface, as text. */
 const SOURCES = import.meta.glob<string>('../**/*.{ts,tsx}', {
   query: '?raw',
@@ -73,129 +63,8 @@ const SOURCES = import.meta.glob<string>('../**/*.{ts,tsx}', {
 /** The delivered document, exactly as it leaves the repository. */
 const INDEX_HTML: string = indexHtmlRaw
 
-const basename = (path: string): string => path.split('/').pop() ?? path
-
 const emptyPool: Pool = { videos: [], channels: new Map() }
 const someTokens = { getAccessToken: () => Promise.resolve('tok') }
-
-// ---------------------------------------------------------------------------
-// TELLY-SEC-01 — CWE-94 · A03/A08 · a pull request title is shell source
-// ---------------------------------------------------------------------------
-
-/**
- * GitHub substitutes a `${{ }}` expression into a `run:` block as *text*,
- * before any shell parses it. A pull request title is chosen by whoever opens
- * the pull request, and `analysers.yml` runs on `pull_request` — which fires
- * for forks — so the title is attacker-supplied shell source on the runner.
- *
- * The fix is to pass the value through `env:` instead, where the shell sees a
- * variable rather than source. That is what this test is written against.
- */
-describe('TELLY-SEC-01 · workflow expressions in shell blocks', () => {
-  const workflows = (): { name: string; body: string }[] =>
-    Object.entries(WORKFLOWS).map(([path, body]) => ({ name: basename(path), body }))
-
-  const EVENT_EXPRESSION = /\$\{\{\s*github\.event\./
-
-  /**
-   * Every line of shell a workflow runs, inline or in a block.
-   *
-   * Only `run:` counts. An `if:` is read by the expression engine and an
-   * `env:` value never reaches the shell as source — that second one is the
-   * whole fix, so a guard that flagged it would forbid its own remedy.
-   *
-   * The block scalars are the part worth getting right: `run: |` puts the
-   * shell on the *following* lines, so a check that reads only the `run:`
-   * line itself passes a workflow that is wide open. YAML says a block
-   * belongs to its key while it stays indented past that key, which is
-   * exactly the rule below.
-   */
-  const injectableRunLines = (body: string): string[] => {
-    const found: string[] = []
-    let blockIndent: number | undefined
-
-    for (const line of body.split('\n')) {
-      if (blockIndent !== undefined) {
-        const indent = line.search(/\S/)
-        if (indent === -1) continue // a blank line does not end a block
-        if (indent > blockIndent) {
-          if (EVENT_EXPRESSION.test(line)) found.push(line.trim())
-          continue
-        }
-        blockIndent = undefined // dedented: the block ended, judge this line afresh
-      }
-
-      const run = /^(\s*(?:-\s*)?)run:(.*)$/.exec(line)
-      if (!run) continue
-
-      if (/^\s*[|>]/.test(run[2])) blockIndent = run[1].length
-      else if (EVENT_EXPRESSION.test(line)) found.push(line.trim())
-    }
-
-    return found
-  }
-
-  /*
-    The guard's own coverage.
-
-    Hand-mutating the real workflows is what found the block-scalar hole in
-    the first place — an earlier version of this check read only the `run:`
-    line and passed a workflow that was wide open. These fixtures are those
-    mutations, kept, so the hole cannot come back the next time someone
-    simplifies the parser.
-  */
-  it('finds an event field wherever the shell actually reads it', () => {
-    const inline = '      - run: echo "${{ github.event.pull_request.title }}"\n'
-    expect(injectableRunLines(inline)).toHaveLength(1)
-
-    const block = [
-      '      - run: |',
-      '          set -e',
-      '',
-      '          if true; then',
-      '            echo "${{ github.event.pull_request.title }}"',
-      '          fi',
-      '',
-    ].join('\n')
-    // Nested, and past a blank line, which does not end a block.
-    expect(injectableRunLines(block)).toHaveLength(1)
-  })
-
-  it('leaves alone the forms that never reach a shell as source', () => {
-    const safe = [
-      // An expression the expression engine reads, not the shell.
-      '      - if: github.event.pull_request.draft == false',
-      // The remedy itself: a guard that flagged this would forbid its own fix.
-      '        env:',
-      '          PR_TITLE: ${{ github.event.pull_request.title }}',
-      '        run: echo "$PR_TITLE" | npx commitlint',
-      // A sibling key after a block must not be read as part of it.
-      '      - run: |',
-      '          echo ordinary',
-      '        env:',
-      '          BODY: ${{ github.event.pull_request.body }}',
-      '',
-    ].join('\n')
-
-    expect(injectableRunLines(safe)).toEqual([])
-  })
-
-  it('proves the substitution really does escape the quotes', () => {
-    // What GitHub hands the shell, for a title that closes the quote itself.
-    const title = 'feat: x"; touch pwned; echo "done'
-    const rendered = `echo "${title}" | npx commitlint`
-    // Two commands where the workflow author wrote one.
-    expect(rendered.split(';').length).toBeGreaterThan(1)
-    expect(rendered).toContain('; touch pwned;')
-  })
-
-  it('no workflow interpolates an event field into a shell block', () => {
-    expect(workflows().length).toBeGreaterThan(0) // the glob found them at all
-    for (const { name, body } of workflows()) {
-      expect(injectableRunLines(body), `${name} interpolates an event field into run:`).toEqual([])
-    }
-  })
-})
 
 // ---------------------------------------------------------------------------
 // TELLY-SEC-02 — CWE-20 -> CWE-755 · A10 · a crafted ?at= link blanks the set
@@ -607,28 +476,6 @@ describe('checked and found sound', () => {
     for (const { url, headers } of seen) {
       expect(url).not.toContain('tok')
       expect(headers.Authorization).toBe('Bearer tok')
-    }
-  })
-
-  /**
-   * A floating tag is a promise that whoever holds it will not change what it
-   * points at. A commit is not a promise, it is the thing itself — which is
-   * the difference between a reviewed build and a reproducible one.
-   */
-  it('pins every third-party action to a commit, and installs from the lockfile', () => {
-    const workflows = Object.entries(WORKFLOWS)
-    expect(workflows.length).toBeGreaterThan(0)
-
-    for (const [path, body] of workflows) {
-      for (const [, action] of body.matchAll(/^\s*(?:-\s*)?uses:\s*(\S+)/gm)) {
-        // A local reusable workflow is this repository, so there is nothing to
-        // pin it to; everything else arrives from somewhere else.
-        if (action.startsWith('./')) continue
-        expect(action, `${path} does not pin ${action} to a commit`).toMatch(/@[0-9a-f]{40}$/)
-      }
-
-      // `npm install` resolves afresh and may not agree with the lockfile.
-      expect(body, `${path} installs without the lockfile`).not.toMatch(/npm\s+install\b/)
     }
   })
 

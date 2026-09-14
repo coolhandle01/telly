@@ -162,7 +162,10 @@ http://localhost:5173/?at=11:58      # the run-up to the lunchtime news junction
 http://localhost:5173/?at=21:00      # peak time, which is different on all five
 ```
 
-A wall-clock time means its *next* occurrence. Nonsense is ignored.
+A wall-clock time means its *next* occurrence. A full ISO instant works too.
+Both are bounded to the broadcast day you are already in — 06.00 to 06.00 —
+because the set holds one day's schedule and that is the one it can show you.
+Nonsense, and anything outside that day, is ignored: you get the real time.
 
 ## Layout
 

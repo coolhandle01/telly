@@ -28,7 +28,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import indexHtmlRaw from '../../index.html?raw'
 import { App } from '../App'
-import { MAX_OFFSET_MS, offsetFromQuery } from '../clock/offsetClock'
+import { offsetFromQuery } from '../clock/offsetClock'
 import { CachedPoolSource } from '../library/cachedPoolSource'
 import { GoogleTokenProvider } from '../library/googleTokenProvider'
 import { YouTubePoolSource } from '../library/youTubePoolSource'
@@ -80,8 +80,9 @@ const someTokens = { getAccessToken: () => Promise.resolve('tok') }
  * during render, and React answers a throw in render by unmounting the tree.
  *
  * Two things close it, and the second is the one that matters twice over.
- * `offsetFromQuery` now checks the range and not merely the parse, which shuts
- * this input. `FaultBoundary` catches what the next one turns out to be: a
+ * `offsetFromQuery` now bounds the instant to the broadcast day it is already
+ * in — the set holds one day's schedule and that is the one it can show —
+ * which shuts this input and every other date outside it. `FaultBoundary` catches what the next one turns out to be: a
  * set with a fault puts a caption up, because a blank screen is what a set
  * looks like when it is *off*, and those are not the same thing to anyone
  * watching.
@@ -120,24 +121,41 @@ describe('TELLY-SEC-02 · a crafted ?at= link', () => {
     expect((await switchOnAt('/?at=03:14')).length).toBeGreaterThan(10_000)
   })
 
-  it('an ?at= outside any sane range is ignored, as an unparseable one is', () => {
-    const now = new Date(2026, 8, 12, 20, 15, 0)
+  it('an ?at= outside the broadcast day is ignored, as an unparseable one is', () => {
+    const now = new Date(2026, 8, 12, 20, 15, 0) // 20.15, inside the 12th's day
     expect(offsetFromQuery(`?at=${MAX_DATE_ISO}`, now)).toBe(0)
     expect(offsetFromQuery(`?at=${MIN_DATE_ISO}`, now)).toBe(0)
-    // A century out is refused for the same reason, without needing the edge
-    // of what a `Date` can hold to make the point.
+    // Yesterday is the case that matters: the set holds one day's schedule,
+    // and it is not the one that was on air then.
+    expect(offsetFromQuery('?at=2026-09-11T20:00', now)).toBe(0)
     expect(offsetFromQuery('?at=2400-01-01', now)).toBe(0)
   })
 
-  /** The limit itself is allowed; a millisecond past it is not. */
-  it('draws the line inclusively, so the limit is a usable offset', () => {
+  /** 06.00 to 06.00: the day's own start is usable, its end belongs to the next. */
+  it('runs to the edges of the broadcast day and no further', () => {
     const now = new Date(2026, 8, 12, 20, 15, 0)
-    const iso = (offsetMs: number) => new Date(now.getTime() + offsetMs).toISOString()
+    const offsetTo = (d: Date) => d.getTime() - now.getTime()
+    const start = new Date(2026, 8, 12, 6, 0, 0)
+    const end = new Date(2026, 8, 13, 6, 0, 0)
 
-    expect(offsetFromQuery(`?at=${iso(MAX_OFFSET_MS)}`, now)).toBe(MAX_OFFSET_MS)
-    expect(offsetFromQuery(`?at=${iso(MAX_OFFSET_MS + 1)}`, now)).toBe(0)
-    expect(offsetFromQuery(`?at=${iso(-MAX_OFFSET_MS)}`, now)).toBe(-MAX_OFFSET_MS)
-    expect(offsetFromQuery(`?at=${iso(-MAX_OFFSET_MS - 1)}`, now)).toBe(0)
+    // The start is in the day, so it is reachable.
+    expect(offsetFromQuery(`?at=${start.toISOString()}`, now)).toBe(offsetTo(start))
+    expect(offsetFromQuery(`?at=${new Date(start.getTime() - 1).toISOString()}`, now)).toBe(0)
+
+    // The end is the next day's start, so it is not.
+    expect(offsetFromQuery(`?at=${new Date(end.getTime() - 1).toISOString()}`, now)).toBe(
+      offsetTo(new Date(end.getTime() - 1)),
+    )
+    expect(offsetFromQuery(`?at=${end.toISOString()}`, now)).toBe(0)
+  })
+
+  /** The small hours belong to the day before, and the bound follows them. */
+  it('bounds a wall-clock time by the same day, from the small hours too', () => {
+    const smallHours = new Date(2026, 8, 13, 2, 0, 0) // still the 12th's day
+    // 03.14 is later the same broadcast day, so it stands.
+    expect(offsetFromQuery('?at=03:14', smallHours)).toBe(74 * 60 * 1000)
+    // 06.01 is the next day's breakfast, and the set does not hold it.
+    expect(offsetFromQuery('?at=06:01', smallHours)).toBe(0)
   })
 
   it('shows television at the far end of a crafted link', async () => {

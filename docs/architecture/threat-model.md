@@ -132,8 +132,10 @@ security control.
 durations arrive as third-party text and reach a schedule and a card, so the
 response is a bound on each: a caption cut to a length a card can hold, a
 duration that parses in linear time, a topic read only from the table's own
-keys, an `?at=` that resolves to an instant the set can still be running at in
-a century, and a subscription pager that stops rather than following a page
+keys, an `?at=` that resolves to an instant inside the broadcast day the set is
+already in — it holds one day's schedule, and a day planned from today's pool
+and captioned as some other day's is not a schedule anybody broadcast — and a
+subscription pager that stops rather than following a page
 token for as long as one is offered.
 
 Behind all of them sits `FaultBoundary` (see
@@ -196,7 +198,7 @@ is part of that mitigation's own change — the `DISABLED_` convention from the
 | T7 | a caption is cut to a length a card can hold | skipped, pending its change |
 | T7 | the subscription pager stops rather than following a token indefinitely | skipped, pending its change |
 | T7 | an inherited key is not read as a topic | skipped, pending its change |
-| T7 | an `?at=` outside any usable range is ignored | asserted |
+| T7 | an `?at=` outside the broadcast day is ignored, on a 23- and 25-hour day too | asserted |
 | T7 | an unforeseen throw draws a fault card, not a blank screen | asserted |
 | T9 | a record of the wrong shape resolves from the live source | skipped, pending its change |
 

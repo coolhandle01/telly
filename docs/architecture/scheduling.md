@@ -176,3 +176,11 @@ one, not ambiguously in both.
 which is what `?at=03:14` uses. It still *ticks* — it is a shifted clock, not a
 frozen instant, so a junction still arrives while you watch. A wall-clock time
 means its next occurrence; nonsense is ignored.
+
+The offset is bounded to the broadcast day it starts in, 06.00 to 06.00, and
+the bound is the day's own length rather than a flat twenty-four hours — twice
+a year it is 23 hours or 25. Outside that day there is nothing to show: the set
+plans one day at a time, so an instant in another one would be answered with a
+day built from today's pool and captioned as that day's, which is a schedule
+nobody ever broadcast. It reads as time travel and is a fabrication, so the
+offset is refused and the set stays on the real time.

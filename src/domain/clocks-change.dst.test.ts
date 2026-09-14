@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { offsetFromQuery } from '../clock/offsetClock'
 import { FixturePoolSource } from '../library'
 import { plan } from '../schedule/plan'
 import { tune } from '../broadcast'
@@ -114,5 +115,52 @@ describe('the card rotation', () => {
     expect(designForDate(new Date(2026, 9, 25, 5, 30))).toBe(openUp)
     // And the next one is a different card, not the same one again.
     expect(designForDate(new Date(2026, 9, 25, 6, 0))).not.toBe(openUp)
+  })
+})
+
+describe('the bound on ?at=', () => {
+  /*
+    `?at=` may move the clock anywhere inside the broadcast day it is already
+    in, and nowhere else — the set holds one day's schedule and that is the one
+    it can show you. Which makes the bound exactly as long as the day is, and
+    twice a year that is not twenty-four hours.
+
+    Assume 86,400 and the spring day grants an hour it does not have, while the
+    autumn day refuses the last real hour of itself. Both are wrong in the
+    direction nobody notices until October.
+  */
+  const offsetTo = (target: Date, now: Date) => target.getTime() - now.getTime()
+
+  it('reaches the last hour of a twenty-five hour day', () => {
+    const now = new Date(2026, 9, 24, 20, 0) // Saturday evening, the long day
+    // 05.30 on the Sunday is inside a day that ends at 06.00 — and it is an
+    // hour that only exists because the clocks went back.
+    const lateOn = new Date(2026, 9, 25, 5, 30)
+
+    expect(offsetFromQuery(`?at=${lateOn.toISOString()}`, now)).toBe(offsetTo(lateOn, now))
+    // The next day's 06.00 is still refused, long day or not.
+    expect(offsetFromQuery(`?at=${new Date(2026, 9, 25, 6, 0).toISOString()}`, now)).toBe(0)
+  })
+
+  it('stops at the end of a twenty-three hour day', () => {
+    const now = new Date(2026, 2, 28, 20, 0) // Saturday evening, the short day
+    const lastMinute = new Date(2026, 2, 29, 5, 59)
+
+    expect(offsetFromQuery(`?at=${lastMinute.toISOString()}`, now)).toBe(offsetTo(lastMinute, now))
+    expect(offsetFromQuery(`?at=${new Date(2026, 2, 29, 6, 0).toISOString()}`, now)).toBe(0)
+  })
+
+  it('measures the bound by the day, not by twenty-four hours', () => {
+    const spring = new Date(2026, 2, 28, 7, 0)
+    const autumn = new Date(2026, 9, 24, 7, 0)
+    const reach = (now: Date) => {
+      const start = broadcastDayStart(now)
+      return broadcastDayLength(start) * 1000 - (now.getTime() - start.getTime())
+    }
+
+    // An hour short in spring, an hour over in autumn. A fixed 24 would make
+    // these the same number, which is the bug.
+    expect(reach(spring)).toBe(22 * 3600 * 1000)
+    expect(reach(autumn)).toBe(24 * 3600 * 1000)
   })
 })

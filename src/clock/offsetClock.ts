@@ -1,3 +1,4 @@
+import { broadcastDayLength, broadcastDayStart } from '../domain/time'
 import type { Clock } from './clock'
 
 /**
@@ -32,39 +33,49 @@ export class OffsetClock implements Clock {
  * counting the small hours as belonging to the night ahead rather than sending
  * you back 22 hours. A full ISO instant works too: `?at=2026-09-12T03:14`.
  *
- * Returns 0 for anything absent, unparseable, or further off than
- * `MAX_OFFSET_MS`, so a typo shows you the real time rather than an error.
+ * Bounded to the broadcast day `now` falls in — 06.00 to 06.00. The set holds
+ * one day's schedule and that is the one it can show you: an instant outside
+ * it would be answered with a day planned from today's pool and presented as
+ * that day's, which is not a schedule anybody ever broadcast.
+ *
+ * Returns 0 for anything absent, unparseable, or outside that day, so a typo
+ * shows you the real time rather than an error.
  */
 export function offsetFromQuery(search: string, now: Date): number {
   const at = new URLSearchParams(search).get('at')
   if (!at) return 0
 
-  const hhmm = /^(\d{1,2}):(\d{2})$/.exec(at.trim())
+  const target = targetOf(at.trim(), now)
+  if (target === undefined || !withinBroadcastDay(target, now)) return 0
+  return target.getTime() - now.getTime()
+}
+
+/** The instant `?at=` names, in either form it accepts. */
+function targetOf(at: string, now: Date): Date | undefined {
+  const hhmm = /^(\d{1,2}):(\d{2})$/.exec(at)
   if (hhmm) {
     const [hours, minutes] = [Number(hhmm[1]), Number(hhmm[2])]
-    if (hours > 23 || minutes > 59) return 0
+    if (hours > 23 || minutes > 59) return undefined
     const target = new Date(now)
     target.setHours(hours, minutes, 0, 0)
+    // The next occurrence, so a time already past today means tomorrow.
     if (target.getTime() < now.getTime()) target.setDate(target.getDate() + 1)
-    return target.getTime() - now.getTime()
+    return target
   }
 
   const parsed = new Date(at)
-  return Number.isNaN(parsed.getTime()) ? 0 : withinRange(parsed.getTime() - now.getTime())
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed
 }
 
 /**
- * How far `?at=` may move the clock: a century either way.
+ * Whether an instant falls in the broadcast day `now` does.
  *
- * Generous past any reason to use it, and the point is not the number. A date
- * `Date` can hold is not the same as one the set can run at: the offset is
- * added to a clock that goes on ticking, so an instant at the very edge of the
- * range is one tick from `Invalid Date`, and from there every piece of
- * arithmetic downstream is `NaN` — the card rotation, the day's length, the
- * lot. A century leaves room for the clock to keep running.
+ * Half-open, as every other span in the schedule is: 06.00 belongs to the day
+ * it opens, and the following 06.00 belongs to the next one. The length is
+ * asked for rather than assumed, because twice a year it is 23 hours or 25.
  */
-export const MAX_OFFSET_MS = 100 * 365 * 24 * 60 * 60 * 1000
-
-/** An offset too far to run the set at is no more usable than a typo. */
-const withinRange = (offsetMs: number): number =>
-  Math.abs(offsetMs) > MAX_OFFSET_MS ? 0 : offsetMs
+function withinBroadcastDay(target: Date, now: Date): boolean {
+  const start = broadcastDayStart(now).getTime()
+  const end = start + broadcastDayLength(new Date(start)) * 1000
+  return target.getTime() >= start && target.getTime() < end
+}

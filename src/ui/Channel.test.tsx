@@ -244,7 +244,7 @@ describe('Channel', () => {
   it('prints every channel when you ask what is on', async () => {
     const { view } = setUp()
     await switchOn(view.user)
-    await view.user.click(screen.getByRole('button', { name: /telly guide/i }))
+    await view.user.click(await programmed())
 
     // Not now-and-next, and not one channel: the listings came in the paper,
     // and a paper printed the whole evening on every channel there was.
@@ -624,7 +624,7 @@ describe('Channel', () => {
       const { view } = setUp()
       await switchOn(view.user)
       await tuneTo(view.user, EMPTY_PRESET)
-      await view.user.click(screen.getByRole('button', { name: /telly guide/i }))
+      await view.user.click(await programmed())
 
       const page = await screen.findByRole('dialog', { name: /listings/i })
       expect(within(page).getByRole('heading', { name: CHANNEL })).toBeInTheDocument()

@@ -4,7 +4,7 @@ Your YouTube subscriptions, broadcast as five television channels with their
 own schedules. You don't pick what to watch — you switch it on, press a preset,
 and see what's on. When nothing is on, you get the test card.
 
-![The set at closedown, showing the crosshatch test card](docs/set-closedown.png)
+![The set at closedown, showing the colour bars test card](docs/set-closedown.png)
 
 ## The one idea
 

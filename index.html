@@ -10,6 +10,20 @@
       content="Your YouTube subscriptions, broadcast as a television channel with a 24-hour schedule. You don't pick what to watch — you switch it on and see what's on. When nothing is on, you get the test card."
     />
     <meta name="color-scheme" content="dark" />
+    <!-- What may run here. frame-ancestors needs a header Pages cannot serve. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self';
+               script-src 'self' https://accounts.google.com https://www.youtube.com https://s.ytimg.com;
+               style-src 'self' 'unsafe-inline';
+               img-src 'self' data: https://*.ytimg.com https://*.ggpht.com https://*.googleusercontent.com;
+               font-src 'self';
+               connect-src 'self' https://www.googleapis.com https://accounts.google.com;
+               frame-src https://www.youtube.com https://www.youtube-nocookie.com https://accounts.google.com;
+               base-uri 'none';
+               object-src 'none';
+               form-action 'none'"
+    />
   </head>
   <body>
     <div id="root"></div>

@@ -70,7 +70,7 @@
 <body>
 <main>
 <h1>Privacy policy</h1>
-<p class="lede">telly &middot; last updated 13 September 2026</p>
+<p class="lede">telly &middot; last updated 15 September 2026</p>
 
 <p><strong>telly</strong> turns your YouTube subscriptions into television: it builds
 a day&rsquo;s schedule out of them and plays them in YouTube&rsquo;s own embedded player,
@@ -115,6 +115,43 @@ switching the set on again does not spend your API quota. Clearing your site
 data removes it.</li>
 <li><strong>Nothing at all is kept anywhere else.</strong> There is no account to
 delete and no copy held by anyone.</li>
+</ul>
+
+<h2>How it is protected</h2>
+<p>telly holds one piece of sensitive data &mdash; the OAuth access token that lets
+it read your subscriptions &mdash; and these are the measures that protect it and
+the schedule data derived from it.</p>
+<ul>
+<li><strong>In transit.</strong> Every request is HTTPS, and the site is served
+over HTTPS only. The access token travels in an <code>Authorization</code>
+header, never in a URL, a query string or a referrer, so it cannot be picked up
+from browser history, a proxy log or a link you share.</li>
+<li><strong>At rest.</strong> The token is never at rest: it is held in memory in
+the page, discarded when the tab closes or the hour lapses, and written to no
+storage of any kind. The cached schedule data holds no credentials and is kept
+by your browser under this site&rsquo;s own origin, readable only by this site.</li>
+<li><strong>No server, no second copy.</strong> telly has no backend and no
+database. Nothing read from your Google account is transmitted to the developer
+or to any third party, because there is nowhere to transmit it to &mdash; no
+server to breach, and no operator with access to it.</li>
+<li><strong>Least privilege.</strong> One read-only scope is requested,
+<code>youtube.readonly</code>, and nothing else. telly cannot write to, post
+from, subscribe, unsubscribe or delete anything in your account under any
+circumstances.</li>
+<li><strong>Containment in the page.</strong> The page declares a Content Security
+Policy naming the only origins allowed to execute script in it &mdash; itself,
+<code>accounts.google.com</code> and <code>www.youtube.com</code> &mdash; and
+forbidding everything else, so injected script has nowhere to load from.</li>
+<li><strong>Retention and deletion.</strong> The token expires within the hour.
+Cached schedule data expires within a day, and clearing this site&rsquo;s data in
+your browser removes it at once. Withdrawing access at Google invalidates the
+token immediately, and no new one can be issued.</li>
+<li><strong>How the code is kept honest.</strong> telly is open source and every
+change is public and reviewed. Automated tests assert these properties
+specifically &mdash; that the token reaches no storage, no log, no error object
+and no URL &mdash; and a change that breaks one of them fails the build. The
+source and its dependencies are scanned for known vulnerabilities on every
+change and weekly.</li>
 </ul>
 
 <h2>What telly does not do</h2>

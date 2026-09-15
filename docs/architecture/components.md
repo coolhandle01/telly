@@ -10,7 +10,6 @@ App                       clock, pool source, token provider — the wiring
     │   ├── Screen        the glass: 4:3, black, CRT phases
     │   │   ├── TestCard        the base signal, under every programme
     │   │   ├── PlayerSurface   the picture, revealed over it
-    │   │   ├── Caption         a continuity announcement
     │   │   ├── Ident           the station's symbol, between programmes
     │   │   ├── ChannelOverlay  CH n, transient
     │   │   └── VolumeOverlay   VOL bars, transient
@@ -303,7 +302,8 @@ An hour-by-hour grid across all five would be an anachronism twice over: nobody
 printed one, and no television could have drawn one.
 
 `listing(schedule, dayparts)` turns a `Schedule` into a page. Programmes get a
-line each, runs of card and continuity collapse into one, and a daypart marked
+line each, runs of card collapse into one and an ident joins the line above
+it, and a daypart marked
 `stripped` collapses its programmes too — a paper printed `2.00 Clip Show`, not
 two hundred and forty clips. Repeats are printed `(R)`.
 

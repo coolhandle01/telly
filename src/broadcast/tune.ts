@@ -55,8 +55,6 @@ function onAirFor(schedule: Schedule, item: ScheduleItem, sec: number): OnAir {
       }
     case 'filler':
       return { kind: 'filler', variant: content.variant, until: ends, daypart: item.daypart }
-    case 'continuity':
-      return { kind: 'continuity', message: content.message, until: ends, daypart: item.daypart }
   }
 }
 

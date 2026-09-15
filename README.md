@@ -4,7 +4,7 @@ Your YouTube subscriptions, broadcast as five television channels with their
 own schedules. You don't pick what to watch — you switch it on, press a preset,
 and see what's on. When nothing is on, you get the test card.
 
-![The set at closedown, showing the crosshatch test card](docs/set-closedown.png)
+![The set at closedown, showing the colour bars test card](docs/set-closedown.png)
 
 ## The one idea
 
@@ -95,7 +95,11 @@ Two of the presets were tuned in carelessly by whoever installed the set, so
 they come up as snow until you turn the tuner. Preset six has nothing on it at
 all.
 
-Press **Telly Guide** for the listings, which print all five.
+Press **Telly Guide** for the listings, which print all five. The first time,
+that button counts — `Programming 46%` — because there is nothing to print
+until your subscriptions are in and five days have been planned off them. A set
+switched on while that is happening holds the station's ident, which is what a
+station with nothing to hand out yet put up.
 
 ## How a day is built
 
@@ -119,8 +123,9 @@ with three minutes is put its own ident up and start the next one at nine. Each
 station has its own, and they are five different mechanisms rather than five
 colours of one.
 
-Gaps too long for that become the card, very short ones a continuity caption,
-and a daypart with nothing eligible fills with card. A station that has run out
+Padding to a junction is the ident too, up to the three minutes a station
+would hold one for; longer gaps become the card, and a daypart with nothing
+eligible fills with card. A station that has run out
 is showing the card, which is both the honest outcome and the thematically
 correct one.
 

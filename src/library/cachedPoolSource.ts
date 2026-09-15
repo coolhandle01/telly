@@ -1,5 +1,5 @@
 import type { Channel, Pool, Video } from '../domain'
-import type { PoolSource } from './poolSource'
+import type { LoadProgress, PoolSource } from './poolSource'
 import type { PoolStore, StoredPool } from './poolStore'
 
 /**
@@ -34,6 +34,8 @@ export class CachedPoolSource implements PoolSource {
   readonly #now: () => number
   /** One fetch, however many callers ask at once. */
   #inFlight: Promise<Pool> | undefined
+  /** Everyone watching the fetch in flight. Emptied when it settles. */
+  readonly #listeners = new Set<LoadProgress>()
 
   constructor(inner: PoolSource, store?: PoolStore, options: CachedPoolSourceOptions = {}) {
     this.#inner = inner
@@ -43,12 +45,22 @@ export class CachedPoolSource implements PoolSource {
     this.#now = options.now ?? Date.now
   }
 
-  async load(): Promise<Pool> {
+  async load(onProgress?: LoadProgress): Promise<Pool> {
     const hit = await this.#readFresh()
-    if (hit) return hit
+    // A cache hit did no work, so there was no progress to watch. Say so
+    // anyway: a caller that hid a button until the fraction reached 1 would
+    // otherwise hide it for ever on the fastest path there is.
+    if (hit) {
+      onProgress?.(1)
+      return hit
+    }
 
+    // One fetch however many callers ask at once, so a second caller watches
+    // the first one's progress rather than starting a second load to watch.
+    if (onProgress) this.#listeners.add(onProgress)
     this.#inFlight ??= this.#fetchAndStore().finally(() => {
       this.#inFlight = undefined
+      this.#listeners.clear()
     })
     return this.#inFlight
   }
@@ -74,8 +86,13 @@ export class CachedPoolSource implements PoolSource {
     return age >= 0 && age < this.#ttlMs
   }
 
+  /** Bound, because it is handed to the inner source as a callback. */
+  readonly #report = (fraction: number): void => {
+    for (const listener of this.#listeners) listener(fraction)
+  }
+
   async #fetchAndStore(): Promise<Pool> {
-    const pool = await this.#inner.load()
+    const pool = await this.#inner.load(this.#report)
 
     if (this.#store) {
       try {

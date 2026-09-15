@@ -46,6 +46,13 @@ const MISTUNED_PRESET = 4
 const switchOn = async (user: { click: (el: Element) => Promise<void> }) =>
   user.click(screen.getByRole('button', { name: 'Power' }))
 
+/**
+ * Waits until the channels are programmed — the pool in, five days planned.
+ * The button says so: while it is working it counts, and it goes back to
+ * being the way to the paper once there is a paper to go to.
+ */
+const programmed = () => screen.findByRole('button', { name: /telly guide/i })
+
 describe('Channel', () => {
   // A set that is off is a dark screen. It does not caption itself: the only
   // thing that screen could tell you is the thing you can already see.
@@ -237,7 +244,7 @@ describe('Channel', () => {
   it('prints every channel when you ask what is on', async () => {
     const { view } = setUp()
     await switchOn(view.user)
-    await view.user.click(screen.getByRole('button', { name: /telly guide/i }))
+    await view.user.click(await programmed())
 
     // Not now-and-next, and not one channel: the listings came in the paper,
     // and a paper printed the whole evening on every channel there was.
@@ -251,11 +258,112 @@ describe('Channel', () => {
     const { view } = setUp()
     await switchOn(view.user)
 
-    await view.user.click(screen.getByRole('button', { name: /telly guide/i }))
+    await view.user.click(await programmed())
     const page = await screen.findByRole('dialog', { name: /listings/i })
 
     await view.user.click(within(page).getByRole('button', { name: /close/i }))
     expect(screen.queryByRole('dialog', { name: /listings/i })).toBeNull()
+  })
+
+  describe('programming the channels', () => {
+    /**
+     * A source held open, so the several seconds a live account takes can be
+     * looked at a frame at a time. `report` is the callback the set handed it.
+     */
+    function heldSource(): {
+      source: PoolSource
+      report(fraction: number): Promise<void>
+      finish(): Promise<void>
+    } {
+      let onProgress: ((fraction: number) => void) | undefined
+      let release: (() => void) | undefined
+      const source: PoolSource = {
+        async load(progress) {
+          onProgress = progress
+          await new Promise<void>((resolve) => {
+            release = resolve
+          })
+          return new FixturePoolSource().load()
+        },
+      }
+      return {
+        source,
+        report: async (fraction) => {
+          await act(async () => {
+            onProgress?.(fraction)
+          })
+        },
+        finish: async () => {
+          await act(async () => {
+            release?.()
+          })
+        },
+      }
+    }
+
+    it('counts on the button while the schedules are being worked out', async () => {
+      // A minute of a button doing nothing is indistinguishable from a broken
+      // button, and a live subscription list takes a while.
+      const held = heldSource()
+      const { view } = setUp(AFTERNOON, held.source)
+      await switchOn(view.user)
+
+      await held.report(0.42)
+      const counting = screen.getByRole('button', { name: /programming/i })
+      expect(counting).toHaveTextContent('Programming 42%')
+      expect(counting).toBeDisabled()
+
+      await held.finish()
+      expect(await programmed()).toBeEnabled()
+    })
+
+    it('holds the station ident while there is nothing to put on yet', async () => {
+      /*
+        Not the closedown card. The station has not closed down — it is the
+        middle of the afternoon and the schedules are simply still being
+        worked out — and a card reading NORMAL SERVICE WILL RESUME AT 06.00
+        would be the set inventing a reason it does not have.
+      */
+      const held = heldSource()
+      const { view } = setUp(AFTERNOON, held.source)
+      await switchOn(view.user)
+      await held.report(0.1)
+
+      expect(screen.getByRole('img', { name: `${CHANNEL} ident` })).toBeInTheDocument()
+      expect(screen.queryByText(/normal service/i)).toBeNull()
+
+      await held.finish()
+      await programmed()
+      expect(screen.queryByRole('img', { name: `${CHANNEL} ident` })).toBeNull()
+    })
+
+    it('shows nothing at all while a set that is off programmes for the paper', async () => {
+      // Opening the listings loads the pool with the set still off, and a
+      // dark screen stays dark: there is no ident on an unlit tube.
+      const held = heldSource()
+      const { view } = setUp(AFTERNOON, held.source)
+
+      await view.user.click(screen.getByRole('button', { name: /telly guide/i }))
+      await held.report(0.3)
+
+      expect(glass()).toHaveAttribute('data-phase', 'off')
+      expect(screen.queryByRole('img', { name: `${CHANNEL} ident` })).toBeNull()
+      expect(screen.getByRole('button', { name: /programming 30%/i })).toBeDisabled()
+    })
+
+    it('stops counting when the pool cannot be had at all', async () => {
+      // Otherwise the one outcome the viewer most needs to hear about is the
+      // one where the button counts for ever and says nothing.
+      const failing: PoolSource = {
+        load: async () => {
+          throw new Error('quota')
+        },
+      }
+      const { view } = setUp(AFTERNOON, failing)
+      await switchOn(view.user)
+
+      expect(await programmed()).toBeEnabled()
+    })
   })
 
   describe('signing in to YouTube', () => {
@@ -341,8 +449,9 @@ describe('Channel', () => {
     it('says nothing until a preset is pressed', async () => {
       const { view } = setUp()
       await switchOn(view.user)
+      await programmed()
 
-      expect(screen.queryByRole('img', { name: /^CH/ })).toBeNull()
+      expect(screen.queryByRole('img', { name: /^CH \d/ })).toBeNull()
     })
 
     it('shows the preset for a moment when one goes in', async () => {
@@ -515,7 +624,7 @@ describe('Channel', () => {
       const { view } = setUp()
       await switchOn(view.user)
       await tuneTo(view.user, EMPTY_PRESET)
-      await view.user.click(screen.getByRole('button', { name: /telly guide/i }))
+      await view.user.click(await programmed())
 
       const page = await screen.findByRole('dialog', { name: /listings/i })
       expect(within(page).getByRole('heading', { name: CHANNEL })).toBeInTheDocument()

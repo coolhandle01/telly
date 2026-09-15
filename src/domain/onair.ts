@@ -21,12 +21,6 @@ export type OnAir =
       until: Date
       daypart: DaypartId
     }
-  | {
-      kind: 'continuity'
-      message: string
-      until: Date
-      daypart: DaypartId
-    }
 
 /** What is on after this. Used by the now/next caption; absent at day's end. */
 export interface NowAndNext {

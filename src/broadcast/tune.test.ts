@@ -30,7 +30,7 @@ const programme = (
  * gapless, as the scheduler guarantees:
  *
  *   0 .. 600     programme `one`, from the top of the video
- *   600 .. 660   continuity caption
+ *   600 .. 660   the station's ident, padding to the junction
  *   660 .. 1500  programme `two`, joined 300s in — a junction cut its front off
  *   1500 .. 1800 interlude filler
  */
@@ -42,7 +42,7 @@ const DAY: Schedule = {
       startSec: 600,
       endSec: 660,
       daypart: 'breakfast',
-      content: { kind: 'continuity', message: 'AND NOW ON CHANNEL ONE' },
+      content: { kind: 'filler', variant: 'ident' },
     },
     programme(660, 1500, 'two', 300),
     {
@@ -86,8 +86,8 @@ describe('tune', () => {
 
   it('gives the boundary instant to the item that starts there, not the one that ends', () => {
     expect(tune(DAY, at(600))).toMatchObject({
-      kind: 'continuity',
-      message: 'AND NOW ON CHANNEL ONE',
+      kind: 'filler',
+      variant: 'ident',
       until: at(660),
     })
   })

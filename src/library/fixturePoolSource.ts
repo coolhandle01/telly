@@ -1,6 +1,6 @@
 import type { Pool } from '../domain'
 import { fixturePool, type PoolOptions } from '../fixtures/pool'
-import type { PoolSource } from './poolSource'
+import type { LoadProgress, PoolSource } from './poolSource'
 
 /**
  * The default source, and the reason the app runs at all before anyone signs
@@ -17,7 +17,11 @@ export class FixturePoolSource implements PoolSource {
     this.#options = options
   }
 
-  async load(): Promise<Pool> {
-    return fixturePool(this.#options)
+  // There is no network here and nothing to wait for, so the only honest
+  // report is the finished one.
+  async load(onProgress?: LoadProgress): Promise<Pool> {
+    const pool = fixturePool(this.#options)
+    onProgress?.(1)
+    return pool
   }
 }

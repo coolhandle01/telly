@@ -148,9 +148,11 @@ Candidates are ranked on affinity, adjusted by:
   will fit; the second is marked `repeat`. Two uploads of one channel with the
   same name count as one programme whatever their ids say.
 
-Whatever is left over becomes filler: 90 seconds or more is a test card,
-shorter is a continuity caption (`NEXT: …`), and a daypart with nothing
-eligible fills entirely with card. A station that has run out is showing the
+Whatever is left over becomes filler, and the vocabulary is three words wide:
+card, ident, closedown. Padding to a junction of three minutes or less is the
+station's ident — that is what an ident was for, and a caption announcing what
+was coming is not what went out — anything longer is a test card, and a daypart
+with nothing eligible fills entirely with card. A station that has run out is showing the
 card, which is both the honest outcome and the thematically correct one.
 
 ## Tuning

@@ -23,14 +23,38 @@ perfectly in development and dies on contact with a real subscription list.
 Only `videos.list` returns duration, embeddability and category — the three
 things the classifier needs — so the last hop is not optional.
 
+**`playlistItems.list` is the one that cannot be batched**, so it is one call
+per subscription: two hundred subscriptions is two hundred calls, and made one
+after another that is most of a minute of a viewer looking at a button that
+appears to do nothing. Eight are in the air at once (`mapLimit`). This costs no
+extra quota — the charge is per call and the number of calls is unchanged — it
+only stops the wall clock from being the sum of every round trip. It also does
+not change the pool: `mapLimit` returns results in the order the items went in,
+so the day planned from the pool does not depend on which channel's server
+answered first.
+
+Stopping matters as much as starting. A 401 or 403 sets a flag the workers
+check before taking their next playlist, so a refused token costs at most the
+calls already in flight rather than another two hundred.
+
+## Progress
+
+`load(onProgress?)` reports a fraction from 0 to 1, and the Telly Guide button
+shows it while the set is programming. The denominator is arithmetic off the
+subscription count — one call per 50 channels, one per channel for its uploads,
+one per 50 videos — refined downward once the real video count is known. It
+only ever shrinks, so the fraction only ever moves forwards; a load that
+finishes a little early is a better lie than one that sits at 99%.
+
 ## Error triage
 
 The rule is: **is this error about *them* or about *us*?**
 
 ```ts
 } catch (error) {
-  if (isFatal(error)) throw error
-  continue
+  if (isFatal(error)) fatal = error
+  else tick()
+  return undefined
 }
 ```
 

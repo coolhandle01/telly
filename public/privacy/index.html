@@ -130,10 +130,12 @@ from browser history, a proxy log or a link you share.</li>
 the page, discarded when the tab closes or the hour lapses, and written to no
 storage of any kind. The cached schedule data holds no credentials and is kept
 by your browser under this site&rsquo;s own origin, readable only by this site.</li>
-<li><strong>No server, no second copy.</strong> telly has no backend and no
+<li><strong>No database, no second copy.</strong> telly has no backend and no
 database. Nothing read from your Google account is transmitted to the developer
-or to any third party, because there is nowhere to transmit it to. There is no
-server to breach, and no operator with access to it.</li>
+or to any third party, because there is nowhere to transmit it to. The only
+server involved is the static host that sends you the page: it stores none of
+your data, and none of it passes through it, so there is no database to leak
+and no operator with access to one.</li>
 <li><strong>Least privilege.</strong> One read-only scope is requested,
 <code>youtube.readonly</code>, and nothing else. telly cannot write to, post
 from, subscribe, unsubscribe or delete anything in your account under any

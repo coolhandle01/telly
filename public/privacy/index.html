@@ -77,11 +77,12 @@ a day&rsquo;s schedule out of them and plays them in YouTube&rsquo;s own embedde
 so you switch it on and see what is on rather than choosing something.</p>
 
 <h2>The short version</h2>
-<p>telly has no server, no database and no backend. It is a single page that runs
-in your browser. Nothing it reads from your Google account is ever sent to the
-developer or to anyone else, because there is nowhere for it to be sent.</p>
-<p>The one exception is YouTube itself, which plays the programmes. That is
-covered in its own section below.</p>
+<p>telly has no server of its own, no database and no backend. It is a single page
+that runs in your browser. Nothing it reads from your Google account is ever
+sent to the developer or to anyone else, because there is nowhere for it to be
+sent.</p>
+<p>Two others are involved and each has a section below: YouTube, which plays the
+programmes, and GitHub Pages, which serves you the page.</p>
 
 <h2>What telly asks for</h2>
 <p>One OAuth scope, and nothing else:</p>
@@ -113,8 +114,8 @@ application like this one.</li>
 is cached in IndexedDB <em>on your own machine</em> for a day, so that
 switching the set on again does not spend your API quota. Clearing your site
 data removes it.</li>
-<li><strong>Nothing at all is kept anywhere else.</strong> There is no account to
-delete and no copy held by anyone.</li>
+<li><strong>Nothing from your Google account is kept anywhere else.</strong> There
+is no account to delete and no copy of it held by anyone.</li>
 </ul>
 
 <h2>How it is protected</h2>
@@ -131,37 +132,45 @@ the page, discarded when the tab closes or the hour lapses, and written to no
 storage of any kind. The cached schedule data holds no credentials and is kept
 by your browser under this site&rsquo;s own origin, readable only by this site.</li>
 <li><strong>No database, no second copy.</strong> telly has no backend and no
-database. Nothing read from your Google account is transmitted to the developer
-or to any third party, because there is nowhere to transmit it to. The only
-server involved is the static host that sends you the page: it stores none of
-your data, and none of it passes through it, so there is no database to leak
-and no operator with access to one.</li>
+database, so there is none to leak and no operator with access to one. Nothing
+read from your Google account is transmitted to the developer or to any third
+party, because there is nowhere to transmit it to. The static host that serves
+you the page never receives any of it.</li>
 <li><strong>Least privilege.</strong> One read-only scope is requested,
 <code>youtube.readonly</code>, and nothing else. telly cannot write to, post
 from, subscribe, unsubscribe or delete anything in your account under any
 circumstances.</li>
-<li><strong>Containment in the page.</strong> The page declares a Content Security
-Policy naming the only origins allowed to execute script in it (itself,
-<code>accounts.google.com</code> and <code>www.youtube.com</code>) and
-forbidding everything else, so injected script has nowhere to load from.</li>
+<li><strong>Containment in the page.</strong> A Content Security Policy names the
+only three origins allowed to run script in the page and forbids everything
+else, so injected script has nowhere to load from.</li>
 <li><strong>Retention and deletion.</strong> The token expires within the hour.
 Cached schedule data expires within a day, and clearing this site&rsquo;s data in
 your browser removes it at once. Withdrawing access at Google invalidates the
 token immediately, and no new one can be issued.</li>
 <li><strong>How the code is kept honest.</strong> telly is open source and every
-change is public. Automated tests assert these properties
-specifically: that the token reaches no storage, no log, no error object and no
-URL. A change that breaks one of them fails the build. The
-source and its dependencies are scanned for known vulnerabilities on every
-change and weekly.</li>
+change is public. Automated tests assert the claims above specifically, that the
+token reaches no storage, no log, no error object and no URL, and a change that
+breaks one of them fails the build. The source and its dependencies are scanned
+for known vulnerabilities on every change and weekly.</li>
 </ul>
 
 <h2>What telly does not do</h2>
 <ul>
 <li>No analytics, no tracking pixels, no advertising, and no cookies of its own.</li>
-<li>No selling, sharing or transferring of your data to anybody, for any purpose.</li>
+<li>telly does not sell, share or transfer your data to anybody, for any purpose.</li>
 <li>No profiling, and no use of your data to train any model.</li>
 </ul>
+
+<h2>Where the site is served from</h2>
+<p>telly is a static site. GitHub Pages serves the page, its script and its
+stylesheet at <code>telly.na-n.xyz</code>. Like any web server, GitHub receives
+each request, and its documentation says the visitor&rsquo;s IP address is logged
+and stored for security purposes. What GitHub does with that is covered by the
+<a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub
+Privacy Statement</a>, not by this one.</p>
+<p>Nothing from your Google account reaches the host. Signing in goes from your
+browser to <code>accounts.google.com</code>, and every YouTube request goes from
+your browser to <code>www.googleapis.com</code>. Neither passes through it.</p>
 
 <h2>YouTube&rsquo;s player</h2>
 <p>Programmes play in YouTube&rsquo;s own embedded player, loaded from
@@ -189,8 +198,8 @@ including the Limited Use requirements.</p>
 
 <h2>Children</h2>
 <p>telly is not directed at children and requires a Google account to sign in to.
-It collects nothing from anyone knowingly, children included, because it
-collects nothing at all.</p>
+telly collects nothing from anyone knowingly, children included, because telly
+collects nothing.</p>
 
 <h2>Changes</h2>
 <p>If this policy changes, the date at the top changes with it, and the history

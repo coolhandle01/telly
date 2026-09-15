@@ -123,10 +123,11 @@ is no account to delete and no copy of it held by anyone.</li>
 read your subscriptions. These are the measures that protect it, and the
 schedule data derived from it.</p>
 <ul>
-<li><strong>In transit.</strong> Every request is HTTPS, and the site is served
-over HTTPS only. The access token travels in an <code>Authorization</code>
-header, never in a URL, a query string or a referrer, so it cannot be picked up
-from browser history, a proxy log or a link you share.</li>
+<li><strong>In transit.</strong> The site and every request telly makes are
+HTTPS; a plain <code>http://</code> address is redirected to it. The access
+token travels in an <code>Authorization</code> header, never in a URL, a query
+string or a referrer, so it cannot be picked up from browser history, a proxy
+log or a link you share.</li>
 <li><strong>At rest.</strong> The token is never at rest: it is held in memory in
 the page, discarded when the tab closes or the hour lapses, and written to no
 storage of any kind. The cached schedule data holds no credentials and is kept

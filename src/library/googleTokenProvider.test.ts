@@ -130,16 +130,33 @@ describe('GoogleTokenProvider', () => {
     await expect(provider.signIn()).rejects.toThrow(/popup_closed/)
   })
 
-  it('can be retried after a refusal', async () => {
-    let allow = false
-    const { load, prompts } = fakeGis(() => (allow ? granted() : { error: 'access_denied' }))
+  // Widened: the original only ever refused *consent*, which happens after
+  // #loadGis() has already resolved — so #ready held a fulfilled promise and
+  // the only state the retry had to clear was #pending. The refusal that
+  // latches is the one that happens *during* the load, and it was unreachable
+  // while the fake's loader was hard-wired to `Promise.resolve(gis)`.
+  it.each([
+    ['the user refuses consent', false],
+    ['the script cannot be fetched the first time', true],
+  ])('can be retried after a refusal — %s', async (_case, refuseTheLoad) => {
+    let allow = refuseTheLoad
+    const { gis, prompts } = fakeGis(() => (allow ? granted() : { error: 'access_denied' }))
+    let loads = 0
+    const load = vi.fn(() => {
+      loads += 1
+      return refuseTheLoad && loads === 1
+        ? Promise.reject(new Error('Google Identity Services could not be loaded'))
+        : Promise.resolve(gis)
+    })
     const provider = new GoogleTokenProvider('client-1', { loadGis: load })
 
     await expect(provider.signIn()).rejects.toThrow()
     allow = true
     await expect(provider.signIn()).resolves.toBe('tok-abc')
 
-    expect(prompts).toEqual(['consent', 'consent'])
+    // A transient load failure must not disable sign-in for the life of the
+    // page: the second attempt has to reach the popup at all.
+    expect(prompts).toEqual(refuseTheLoad ? ['consent'] : ['consent', 'consent'])
   })
 
   it('never writes the token anywhere it could outlive the page', async () => {
@@ -175,5 +192,21 @@ describe('loadGoogleIdentityServices', () => {
     const pending = loadGoogleIdentityServices()
     scriptTag()?.dispatchEvent(new Event('load'))
     await expect(pending).rejects.toThrow(/exposed no oauth2/i)
+
+    // Widened: one call can never see the hang. This path leaves its <script>
+    // in the document (only the error path removes it), so a second call takes
+    // the `existing` branch at googleTokenProvider.ts:56, attaches listeners to
+    // a tag that has already fired, and appends nothing — no event will ever
+    // come. The docstring at :48-50 says a blocked script must not hang; the
+    // narrow test only proved that of the very first call.
+    const second = loadGoogleIdentityServices()
+    const outcome = await Promise.race([
+      second.then(
+        () => 'resolved',
+        () => 'rejected',
+      ),
+      new Promise((resolve) => setTimeout(() => resolve('still pending'), 50)),
+    ])
+    expect(outcome).toBe('rejected')
   })
 })

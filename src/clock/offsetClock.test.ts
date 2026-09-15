@@ -26,10 +26,34 @@ describe('offsetFromQuery', () => {
     expect(new Date(NOW.getTime() + offset).getHours()).toBe(3)
   })
 
-  it('ignores nonsense rather than failing', () => {
-    for (const junk of ['?at=banana', '?at=99:99', '?at=', '?at=25:00']) {
-      expect(offsetFromQuery(junk, NOW)).toBe(0)
-    }
+  // Widened: the four original values were all typos — none of them *parses*,
+  // so the one branch with no range check (offsetClock.ts:52-53) was never
+  // reached by the test whose job is to break it. The last three parse
+  // perfectly and sit at the edges of what a Date can hold.
+  it.each([
+    ['?at=banana'],
+    ['?at=99:99'],
+    ['?at='],
+    ['?at=25:00'],
+    // The largest instant Date can represent: new Date('275760-09-13') is
+    // 8_640_000_000_000_000, not NaN, so the guard at :53 lets it through.
+    ['?at=275760-09-13'],
+    // The same instant in a format the hh:mm regex cannot see either.
+    ['?at=Sep 13 275760'],
+    // And the smallest.
+    ['?at=-271821-04-20'],
+  ])('ignores nonsense rather than failing: %s', (junk) => {
+    const offset = offsetFromQuery(junk, NOW)
+
+    expect(offset).toBe(0)
+
+    // The assertion the narrow version never made: toBe(0) says nothing about
+    // the instant the offset produces, and the instant is where the damage is.
+    // A clock that has ticked on one second must still be able to say when it is.
+    const inner = new FakeClock(NOW)
+    const clock = new OffsetClock(inner, offset)
+    inner.set(new Date(NOW.getTime() + 1000))
+    expect(Number.isNaN(clock.now().getTime())).toBe(false)
   })
 })
 

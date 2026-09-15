@@ -130,14 +130,29 @@ describe('CachedPoolSource', () => {
       expect(pool.channels.size).toBe(1)
     })
 
-    it('survives a stored record that has lost its arrays', async () => {
+    // Widened: the original modelled corruption as *absence*, which is exactly
+    // what `stored.videos ?? []` at cachedPoolSource.ts:97-98 was written for —
+    // it exercised the guard instead of probing past it. A record written by
+    // anything other than this app has fields that are present and the wrong
+    // type, and `??` cannot see those at all.
+    it.each([
+      ['has lost its arrays', () => ({ savedAt: clock })],
+      ['has a videos field that is not an array', () => ({ savedAt: clock, videos: 7, channels: [] })],
+      ['has a channels field that is not an array', () => ({ savedAt: clock, videos: [], channels: {} })],
+    ])('survives a stored record that %s', async (_case, record) => {
       const store = inMemoryStore()
-      store.entries.set('pool', { savedAt: clock } as unknown as StoredPool)
+      store.entries.set('pool', record() as unknown as StoredPool)
 
-      const pool = await new CachedPoolSource(countingSource(poolOf('a')), store, { now, key: 'pool' }).load()
+      const loading = new CachedPoolSource(countingSource(poolOf('a')), store, { now, key: 'pool' }).load()
 
-      expect(pool.videos).toEqual([])
-      expect(pool.channels.size).toBe(0)
+      // Nothing here may take the channel off the air (indexedDbPoolStore.ts:9).
+      await expect(loading).resolves.toBeDefined()
+      const pool = await loading
+      // The old assertions only checked the two `?? []` defaults. They never
+      // asked whether what came back was a usable Pool at all — which is the
+      // property the render downstream depends on.
+      expect(Array.isArray(pool.videos)).toBe(true)
+      expect(pool.channels).toBeInstanceOf(Map)
     })
 
     it('refetches once the TTL has passed, and re-stamps the store', async () => {
@@ -153,15 +168,33 @@ describe('CachedPoolSource', () => {
       expect(store.entries.get('pool')?.savedAt).toBe(clock)
     })
 
-    it('ignores an entry stamped in the future rather than trusting it forever', async () => {
+    // Widened: the original's "corrupt record" was still a *number*, just a
+    // wrong one, so the subtraction at cachedPoolSource.ts:73 always succeeded
+    // and only the comparison was ever exercised. That arithmetic runs outside
+    // the file's only try/catch (:60-65), so a stamp of the wrong type is not a
+    // cache miss — it is a rejected load, on every visit, until site data goes.
+    it.each([
+      ['stamped in the future', () => clock + 10 * 24 * HOUR],
+      ['stamped with something that is not a number', () => 'the day before yesterday'],
+      // IndexedDB stores a BigInt quite happily; `number - bigint` is a TypeError.
+      ['stamped with a BigInt', () => 0n],
+    ])('ignores an entry %s rather than trusting it forever', async (_case, stamp) => {
       const store = inMemoryStore()
-      store.entries.set('pool', { savedAt: clock + 10 * 24 * HOUR, videos: [video('bogus')], channels: [] })
+      store.entries.set('pool', {
+        savedAt: stamp(),
+        videos: [video('bogus')],
+        channels: [],
+      } as unknown as StoredPool)
       const inner = countingSource(poolOf('fresh'))
 
-      const pool = await new CachedPoolSource(inner, store, { now, key: 'pool' }).load()
+      const loading = new CachedPoolSource(inner, store, { now, key: 'pool' }).load()
 
+      // The assertion the narrow version never made: it asserted a refetch
+      // *happened*, so it could only fail on a value that survived the
+      // arithmetic. A distrusted stamp must be a miss, not a fault.
+      await expect(loading).resolves.toBeDefined()
       expect(inner.loads).toBe(1)
-      expect(pool.videos.map((each) => each.id)).toEqual(['fresh'])
+      expect((await loading).videos.map((each) => each.id)).toEqual(['fresh'])
     })
   })
 

@@ -69,4 +69,7 @@ jobs:
       - run: npm ci
       # Squash is the only merge method, so the title is the commit subject.
       - name: conventional pull request title
-        run: echo "${{ github.event.pull_request.title }}" | npx commitlint
+        env:
+          # ${{ }} is pasted into the shell source. Via env it is data, not code.
+          TITLE: ${{ github.event.pull_request.title }}
+        run: echo "$TITLE" | npx commitlint

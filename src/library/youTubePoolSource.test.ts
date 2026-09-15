@@ -603,6 +603,27 @@ describe('YouTubePoolSource', () => {
       expect((await new YouTubePoolSource({ fetch, tokens }).load()).videos).toEqual([])
     })
 
+    // The termination test at :168 scripts a peer that volunteers a last page
+    // with no token, so it measures the peer's good manners rather than a bound
+    // in #listSubscriptions — a sane value sat in the one field that controls
+    // that loop. A peer that keeps handing back the token it just issued is the
+    // hostile one, and nothing in the code stops it. The fake caps itself so a
+    // loop with no cap fails as an assertion here instead of hanging the run.
+    it('stops when the peer keeps handing back the same nextPageToken', async () => {
+      const PEER_GIVES_UP_AFTER = 20
+      const { fetch, callsTo } = fakeYouTube({
+        subscriptions: (_params, call) =>
+          call < PEER_GIVES_UP_AFTER ? subscriptionPage([], 'same-page') : subscriptionPage([]),
+      })
+
+      await new YouTubePoolSource({ fetch, tokens }).load()
+
+      // A token already followed once is a peer that is not paging. Following
+      // it again spends quota the 24h cache cannot give back, because a load
+      // that never finishes is never cached (cachedPoolSource.ts:77-88).
+      expect(callsTo('subscriptions').length).toBeLessThanOrEqual(2)
+    })
+
     it('treats an empty response body as an empty page rather than a failure', async () => {
       const { fetch } = fakeYouTube({
         subscriptions: () => json({}),

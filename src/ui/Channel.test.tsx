@@ -226,6 +226,40 @@ describe('Channel', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/no programme information/i)
   })
 
+  // Widened from the test above, which only ever made load() *reject* — the
+  // happy path of the error handler, routed through the .catch at
+  // Channel.tsx:216. A pool that resolves and is then the wrong shape misses
+  // that .catch entirely and throws in the render-time planStations at :237,
+  // with no boundary above it. `channels` comes back from IndexedDB as
+  // whatever was stored there; a plain object is not a Map and has no .get.
+  it('says why there is nothing on when the pool arrives the wrong shape', async () => {
+    const misshapen: PoolSource = {
+      load: async () => ({
+        videos: [
+          {
+            id: 'v1',
+            channelId: 'UC1',
+            title: 'Programme',
+            durationSec: 1800,
+            publishedAt: '2026-09-01T00:00:00Z',
+            ageRestricted: false,
+            madeForKids: false,
+            embeddable: true,
+            isLive: false,
+          },
+        ],
+        channels: {} as unknown as Map<string, never>,
+      }),
+    }
+    const { view } = setUp(AFTERNOON, misshapen)
+    await switchOn(view.user)
+
+    // The card is the honest screen for having nothing to broadcast. A blank
+    // document is not — it is indistinguishable from a broken app, which is
+    // the thing Channel.tsx:213-215 sets out to avoid.
+    await waitFor(() => expect(screen.getByRole('timer')).toBeInTheDocument())
+  })
+
   it('says so when the subscriptions turn up empty, which is not an error', async () => {
     const empty: PoolSource = { load: async () => ({ videos: [], channels: new Map() }) }
     const { view } = setUp(AFTERNOON, empty)
@@ -259,13 +293,13 @@ describe('Channel', () => {
   })
 
   describe('signing in to YouTube', () => {
-    const render_ = (signIn?: () => Promise<void>) => {
+    const render_ = (signIn?: () => Promise<void>, source: PoolSource = new FixturePoolSource()) => {
       const clock = new FakeClock(AFTERNOON)
       return render(
         <Channel
           channelName={CHANNEL}
           clock={clock}
-          poolSource={new FixturePoolSource()}
+          poolSource={source}
           player={new FakePlayer()}
           signIn={signIn}
         />,
@@ -293,12 +327,34 @@ describe('Channel', () => {
       expect(calls).toBe(1)
     })
 
-    it('stops offering once signed in', async () => {
-      const view = render_(async () => {})
+    // Widened: the original stopped at "the button is gone" and treated that as
+    // the end of the story. Its source was a FixturePoolSource, which never
+    // asks for a token, so no authorisation failure could arise inside the test
+    // at all. Google expires consent roughly weekly while the app is unverified
+    // (docs/architecture/tokens.md:96), so a grant lapsing after a successful
+    // sign-in is the ordinary case, not the exotic one.
+    it('stops offering once signed in, and offers again when the grant lapses', async () => {
+      let loads = 0
+      const lapsing: PoolSource = {
+        load: async () => {
+          loads += 1
+          if (loads === 1) return new FixturePoolSource().load()
+          throw new Error('YouTube sign-in failed: invalid_token')
+        },
+      }
+      const view = render_(async () => {}, lapsing)
+      await switchOn(view.user)
+      await waitFor(() => expect(loads).toBe(1))
+
       await view.user.click(screen.getByRole('button', { name: /sign in with google/i }))
       await waitFor(() =>
         expect(screen.queryByRole('button', { name: /sign in with google/i })).toBeNull(),
       )
+
+      // The set must not go on asserting it is signed in with no token to be
+      // had, and must not remove the only control that could put that right.
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/invalid_token/))
+      expect(screen.getByRole('button', { name: /sign in with google/i })).toBeInTheDocument()
     })
 
     it('says what went wrong, and lets you try again', async () => {

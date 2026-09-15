@@ -101,7 +101,7 @@ origin, and everything on the far side of B7 is this one.
 
 | # | Element · STRIDE | Attacker capability | Impact | CWE | Response | Where it lives |
 |---|---|---|---|---|---|---|
-| T14 | `gsi/client` and `iframe_api` · **T** | Changes what `accounts.google.com` or `www.youtube.com` serves | Either script runs as first-party code beside the in-memory token, with the origin's IndexedDB and DOM. Both are unversioned, so neither carries an SRI hash. CSP is the containment that remains, and it is partial: `default-src 'none'`, `script-src` pinned to `self` and those two hosts, `object-src 'none'`, `base-uri 'self'`, `form-action 'none'`, `connect-src` naming three hosts. It governs what the page fetches, frames, submits and loads script from. It governs no navigation the page performs, so a script here reaches any host it likes by navigating there. The policy ships in the built artefact as well as in source. | CWE-829 | **Accept** — Google already holds the token by virtue of issuing it, and GIS is the only route to one for a browser client with no backend | [index.html:5-19](../../index.html), `dist/index.html` |
+| T14 | `gsi/client` and `iframe_api` · **T** | Changes what `accounts.google.com` or `www.youtube.com` serves | Either script runs as first-party code beside the in-memory token, with the origin's IndexedDB and DOM. Both are unversioned, so neither carries an SRI hash. CSP is the containment that remains, and it is partial: `default-src 'none'`, `script-src` pinned to `self` and those two hosts, `object-src 'none'`, `base-uri 'self'`, `form-action 'none'`, `connect-src` naming three hosts. It governs what is fetched, framed, submitted and loaded as script. It governs no navigation at all, so script running here reaches any host by navigating to it. The page's own navigations are three anchors to constants: the two legal pages, same-origin, and the source link. The policy ships in the built artefact as well as in source. | CWE-829 | **Accept** — Google already holds the token by virtue of issuing it, and GIS is the only route to one for a browser client with no backend | [index.html:5-19](../../index.html), `dist/index.html` |
 | T15 | Response headers · **T** | — | GitHub Pages sets no response headers, and the defaults are the ones sign-in needs: `Cross-Origin-Opener-Policy` defaults to `unsafe-none`, which keeps `window.opener` alive for the consent popup, and cross-origin isolation is absent, which is what lets `gsi/client` load at all. The policy therefore travels in the document. | CWE-693 | **Accept** — the two headers a hardening checklist would add are the two that break this flow silently | [google.md:114-120](google.md), [README.md:244-249](../../README.md) |
 | T16 | Outbound link · **I** | Controls the linked page | `target="_blank"` hands `window.opener` to the opened page. The link carries `rel="noreferrer noopener"` and its `href` is a constant. | CWE-1022 | **Mitigate** | [SourceLink.tsx:29-35](../../src/ui/SourceLink.tsx), [App.tsx:17](../../src/App.tsx) |
 
@@ -143,8 +143,8 @@ rather than an omission:
 - **T14** and **T15** — the two remote scripts execute in this origin without an
   integrity hash, because Google serves them unversioned; CSP is the containment
   that remains, and the response headers a checklist would add break sign-in. The
-  policy bounds what the page fetches and loads, not where it navigates, so a
-  script in this origin still reaches any host by going there.
+  policy bounds what is fetched and loaded, not navigation, so script in this
+  origin still reaches any host by going there.
 - **T19** — the host's request log is GitHub's, and the app sends it nothing but
   a fetch for the bundle.
 - **T26**, **T27** — the cached pool is readable and writable by anyone who

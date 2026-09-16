@@ -45,16 +45,32 @@ declare global {
 }
 
 /**
+ * What each GIS `<script>` in the document is already doing.
+ *
+ * Keyed by the element so it cannot outlive it. That is what makes one of
+ * these failures retryable and the other not, without either being spelled
+ * out: the error path removes the tag, which drops the entry and lets the next
+ * call make a fresh request, while a script that loaded and exposed nothing
+ * leaves its tag in place, so every later call is handed that same rejection.
+ */
+const loads = new WeakMap<HTMLScriptElement, Promise<GoogleIdentityServices>>()
+
+/**
  * Fetches the GIS script once. Rejects on a script error rather than hanging —
  * a blocked script that never settles is a screen that never explains itself.
  */
 export function loadGoogleIdentityServices(): Promise<GoogleIdentityServices> {
   if (window.google?.accounts?.oauth2) return Promise.resolve(window.google)
 
-  return new Promise((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>(`script[src="${GIS_SCRIPT_URL}"]`)
-    const script = existing ?? document.createElement('script')
+  const existing = document.querySelector<HTMLScriptElement>(`script[src="${GIS_SCRIPT_URL}"]`)
+  // Without this, a second call attaches listeners to a tag that has already
+  // fired its one `load`, appends nothing, and waits for an event that can
+  // never come. That is the hang the docstring above rules out.
+  const already = existing && loads.get(existing)
+  if (already) return already
 
+  const script = existing ?? document.createElement('script')
+  const load = new Promise<GoogleIdentityServices>((resolve, reject) => {
     script.addEventListener('load', () => {
       if (window.google?.accounts?.oauth2) resolve(window.google)
       else reject(new Error('Google Identity Services loaded but exposed no oauth2 client'))
@@ -70,6 +86,9 @@ export function loadGoogleIdentityServices(): Promise<GoogleIdentityServices> {
       document.head.append(script)
     }
   })
+
+  loads.set(script, load)
+  return load
 }
 
 /** Ask again slightly early, so a request never goes out with a dead token. */
@@ -122,14 +141,23 @@ export class GoogleTokenProvider implements AccessTokenProvider {
    * anyone clicks, `signIn` has nothing left to wait for.
    */
   prepare(): Promise<void> {
-    this.#ready ??= this.#loadGis().then((gis) => {
-      this.#client ??= gis.accounts.oauth2.initTokenClient({
-        client_id: this.#clientId,
-        scope: this.#scope,
-        callback: (response) => this.#onResponse(response),
-        error_callback: (error) => this.#fail(error.type ?? 'dismissed'),
+    this.#ready ??= this.#loadGis()
+      .then((gis) => {
+        this.#client ??= gis.accounts.oauth2.initTokenClient({
+          client_id: this.#clientId,
+          scope: this.#scope,
+          callback: (response) => this.#onResponse(response),
+          error_callback: (error) => this.#fail(error.type ?? 'dismissed'),
+        })
       })
-    })
+      .catch((error: unknown) => {
+        // A load that failed once must not disable sign-in for the life of the
+        // page. An extension, a firewall or a flaky network can all clear by
+        // the next click, and a held rejection would replay this failure at
+        // every one of them without ever asking Google again.
+        this.#ready = undefined
+        throw error
+      })
     return this.#ready
   }
 

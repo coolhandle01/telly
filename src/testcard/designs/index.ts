@@ -57,6 +57,11 @@ export function designForDate(
   // that day — it should turn over at six with everything else, not at
   // midnight in the middle of late night.
   const day = broadcastDayStart(now)
+  // A clock that cannot say when it is still has to be shown something, and it
+  // has to be a card in the rotation: `buildTestCard` indexes `CARD_DESIGNS`
+  // with whatever comes back, and `undefined` there is a blank screen rather
+  // than a test card. Every step below carries NaN through to `rotation[NaN]`.
+  if (Number.isNaN(day.getTime())) return rotation[0]
 
   // The civil date, counted as a civil date. Dividing a *local* midnight by
   // 86,400,000 counts UTC days: under BST local midnight is 23.00 UTC the day

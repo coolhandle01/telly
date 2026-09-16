@@ -68,8 +68,17 @@ export class CachedPoolSource implements PoolSource {
     return toPool(stored)
   }
 
-  /** A stamp from the future means a moved clock or a corrupt record: distrust it. */
-  #isFresh(savedAt: number): boolean {
+  /**
+   * A stamp from the future means a moved clock or a corrupt record: distrust
+   * it. So does one that is not a number at all, and that has to be ruled out
+   * *before* the subtraction rather than after it. This runs outside the only
+   * try/catch here, and IndexedDB will store a BigInt quite happily, so
+   * `number - bigint` is a TypeError rather than a NaN — a rejected load on
+   * every visit until the viewer clears their site data, when the whole point
+   * of a stamp we cannot trust is that it is a miss.
+   */
+  #isFresh(savedAt: unknown): boolean {
+    if (typeof savedAt !== 'number' || !Number.isFinite(savedAt)) return false
     const age = this.#now() - savedAt
     return age >= 0 && age < this.#ttlMs
   }
@@ -93,8 +102,26 @@ function toStored(pool: Pool, savedAt: number): StoredPool {
   return { savedAt, videos: [...pool.videos], channels: [...pool.channels.values()] }
 }
 
-function toPool(stored: StoredPool): Pool {
-  const videos: readonly Video[] = stored.videos ?? []
-  const channels: readonly Channel[] = stored.channels ?? []
+/**
+ * The stored record as a `Pool`, or nothing at all if it is not the record
+ * this app writes.
+ *
+ * Anything can end up under this key — an older version of the app, a
+ * half-finished write, a hand-edited entry in devtools — and `??` sees only a
+ * field that is *missing*, never one that is present and the wrong type. A
+ * `videos` of `7` used to be handed on as the video list, and a `channels` of
+ * `{}` reached `profile.ts` as `channels.get is not a function` and took the
+ * whole render down with it.
+ *
+ * A record we cannot read is a cache miss, exactly as an unreadable store and
+ * an untrustworthy stamp are: the pool is refetched and the bad record
+ * overwritten. `toStored` always writes both arrays, so a record without them
+ * did not come from here in the first place.
+ */
+function toPool(stored: StoredPool): Pool | undefined {
+  if (!Array.isArray(stored.videos) || !Array.isArray(stored.channels)) return undefined
+
+  const videos: readonly Video[] = stored.videos
+  const channels: readonly Channel[] = stored.channels
   return { videos, channels: new Map(channels.map((channel) => [channel.id, channel])) }
 }

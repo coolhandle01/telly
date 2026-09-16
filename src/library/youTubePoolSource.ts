@@ -61,10 +61,18 @@ interface ChannelListResponse {
     topicDetails?: { topicCategories?: readonly string[] }
     statistics?: { subscriberCount?: string; hiddenSubscriberCount?: boolean }
   }[]
+  nextPageToken?: string
+}
+
+/** What every list endpoint has in common, and all `#pages` needs to page. */
+interface PagedResponse {
+  items?: readonly unknown[]
+  nextPageToken?: string
 }
 
 interface PlaylistItemListResponse {
   items?: readonly { contentDetails?: { videoId?: string } }[]
+  nextPageToken?: string
 }
 
 interface VideoListResponse {
@@ -84,6 +92,7 @@ interface VideoListResponse {
       liveBroadcastContent?: string
     }
   }[]
+  nextPageToken?: string
 }
 
 interface ApiErrorBody {
@@ -166,26 +175,54 @@ export class YouTubePoolSource implements PoolSource {
     return { videos, channels: described.channels }
   }
 
+  /**
+   * Every page of a list call, following `nextPageToken` as the API sends it.
+   *
+   * The peer decides how long the loop runs, so the bounds are ours.
+   * `maxResults` is clamped to the API's maximum, above which it answers 400.
+   * A token it has already issued ends the loop: a peer reissuing one is
+   * repeating itself, not paging. `limit` ends it once the caller has what it
+   * asked for.
+   */
+  async *#pages<T extends PagedResponse>(
+    endpoint: string,
+    params: Record<string, string>,
+    limit = Number.POSITIVE_INFINITY,
+  ): AsyncGenerator<T> {
+    const followed = new Set<string>()
+    let pageToken: string | undefined
+    let collected = 0
+
+    do {
+      const page = (await this.#get(endpoint, {
+        ...params,
+        maxResults: String(Math.min(limit - collected, MAX_PAGE_SIZE)),
+        ...(pageToken ? { pageToken } : {}),
+      })) as T
+
+      yield page
+      collected += page.items?.length ?? 0
+
+      const next = page.nextPageToken
+      pageToken = next !== undefined && !followed.has(next) && collected < limit ? next : undefined
+      if (pageToken !== undefined) followed.add(pageToken)
+    } while (pageToken)
+  }
+
   /** Step 1 — every subscribed channel, 50 a page, following `nextPageToken`. */
   async #listSubscriptions(): Promise<Channel[]> {
     const channels: Channel[] = []
-    let pageToken: string | undefined
 
-    do {
-      const page = (await this.#get('subscriptions', {
-        part: 'snippet',
-        mine: 'true',
-        maxResults: String(MAX_PAGE_SIZE),
-        ...(pageToken ? { pageToken } : {}),
-      })) as SubscriptionListResponse
-
+    for await (const page of this.#pages<SubscriptionListResponse>('subscriptions', {
+      part: 'snippet',
+      mine: 'true',
+    })) {
       for (const item of page.items ?? []) {
         const id = item.snippet?.resourceId?.channelId
         if (!id) continue
         channels.push({ id, title: item.snippet?.title ?? id })
       }
-      pageToken = page.nextPageToken
-    } while (pageToken)
+    }
 
     return channels
   }
@@ -205,25 +242,24 @@ export class YouTubePoolSource implements PoolSource {
     const channels = new Map(subscribed.map((channel) => [channel.id, channel]))
 
     for (const batch of batchIds(subscribed.map((channel) => channel.id))) {
-      const page = (await this.#get('channels', {
+      for await (const page of this.#pages<ChannelListResponse>('channels', {
         part: 'contentDetails,topicDetails,statistics',
         id: batch.join(','),
-        maxResults: String(MAX_PAGE_SIZE),
-      })) as ChannelListResponse
+      })) {
+        for (const item of page.items ?? []) {
+          // A channel with uploads disabled has no uploads playlist. Skip it
+          // rather than losing every other channel to one missing field.
+          const uploads = item.contentDetails?.relatedPlaylists?.uploads
+          if (uploads) uploadPlaylists.push(uploads)
 
-      for (const item of page.items ?? []) {
-        // A channel with uploads disabled has no uploads playlist. Skip it
-        // rather than losing every other channel to one missing field.
-        const uploads = item.contentDetails?.relatedPlaylists?.uploads
-        if (uploads) uploadPlaylists.push(uploads)
-
-        const known = item.id ? channels.get(item.id) : undefined
-        if (!known) continue
-        channels.set(known.id, {
-          ...known,
-          topics: topicSlugs(item.topicDetails?.topicCategories),
-          subscriberCount: countOf(item.statistics?.subscriberCount),
-        })
+          const known = item.id ? channels.get(item.id) : undefined
+          if (!known) continue
+          channels.set(known.id, {
+            ...known,
+            topics: topicSlugs(item.topicDetails?.topicCategories),
+            subscriberCount: countOf(item.statistics?.subscriberCount),
+          })
+        }
       }
     }
 
@@ -231,32 +267,34 @@ export class YouTubePoolSource implements PoolSource {
   }
 
   /**
-   * Step 3 — recent uploads per playlist. One call each; this is the expensive
-   * step, so it is sequential to stay inside the per-minute rate limit rather
-   * than firing two hundred requests at once.
+   * Step 3 — recent uploads per playlist. This is the expensive step, so it is
+   * sequential to stay inside the per-minute rate limit rather than firing two
+   * hundred requests at once.
+   *
+   * `videosPerChannel` is a budget, not a page size: above the API's maximum
+   * it takes more than one page.
    */
   async #listRecentVideoIds(playlistIds: readonly string[]): Promise<string[]> {
     const videoIds = new Set<string>()
 
     for (const playlistId of playlistIds) {
-      let page: PlaylistItemListResponse
       try {
-        page = (await this.#get('playlistItems', {
-          part: 'contentDetails',
-          playlistId,
-          maxResults: String(this.#videosPerChannel),
-        })) as PlaylistItemListResponse
+        for await (const page of this.#pages<PlaylistItemListResponse>(
+          'playlistItems',
+          { part: 'contentDetails', playlistId },
+          this.#videosPerChannel,
+        )) {
+          for (const item of page.items ?? []) {
+            const id = item.contentDetails?.videoId
+            if (id) videoIds.add(id)
+          }
+        }
       } catch (error) {
         // One channel being deleted, made private or otherwise unreachable is
         // an ordinary fact of a subscription list that has been around a
         // while. It must cost you that channel, not the other two hundred.
         if (isFatal(error)) throw error
         continue
-      }
-
-      for (const item of page.items ?? []) {
-        const id = item.contentDetails?.videoId
-        if (id) videoIds.add(id)
       }
     }
 
@@ -268,43 +306,42 @@ export class YouTubePoolSource implements PoolSource {
     const videos: Video[] = []
 
     for (const batch of batchIds(videoIds)) {
-      const page = (await this.#get('videos', {
+      for await (const page of this.#pages<VideoListResponse>('videos', {
         // `liveStreamingDetails` is free — parts cost nothing extra within a
         // call — and it is the only reliable way to tell a finished stream
         // from one still running.
         part: 'contentDetails,status,snippet,statistics,liveStreamingDetails',
         id: batch.join(','),
-        maxResults: String(MAX_PAGE_SIZE),
-      })) as VideoListResponse
-
-      for (const item of page.items ?? []) {
-        if (!item.id) continue
-        videos.push({
-          id: item.id,
-          channelId: item.snippet?.channelId ?? '',
-          title: item.snippet?.title ?? '',
-          durationSec: parseIso8601Duration(item.contentDetails?.duration ?? ''),
-          publishedAt: item.snippet?.publishedAt ?? '',
-          categoryId: item.snippet?.categoryId,
-          tags: item.snippet?.tags,
-          viewCount: countOf(item.statistics?.viewCount),
-          // The watershed, as a field. YouTube has already made this judgement
-          // and it is the only one of its kind we get for free.
-          ageRestricted: item.contentDetails?.contentRating?.ytRating === AGE_RESTRICTED,
-          madeForKids: item.status?.madeForKids === true,
-          // Reported, not filtered: the scheduler decides what to do with an
-          // unembeddable or live item, this layer only says what is true.
-          embeddable: item.status?.embeddable !== false,
-          // Two ways to be live, and the snippet only knows one of them. A
-          // stream that is running says so; a stream that has *just* finished
-          // says `none` and still plays as "this live event has ended" until
-          // YouTube publishes the recording. Anything carrying streaming
-          // details without an end time has not finished.
-          isLive:
-            (item.snippet?.liveBroadcastContent ?? 'none') !== 'none' ||
-            (item.liveStreamingDetails !== undefined &&
-              item.liveStreamingDetails.actualEndTime === undefined),
-        })
+      })) {
+        for (const item of page.items ?? []) {
+          if (!item.id) continue
+          videos.push({
+            id: item.id,
+            channelId: item.snippet?.channelId ?? '',
+            title: item.snippet?.title ?? '',
+            durationSec: parseIso8601Duration(item.contentDetails?.duration ?? ''),
+            publishedAt: item.snippet?.publishedAt ?? '',
+            categoryId: item.snippet?.categoryId,
+            tags: item.snippet?.tags,
+            viewCount: countOf(item.statistics?.viewCount),
+            // The watershed, as a field. YouTube has already made this judgement
+            // and it is the only one of its kind we get for free.
+            ageRestricted: item.contentDetails?.contentRating?.ytRating === AGE_RESTRICTED,
+            madeForKids: item.status?.madeForKids === true,
+            // Reported, not filtered: the scheduler decides what to do with an
+            // unembeddable or live item, this layer only says what is true.
+            embeddable: item.status?.embeddable !== false,
+            // Two ways to be live, and the snippet only knows one of them. A
+            // stream that is running says so; a stream that has *just* finished
+            // says `none` and still plays as "this live event has ended" until
+            // YouTube publishes the recording. Anything carrying streaming
+            // details without an end time has not finished.
+            isLive:
+              (item.snippet?.liveBroadcastContent ?? 'none') !== 'none' ||
+              (item.liveStreamingDetails !== undefined &&
+                item.liveStreamingDetails.actualEndTime === undefined),
+          })
+        }
       }
     }
 

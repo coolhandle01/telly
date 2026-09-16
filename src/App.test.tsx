@@ -80,6 +80,13 @@ describe('App', () => {
 
     await view.user.click(screen.getByRole('button', { name: 'Power' }))
 
-    await waitFor(() => expect(view.container).not.toBeEmptyDOMElement())
+    // Not merely "something is still there": a set that cannot provide a
+    // service says so on the screen, the same way it does for every other
+    // fault, and the card is how it says it.
+    await waitFor(() =>
+      expect(screen.getByRole('group', { name: /closedown test card/i })).toBeInTheDocument(),
+    )
+    expect(screen.getByText(/receiver fault/i)).toBeInTheDocument()
+    expect(view.container).not.toBeEmptyDOMElement()
   })
 })

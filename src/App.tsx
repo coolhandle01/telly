@@ -10,6 +10,7 @@ import {
 import { YouTubeIframePlayer, loadYouTubeIframeApi, type Player } from './player'
 import { WebAudioSound, type Sound } from './audio/sound'
 import { Channel } from './ui/Channel'
+import { FaultBoundary } from './ui/FaultBoundary'
 
 export const CHANNEL_NAME = 'CHANNEL ONE'
 
@@ -77,19 +78,23 @@ export function App({ clock, sound = webAudioSound, poolSource, player }: AppPro
   }, [tokens])
 
   return (
-    <Channel
-      channelName={CHANNEL_NAME}
-      clock={shifted}
-      poolSource={poolSource ?? defaultSource}
-      player={player ?? built.player}
-      playerHost={player ? undefined : built.playerHost}
-      sound={sound}
-      sourceUrl={SOURCE_URL}
-      signIn={tokens ? () => tokens.signIn().then(() => undefined) : undefined}
-      // A deployed build with no client ID is broken, and says so on the
-      // screen. A dev build with none is running on fixtures, which is the
-      // documented way to work on this without credentials.
-      fault={tokens || import.meta.env.DEV ? undefined : NO_CLIENT_ID}
-    />
+    // A card under every programme, and a card under the receiver itself. The
+    // set announces its own faults; it does not go dark and leave you guessing.
+    <FaultBoundary channelName={CHANNEL_NAME} clock={shifted}>
+      <Channel
+        channelName={CHANNEL_NAME}
+        clock={shifted}
+        poolSource={poolSource ?? defaultSource}
+        player={player ?? built.player}
+        playerHost={player ? undefined : built.playerHost}
+        sound={sound}
+        sourceUrl={SOURCE_URL}
+        signIn={tokens ? () => tokens.signIn().then(() => undefined) : undefined}
+        // A deployed build with no client ID is broken, and says so on the
+        // screen. A dev build with none is running on fixtures, which is the
+        // documented way to work on this without credentials.
+        fault={tokens || import.meta.env.DEV ? undefined : NO_CLIENT_ID}
+      />
+    </FaultBoundary>
   )
 }

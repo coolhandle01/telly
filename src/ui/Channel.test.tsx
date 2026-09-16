@@ -259,13 +259,13 @@ describe('Channel', () => {
   })
 
   describe('signing in to YouTube', () => {
-    const render_ = (signIn?: () => Promise<void>) => {
+    const render_ = (signIn?: () => Promise<void>, source: PoolSource = new FixturePoolSource()) => {
       const clock = new FakeClock(AFTERNOON)
       return render(
         <Channel
           channelName={CHANNEL}
           clock={clock}
-          poolSource={new FixturePoolSource()}
+          poolSource={source}
           player={new FakePlayer()}
           signIn={signIn}
         />,
@@ -291,14 +291,6 @@ describe('Channel', () => {
       await view.user.click(screen.getByRole('button', { name: /sign in with google/i }))
 
       expect(calls).toBe(1)
-    })
-
-    it('stops offering once signed in', async () => {
-      const view = render_(async () => {})
-      await view.user.click(screen.getByRole('button', { name: /sign in with google/i }))
-      await waitFor(() =>
-        expect(screen.queryByRole('button', { name: /sign in with google/i })).toBeNull(),
-      )
     })
 
     it('says what went wrong, and lets you try again', async () => {

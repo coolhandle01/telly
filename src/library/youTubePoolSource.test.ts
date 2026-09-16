@@ -78,9 +78,10 @@ function channelsPage(channelIds: readonly string[]): HttpResponseLike {
   })
 }
 
-function playlistItemsPage(videoIds: readonly string[]): HttpResponseLike {
+function playlistItemsPage(videoIds: readonly string[], nextPageToken?: string): HttpResponseLike {
   return json({
     items: videoIds.map((id) => ({ contentDetails: { videoId: id, videoPublishedAt: '2026-09-01T00:00:00Z' } })),
+    ...(nextPageToken ? { nextPageToken } : {}),
   })
 }
 
@@ -101,8 +102,9 @@ interface VideoStub {
   liveStreamingDetails?: { actualStartTime?: string; actualEndTime?: string }
 }
 
-function videosPage(videos: readonly VideoStub[]): HttpResponseLike {
+function videosPage(videos: readonly VideoStub[], nextPageToken?: string): HttpResponseLike {
   return json({
+    ...(nextPageToken ? { nextPageToken } : {}),
     items: videos.map((video) => ({
       id: video.id,
       contentDetails: {
@@ -601,6 +603,76 @@ describe('YouTubePoolSource', () => {
       })
 
       expect((await new YouTubePoolSource({ fetch, tokens }).load()).videos).toEqual([])
+    })
+
+    // The termination test at :168 scripts a peer that volunteers a last page
+    // with no token, so it measures the peer's good manners rather than a bound
+    // in #listSubscriptions — a sane value sat in the one field that controls
+    // that loop. A peer that keeps handing back the token it just issued is the
+    // hostile one, and nothing in the code stops it. The fake caps itself so a
+    // loop with no cap fails as an assertion here instead of hanging the run.
+    it('stops when the peer keeps handing back the same nextPageToken', async () => {
+      const PEER_GIVES_UP_AFTER = 20
+      const { fetch, callsTo } = fakeYouTube({
+        subscriptions: (_params, call) =>
+          call < PEER_GIVES_UP_AFTER ? subscriptionPage([], 'same-page') : subscriptionPage([]),
+      })
+
+      await new YouTubePoolSource({ fetch, tokens }).load()
+
+      // A token already followed once is a peer that is not paging. Following
+      // it again spends quota the 24h cache cannot give back, because a load
+      // that never finishes is never cached (cachedPoolSource.ts:77-88).
+      expect(callsTo('subscriptions').length).toBeLessThanOrEqual(2)
+    })
+
+    it('never asks for a page larger than the API will give', async () => {
+      const { fetch, calls } = fakeYouTube({
+        subscriptions: () => subscriptionPage(['UC1']),
+        channels: (params) => channelsPage(params.get('id')!.split(',')),
+        playlistItems: () => playlistItemsPage(['v1']),
+        videos: (params) => videosPage(params.get('id')!.split(',').map((id) => ({ id }))),
+      })
+
+      // The API answers 400 invalidValue above its maximum, and the catch in
+      // #listRecentVideoIds reads that as one bad playlist, skipping them all.
+      await new YouTubePoolSource({ fetch, tokens, videosPerChannel: 200 }).load()
+
+      for (const call of calls) {
+        expect(Number(call.params.get('maxResults'))).toBeLessThanOrEqual(50)
+      }
+    })
+
+    it('pages a channel uploads request until it has the budget it was given', async () => {
+      const { fetch, callsTo } = fakeYouTube({
+        subscriptions: () => subscriptionPage(['UC1']),
+        channels: (params) => channelsPage(params.get('id')!.split(',')),
+        // Every page offers another, so only the budget can stop this.
+        playlistItems: (_params, call) =>
+          playlistItemsPage([`v${String(call)}`], `page-${String(call + 1)}`),
+        videos: (params) => videosPage(params.get('id')!.split(',').map((id) => ({ id }))),
+      })
+
+      const pool = await new YouTubePoolSource({ fetch, tokens, videosPerChannel: 3 }).load()
+
+      expect(callsTo('playlistItems')).toHaveLength(3)
+      expect(pool.videos.map((video) => video.id).sort()).toEqual(['v0', 'v1', 'v2'])
+    })
+
+    it('follows nextPageToken on a short videos page rather than losing the rest', async () => {
+      const { fetch, callsTo } = fakeYouTube({
+        subscriptions: () => subscriptionPage(['UC1']),
+        channels: (params) => channelsPage(params.get('id')!.split(',')),
+        playlistItems: () => playlistItemsPage(['v1', 'v2']),
+        // A batch of ids the peer answers over two pages.
+        videos: (params) =>
+          params.get('pageToken') === 'rest' ? videosPage([{ id: 'v2' }]) : videosPage([{ id: 'v1' }], 'rest'),
+      })
+
+      const pool = await new YouTubePoolSource({ fetch, tokens }).load()
+
+      expect(callsTo('videos')).toHaveLength(2)
+      expect(pool.videos.map((video) => video.id).sort()).toEqual(['v1', 'v2'])
     })
 
     it('treats an empty response body as an empty page rather than a failure', async () => {

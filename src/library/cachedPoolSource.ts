@@ -68,8 +68,13 @@ export class CachedPoolSource implements PoolSource {
     return toPool(stored)
   }
 
-  /** A stamp from the future means a moved clock or a corrupt record: distrust it. */
-  #isFresh(savedAt: number): boolean {
+  /**
+   * A stamp from the future means a moved clock or a corrupt record: distrust
+   * it. The type check comes first because this runs outside the try/catch at
+   * :60, and IndexedDB stores a BigInt happily: `number - bigint` throws.
+   */
+  #isFresh(savedAt: unknown): boolean {
+    if (typeof savedAt !== 'number' || !Number.isFinite(savedAt)) return false
     const age = this.#now() - savedAt
     return age >= 0 && age < this.#ttlMs
   }
@@ -93,8 +98,19 @@ function toStored(pool: Pool, savedAt: number): StoredPool {
   return { savedAt, videos: [...pool.videos], channels: [...pool.channels.values()] }
 }
 
-function toPool(stored: StoredPool): Pool {
-  const videos: readonly Video[] = stored.videos ?? []
-  const channels: readonly Channel[] = stored.channels ?? []
+/**
+ * The stored record as a `Pool`, or nothing if it is not the record `toStored`
+ * writes. Nothing is a cache miss: the pool is refetched and the record
+ * overwritten.
+ *
+ * Anything can end up under this key — an older version of the app, a
+ * half-finished write, a hand-edited entry in devtools — and a `channels` that
+ * is not an array reaches `profile.ts` as `channels.get is not a function`.
+ */
+function toPool(stored: StoredPool): Pool | undefined {
+  if (!Array.isArray(stored.videos) || !Array.isArray(stored.channels)) return undefined
+
+  const videos: readonly Video[] = stored.videos
+  const channels: readonly Channel[] = stored.channels
   return { videos, channels: new Map(channels.map((channel) => [channel.id, channel])) }
 }

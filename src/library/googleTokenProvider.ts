@@ -47,11 +47,9 @@ declare global {
 /**
  * What each GIS `<script>` in the document is already doing.
  *
- * Keyed by the element so it cannot outlive it. That is what makes one of
- * these failures retryable and the other not, without either being spelled
- * out: the error path removes the tag, which drops the entry and lets the next
- * call make a fresh request, while a script that loaded and exposed nothing
- * leaves its tag in place, so every later call is handed that same rejection.
+ * Keyed by the element, so the entry lives exactly as long as the tag. The
+ * error path removes the tag and a retry starts fresh; a tag that stays hands
+ * its rejection to every later caller.
  */
 const loads = new WeakMap<HTMLScriptElement, Promise<GoogleIdentityServices>>()
 
@@ -63,9 +61,8 @@ export function loadGoogleIdentityServices(): Promise<GoogleIdentityServices> {
   if (window.google?.accounts?.oauth2) return Promise.resolve(window.google)
 
   const existing = document.querySelector<HTMLScriptElement>(`script[src="${GIS_SCRIPT_URL}"]`)
-  // Without this, a second call attaches listeners to a tag that has already
-  // fired its one `load`, appends nothing, and waits for an event that can
-  // never come. That is the hang the docstring above rules out.
+  // A tag fires `load` once, so a call arriving after that takes its result
+  // from here rather than from a listener.
   const already = existing && loads.get(existing)
   if (already) return already
 
@@ -151,10 +148,9 @@ export class GoogleTokenProvider implements AccessTokenProvider {
         })
       })
       .catch((error: unknown) => {
-        // A load that failed once must not disable sign-in for the life of the
-        // page. An extension, a firewall or a flaky network can all clear by
-        // the next click, and a held rejection would replay this failure at
-        // every one of them without ever asking Google again.
+        // Sign-in stays available after a failed load: an extension, a
+        // firewall or a flaky network can clear by the next click, and this
+        // lets that click ask Google again.
         this.#ready = undefined
         throw error
       })

@@ -78,8 +78,7 @@ export function App({ clock, sound = webAudioSound, poolSource, player }: AppPro
   }, [tokens])
 
   return (
-    // A card under every programme, and a card under the receiver itself. The
-    // set announces its own faults; it does not go dark and leave you guessing.
+    // A card under every programme, and a card under the receiver itself.
     <FaultBoundary channelName={CHANNEL_NAME} clock={shifted}>
       <Channel
         channelName={CHANNEL_NAME}

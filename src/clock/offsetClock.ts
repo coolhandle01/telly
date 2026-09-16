@@ -30,9 +30,7 @@ export class OffsetClock implements Clock {
  * The instant `?at=` names, or `undefined` if it names none.
  *
  * A bare wall-clock time is placed inside the broadcast day `dayStart` opens,
- * which is what makes `?at=03:14` the small hours ahead of you rather than the
- * ones behind: 03.14 is before 06.00, so it belongs to the day's second
- * calendar date.
+ * so `?at=03:14`, being before 06.00, lands on the day's second calendar date.
  */
 function targetInstant(at: string, dayStart: Date): number | undefined {
   const hhmm = /^(\d{1,2}):(\d{2})$/.exec(at.trim())
@@ -55,16 +53,14 @@ function targetInstant(at: string, dayStart: Date): number | undefined {
  * Accepts a wall-clock time — `?at=03:14` — or a full instant,
  * `?at=2026-09-12T03:14`. Either way it must land inside the broadcast day you
  * are already in: the 06.00 behind you, up to but not including the 06.00
- * ahead. That is the day the schedule was planned for, so it is the only day
- * the set has anything to show. It is a window, not a distance, so looking back
- * at what was on this morning is as valid as looking forward to closedown.
+ * ahead. That is the day the schedule was planned for, and it is a window, so
+ * this morning is as reachable as tonight's closedown.
  *
  * Returns 0 for anything absent, unparseable, or outside that day, so a typo
- * shows you the real time rather than an error. That last case is not only
- * tidiness: `new Date('275760-09-13')` parses to the largest `Date` there is
- * rather than failing, and an offset that size makes `OffsetClock.now()`
- * overflow to an invalid `Date` on the very next tick, taking the schedule, the
- * guide and the card's own clock down with it.
+ * shows you the real time. `new Date('275760-09-13')` parses to the largest
+ * `Date` there is, and an offset that size makes `OffsetClock.now()` overflow
+ * to an invalid `Date` on the next tick, taking the schedule and the guide
+ * with it.
  */
 export function offsetFromQuery(search: string, now: Date): number {
   const at = new URLSearchParams(search).get('at')

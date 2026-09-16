@@ -80,9 +80,8 @@ describe('App', () => {
 
     await view.user.click(screen.getByRole('button', { name: 'Power' }))
 
-    // Not merely "something is still there": a set that cannot provide a
-    // service says so on the screen, the same way it does for every other
-    // fault, and the card is how it says it.
+    // A set that cannot provide a service says so on the screen, the same way
+    // it does for every other fault.
     await waitFor(() =>
       expect(screen.getByRole('group', { name: /closedown test card/i })).toBeInTheDocument(),
     )

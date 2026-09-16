@@ -13,27 +13,68 @@ that sit entirely inside one trust boundary — `domain/`, `schedule/`,
 
 ## The system, as data flows
 
-```
-  viewer                                                    Google account
-    │  clicks, ?at=, keys                                          │
-    │                                        consent, token        │
-┌───┴──────────────── browser origin: https://telly.na-n.xyz ──────┼──────────┐
-│                                                                  │          │
-│  App ─ Channel ─ Guide / TestCard        GoogleTokenProvider ═══ B1 ═══► accounts.google.com
-│     │                  ▲                        │  token                   (GIS script,
-│     │                  │ titles                 │  in memory                consent popup)
-│     │            YouTubePoolSource ◄════════════┘                          │
-│     │                  │  ║                                                │
-│     │                  │  ╚══════════════ B2 ═══════════════► www.googleapis.com/youtube/v3
-│     │                  ▼                                                   │
-│     │            CachedPoolSource ──► IndexedDB `testcard`/`pools`  (B6)    │
-│     │                                                                      │
-│  YouTubeIframePlayer ═══ B3 ═══► www.youtube.com  (iframe_api script, and   │
-│                                                    the player frame)        │
-│  SourceLink ─────────────────► github.com (new tab)                         │
-└──────────────────────────────────▲──────────────────────────────────────────┘
-                                   ║ B4: bundle over HTTPS
-                            GitHub Pages ◄══ B5 ══ GitHub Actions ◄── repository
+Boxes with doubled sides are external entities, rounded boxes are processes, the
+cylinder is a data store, and a boxed region is a trust boundary. A bold flow
+crosses a boundary; a dotted flow is remote code arriving to run inside the
+boundary it lands in.
+
+```mermaid
+flowchart TB
+  viewer[["viewer"]]
+  account[["Google account"]]
+
+  subgraph build["publishing"]
+    repo[["repository"]] -->|"v* tag"| actions[["GitHub Actions"]]
+    actions ==>|"B5 · workflow tokens, release App key, artefact"| pages[["GitHub Pages"]]
+  end
+
+  subgraph origin["browser origin · https://telly.na-n.xyz"]
+    app("App")
+    channel("Channel")
+    guide("Guide / TestCard")
+    sourcelink("SourceLink")
+    provider("GoogleTokenProvider")
+    ytpool("YouTubePoolSource")
+    cached("CachedPoolSource")
+    idb[("IndexedDB · testcard / pools")]
+    player("YouTubeIframePlayer")
+
+    subgraph scripts["B7 · fetched remote, runs as first-party code here"]
+      gsi("gsi/client")
+      ytapi("iframe_api")
+    end
+  end
+
+  accounts[["accounts.google.com"]]
+  api[["www.googleapis.com/youtube/v3"]]
+  youtube[["www.youtube.com"]]
+  github[["github.com"]]
+
+  pages ==>|"B4 · the bundle, over HTTPS"| app
+  viewer -->|"clicks, ?at=, keys"| app
+  account -->|"consent"| accounts
+
+  app --> channel
+  app --> player
+  channel --> sourcelink
+  channel -->|"titles"| guide
+  cached -->|"the pool"| channel
+
+  provider ==>|"B1 · load GIS, ask for a token"| accounts
+  accounts -.->|"the script itself"| gsi
+  accounts ==>|"B1 · consent, access token"| gsi
+  gsi -->|"token"| provider
+  provider -->|"token, in memory"| ytpool
+
+  ytpool ==>|"B2 · Bearer reads"| api
+  ytpool -->|"the pool"| cached
+  cached <==>|"B6 · the pool, at rest for a day"| idb
+
+  player ==>|"B3 · the player frame"| youtube
+  youtube -.->|"the script itself"| ytapi
+  ytapi -->|"player controls"| player
+
+  sourcelink -->|"new tab"| github
 ```
 
 - **External entities** — the viewer; the Google account and its consent; the

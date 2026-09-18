@@ -36,12 +36,12 @@ export interface GuideProps {
  *
  * A set of this period had no on-screen guide and no way to get one: you
  * looked it up, on the arm of the chair. So this is not part of the set and
- * does not pretend to be — it is a sheet of newsprint held up in front of it,
+ * does not pretend to be: it is a sheet of newsprint held up in front of it,
  * and it is the one thing on this screen allowed to be bright.
  *
  * A column to a channel, times down each one, which is how a paper set it: an
  * hour-by-hour grid across all five is a modern electronic guide and would be
- * an anachronism twice over — nobody printed one, and no television could have
+ * an anachronism twice over: nobody printed one, and no television could have
  * drawn one.
  *
  * Times are printed the way British listings printed them, with a point rather
@@ -64,7 +64,7 @@ const CSS = `
 /*
   The scrim is the scroller, and the sheet inside it is one piece of paper.
 
-  A newspaper has no fixed masthead with the columns sliding underneath it —
+  A newspaper has no fixed masthead with the columns sliding underneath it:
   you move the whole page. So nothing here scrolls on its own: the scrim
   scrolls, and the masthead, the columns and the footer all go up together.
 
@@ -91,7 +91,7 @@ const CSS = `
   box-sizing: border-box;
   width: min(74rem, 100%);
   margin: auto;
-  /* Newsprint: not white, and not cream either — a warm grey that has been
+  /* Newsprint: not white, and not cream either, a warm grey that has been
      stacked in a shop all morning. */
   background:
     linear-gradient(rgba(255, 252, 244, 0.55), rgba(160, 148, 124, 0.22)),
@@ -163,7 +163,7 @@ const CSS = `
   Every column carries the same rule and the same padding, and only the colour
   of the rule changes. Putting the border and the padding on the adjacent
   sibling alone makes the first column's content box wider than the rest by
-  exactly that much — the tracks stay equal and the headings inside them do
+  exactly that much: the tracks stay equal and the headings inside them do
   not, which shows as one bar being longer than its neighbours.
 */
 .guide__column {
@@ -176,7 +176,7 @@ const CSS = `
   The channel the set is tuned to, marked down the whole column rather than
   round its heading. An outer ring on the heading draws two pixels on every
   side and contributes nothing to layout, so the bar measures the same as its
-  neighbours and looks four pixels bigger in both directions — and there is no
+  neighbours and looks four pixels bigger in both directions, and there is no
   way to reserve that space on the others, because a transparent ring paints
   nothing. Anything that marks one column has to sit inside the box every
   column already has.
@@ -216,7 +216,7 @@ const CSS = `
 .guide__what { margin: 0; overflow-wrap: anywhere; }
 .guide__repeat { font-size: 0.86em; opacity: 0.7; }
 /* Off air is set in italics, the way a paper set anything that is not a
-   programme — it is a listing, not an absence of one. */
+   programme: it is a listing, not an absence of one. */
 .guide__row[data-kind='closedown'] .guide__what,
 .guide__row[data-kind='interlude'] .guide__what { font-style: italic; opacity: 0.72; }
 /*
@@ -267,7 +267,7 @@ const CSS = `
 
 /**
  * What a paper printed when the schedules had not arrived in time. The page
- * still went out — the masthead, the date, and a line saying so.
+ * still went out: the masthead, the date, and a line saying so.
  */
 const LATE = 'Programme details were not available when this page went to press.'
 
@@ -435,7 +435,7 @@ const Row = memo(function Row({
       <p className="guide__what">
         {entry.label}
         {entry.repeat ? <span className="guide__repeat"> (R)</span> : null}
-        {onAir ? <span className="sr-only"> — on now</span> : null}
+        {onAir ? <span className="sr-only">, on now</span> : null}
       </p>
     </div>
   )

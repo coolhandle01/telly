@@ -3,7 +3,7 @@ import type { Clock } from './clock'
 
 /**
  * A clock running a fixed distance from another one. Still ticks, so the
- * channel behaves exactly as it would at that hour — programmes end, junctions
+ * channel behaves exactly as it would at that hour: programmes end, junctions
  * arrive, the card's clock counts on. It is not a frozen instant.
  *
  * This is how you look at closedown without sitting up until half one.
@@ -50,7 +50,7 @@ function targetInstant(at: string, dayStart: Date): number | undefined {
 /**
  * Reads `?at=` and returns the offset it implies, in milliseconds.
  *
- * Accepts a wall-clock time — `?at=03:14` — or a full instant,
+ * Accepts a wall-clock time (`?at=03:14`) or a full instant,
  * `?at=2026-09-12T03:14`. Either way it must land inside the broadcast day you
  * are already in: the 06.00 behind you, up to but not including the 06.00
  * ahead. That is the day the schedule was planned for, and it is a window, so

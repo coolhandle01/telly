@@ -10,7 +10,7 @@ export interface SourceLinkProps {
  * whole of why this one image is a reproduction when nothing else in the app
  * is: the test cards and the station idents are original because the
  * alternative would be copying somebody's work, and this is the one case where
- * copying is the point. So it is copied, not re-traced — the path below is
+ * copying is the point. So it is copied, not re-traced: the path below is
  * `icons/mark-github-16.svg` from primer/octicons v19.33.0, character for
  * character.
  *

@@ -7,7 +7,7 @@ import { TestCardSvg } from './TestCardSvg'
 export interface TestCardProps {
   variant: TestCardVariant
   channelName: string
-  /** The only source of "now" — nothing here calls `new Date()`. */
+  /** The only source of "now": nothing here calls `new Date()`. */
   clock: Clock
   resumesAt?: Date
   message?: string

@@ -11,7 +11,7 @@ import { defineConfig } from 'vitest/config'
  * The privacy policy and the terms are plain files under `public/`, not routes
  * the app knows about. A static host answers `/privacy/` with the index.html
  * inside it; Vite's own static middleware does not, so the request falls
- * through to the single-page fallback and the dev server returns the app —
+ * through to the single-page fallback and the dev server returns the app,
  * leaving the television on screen at an address that is not the television.
  * This makes the servers we develop against behave like the one we deploy to.
  */
@@ -53,9 +53,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     // Stryker's sandbox is a full copy of the project, tests and all. Without
-    // this, a mutation run makes `vitest` find every test file twice — and the
+    // this, a mutation run makes `vitest` find every test file twice, and the
     // copies it finds are instrumented.
-    // `*.dst.test.ts` runs under its own config with TZ=Europe/London — see
+    // `*.dst.test.ts` runs under its own config with TZ=Europe/London: see
     // `npm run test:dst`. Here, on a machine that is probably UTC, it would
     // fail for the right reason and the wrong one.
     exclude: ['**/node_modules/**', '**/dist/**', '.stryker-tmp/**', '**/*.dst.test.ts'],

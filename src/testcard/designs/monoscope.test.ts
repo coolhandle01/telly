@@ -49,7 +49,7 @@ const textOf = (model: TestCardModel, role: ShapeRole): string => {
   return shape?.kind === 'text' ? shape.text : ''
 }
 
-/** Every shape whose id begins with `prefix` — one drawn group of the card. */
+/** Every shape whose id begins with `prefix`:one drawn group of the card. */
 const group = (model: TestCardModel, prefix: string): Shape[] =>
   model.shapes.filter((shape) => shape.id.startsWith(prefix))
 
@@ -141,7 +141,7 @@ function assertMirrorSymmetric(model: TestCardModel, shapes: Shape[]): void {
   expect(reflected).toEqual(present)
 }
 
-describe('siemensStarWedges — the arithmetic of the star', () => {
+describe('siemensStarWedges:the arithmetic of the star', () => {
   it('refuses a count that cannot alternate: odd, too few, or not a whole number', () => {
     expect(() => siemensStarWedges(23)).toThrow(RangeError)
     expect(() => siemensStarWedges(2)).toThrow(RangeError)
@@ -194,7 +194,7 @@ describe('siemensStarWedges — the arithmetic of the star', () => {
   })
 })
 
-describe('buildMonoscopeCard — the card frame', () => {
+describe('buildMonoscopeCard:the card frame', () => {
   it('defaults to a 4:3 card and reports its geometric centre', () => {
     const model = card()
 
@@ -245,7 +245,7 @@ describe('buildMonoscopeCard — the card frame', () => {
   })
 })
 
-describe('buildMonoscopeCard — the Siemens star', () => {
+describe('buildMonoscopeCard:the Siemens star', () => {
   it('radiates an even number of wedges, so the alternation closes at the wrap', () => {
     expect(STAR_WEDGES % 2).toBe(0)
     expect(linesOf(card(), 'star-segment')).toHaveLength(STAR_WEDGES)
@@ -316,7 +316,7 @@ describe('buildMonoscopeCard — the Siemens star', () => {
   it('weights the spokes so the wedges fuse exactly halfway out', () => {
     // A spoke of width w subtends w / r at radius r, and the wedges are pitched
     // TAU / N apart, so they touch where w / r === TAU / N. That radius is the
-    // whole measurement — inside it the star is a smudge, outside it resolves —
+    // whole measurement (inside it the star is a smudge, outside it resolves)
     // and it is put at half the rim so the reader has plenty of both.
     const model = card({ width: 800, height: 600 })
     const radius = model.picture.height * STAR_RADIUS_FRACTION
@@ -341,7 +341,7 @@ describe('buildMonoscopeCard — the Siemens star', () => {
   })
 })
 
-describe('buildMonoscopeCard — the concentric circles', () => {
+describe('buildMonoscopeCard:the concentric circles', () => {
   it('draws one circle per declared radius, all on the card centre', () => {
     const model = card({ width: 640, height: 480 })
     const rings = circlesOf(model, 'ring')
@@ -406,7 +406,7 @@ describe('buildMonoscopeCard — the concentric circles', () => {
   })
 })
 
-describe('buildMonoscopeCard — resolution gratings', () => {
+describe('buildMonoscopeCard:resolution gratings', () => {
   it('runs a horizontal-resolution row mirrored about the vertical axis', () => {
     const model = card({ gratingFrequencies: [1.5, 3.5] })
     const frames = shapesOfRole(model, 'grating-frame').filter((f) => f.id.startsWith('grating-'))
@@ -493,7 +493,7 @@ describe('buildMonoscopeCard — resolution gratings', () => {
   })
 })
 
-describe('buildMonoscopeCard — the greyscale step wedge', () => {
+describe('buildMonoscopeCard:the greyscale step wedge', () => {
   it('steps monotonically from black to white across the requested number of steps', () => {
     const model = card({ greyscaleSteps: 6 })
     const steps = rectsOf(model, 'greyscale-step')
@@ -522,7 +522,7 @@ describe('buildMonoscopeCard — the greyscale step wedge', () => {
   })
 })
 
-describe('buildMonoscopeCard — monochrome, and proud of it', () => {
+describe('buildMonoscopeCard:monochrome, and proud of it', () => {
   it('uses no colour anywhere: every ink is a neutral grey', () => {
     const model = card()
     const grey = /^#([0-9a-f]{2})\1\1$/i
@@ -538,12 +538,12 @@ describe('buildMonoscopeCard — monochrome, and proud of it', () => {
     expect(model.background).toMatch(grey)
   })
 
-  it('carries no colour bars at all — that is the other card', () => {
+  it('carries no colour bars at all:that is the other card', () => {
     expect(shapesOfRole(card(), 'colour-bar')).toEqual([])
   })
 })
 
-describe('buildMonoscopeCard — caption box and clock', () => {
+describe('buildMonoscopeCard:caption box and clock', () => {
   it('captions the injected channel, date and resume time, not the ambient ones', () => {
     const model = card()
 
@@ -591,7 +591,7 @@ describe('buildMonoscopeCard — caption box and clock', () => {
   })
 })
 
-describe('buildMonoscopeCard — the interlude variant', () => {
+describe('buildMonoscopeCard:the interlude variant', () => {
   const interlude = (): TestCardModel => card({ variant: 'interlude' })
 
   it('drops the test signals a short gap does not need', () => {
@@ -620,7 +620,7 @@ describe('buildMonoscopeCard — the interlude variant', () => {
   })
 })
 
-describe('buildMonoscopeCard — invariants', () => {
+describe('buildMonoscopeCard:invariants', () => {
   it('keeps every shape inside the bounds of the card', () => {
     const model = card()
 

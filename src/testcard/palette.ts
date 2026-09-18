@@ -1,4 +1,4 @@
-/** The card's ink. Broadcast-ish, but drawn from scratch — no house style copied. */
+/** The card's ink. Broadcast-ish, but drawn from scratch: no house style copied. */
 export const PALETTE = {
   surround: '#0b0b0b',
   castellationLight: '#f2f2f2',

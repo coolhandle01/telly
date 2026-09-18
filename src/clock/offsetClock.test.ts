@@ -48,7 +48,7 @@ describe('offsetFromQuery', () => {
     expect(offsetFromQuery(query, NOW)).toBe(0)
   })
 
-  // Widened: the four original values were all typos — none of them *parses*,
+  // Widened: the four original values were all typos: none of them *parses*,
   // so the one branch with no range check (offsetClock.ts:52-53) was never
   // reached by the test whose job is to break it. The last three parse
   // perfectly and sit at the edges of what a Date can hold.

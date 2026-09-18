@@ -44,7 +44,7 @@ const SPUN_DASH = 2.2
 function spunRing(index: number) {
   const spread = (index / (SPUN_RINGS - 1)) * (SPUN_OUTER - SPUN_INNER)
   // Shifted by an irrational-ish fraction of the dash so no two rings line
-  // their arcs up — turning that rows up reads as a printed pattern.
+  // their arcs up: turning that rows up reads as a printed pattern.
   return { r: SPUN_INNER + spread, offset: index * 1.37 }
 }
 
@@ -122,7 +122,7 @@ const CSS = `
   letter-spacing: 0.18em;
   text-transform: uppercase;
   /* Engraved into the plate the spindle comes through, so it is cut dark
-     with the burr under it catching the light — not printed on in cream. */
+     with the burr under it catching the light, not printed on in cream. */
   color: #4a4640;
   text-shadow: 0 0.045rem 0 rgba(255, 255, 255, 0.6);
 }
@@ -131,7 +131,7 @@ const CSS = `
 /**
  * A bakelite volume control, drawn in CSS. It stands in for an
  * `<input type="range">` and so has to be at least as good as one: the same
- * role, the same keys, the same announcement — plus a drag, because a knob
+ * role, the same keys, the same announcement, plus a drag, because a knob
  * that cannot be turned by hand is a picture of a knob.
  */
 export function Knob({ label, value, onChange, step = DEFAULT_STEP }: KnobProps) {
@@ -166,7 +166,7 @@ export function Knob({ label, value, onChange, step = DEFAULT_STEP }: KnobProps)
           {/*
             The scale is silk-screened onto the plate the spindle comes
             through. Printing does not know where the knob is pointing, so
-            every mark is the same ink at the same weight — the ticks the
+            every mark is the same ink at the same weight. The ticks the
             pointer has passed used to fade up, which is a meter's behaviour
             and not a fascia's.
           */}

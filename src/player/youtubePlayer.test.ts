@@ -10,7 +10,7 @@ import {
 
 /**
  * jsdom has no YouTube IFrame API, and a test must never fetch one. The script
- * loader is injected, so this stands in for everything the real API would do —
+ * loader is injected, so this stands in for everything the real API would do,
  * and records what was asked of it. The assertions live in the tests.
  */
 class FakeYouTubePlayer implements YouTubePlayerHandle {
@@ -30,7 +30,7 @@ class FakeYouTubePlayer implements YouTubePlayerHandle {
   }
 
   /**
-   * `new YT.Player()` returns an object whose methods **do not exist yet** —
+   * `new YT.Player()` returns an object whose methods **do not exist yet**:
    * the API grafts them on when the frame reports ready. Calling one before
    * that is a TypeError in a real browser, so it is one here. A fake that is
    * more capable than the thing it stands in for is a fake that hides bugs,
@@ -111,7 +111,7 @@ const mounted = (players: FakeYouTubePlayer[]): Promise<FakeYouTubePlayer> =>
 describe('YouTubeIframePlayer', () => {
   // Regression: the API replaces the host with an iframe of its own, so a
   // missing size gave YouTube's 640x390 default marooned in the corner of the
-  // stage — which on a television is indistinguishable from nothing on at all.
+  // stage, which on a television is indistinguishable from nothing on at all.
   it('fills its frame rather than taking the default 640x390', async () => {
     const { player, players } = driver()
 
@@ -297,7 +297,7 @@ describe('YouTubeIframePlayer', () => {
     expect(faults).toEqual([])
   })
 
-  it('does not retry the video that failed — recovery is the screen\'s business', async () => {
+  it('does not retry the video that failed: recovery is the screen\'s business', async () => {
     const { player, players } = driver()
 
     player.load('vid-1', 0)
@@ -395,12 +395,12 @@ describe('when a video mounts but no picture ever arrives', () => {
 })
 
 // Found on a real evening: the news slot failed (news channels routinely
-// disable embedding), the card went up correctly — and then nothing played
+// disable embedding), the card went up correctly, and then nothing played
 // again until the page was refreshed. A YouTube player that has errored stays
 // errored; loadVideoById on it does nothing at all.
 // Found by switching the set off and on again: the surface removes the host
 // from the document when it unmounts, and an iframe that moves in the DOM
-// reloads — severing the player object from its frame.
+// reloads, severing the player object from its frame.
 describe('after the set has been switched off', () => {
   it('builds a fresh player when it comes back on', async () => {
     const { player, players } = driver()
@@ -589,7 +589,7 @@ describe('before the frame reports ready', () => {
 })
 
 /**
- * A player that has been torn down still fires its callbacks — the frame is
+ * A player that has been torn down still fires its callbacks: the frame is
  * gone but the API does not know that. They must not land on whatever player
  * exists by the time they arrive.
  */

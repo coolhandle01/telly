@@ -6,7 +6,7 @@ import { STATIONS, type Station, type StationId } from './stations'
  *
  * Exclusive, and that is the point: a channel that turns up on all five is not
  * on any of them. Tuning around has to mean something, so a subscription has
- * one home and appears nowhere else — which is also how the real thing worked,
+ * one home and appears nowhere else, which is also how the real thing worked,
  * because a programme was bought by a broadcaster and that was that.
  *
  * The cost is honest: divide thirty subscriptions five ways and each station
@@ -42,8 +42,8 @@ export function fitFor(station: Station, subscription: Subscription): number {
 /**
  * Deal the subscriptions out, best fit first.
  *
- * Strongest claims are settled first — a comedy channel gets the comedy
- * station before a merely comedy-ish one does — and no station may take more
+ * Strongest claims are settled first (a comedy channel gets the comedy
+ * station before a merely comedy-ish one does) and no station may take more
  * than its share while another is short, so nothing ends up with the whole
  * pool and nothing ends up with none of it.
  */
@@ -83,7 +83,7 @@ export function assign(
     want. Letting each station pick in turn gives every one of them its first
     choice, which is the thing that actually shows on screen.
 
-    The order snakes — 1,2,3,4,5 then 5,4,3,2,1 — so picking last in one round
+    The order snakes (1,2,3,4,5 then 5,4,3,2,1) so picking last in one round
     is picking first in the next, and no station spends the whole draft taking
     what nobody else wanted.
   */

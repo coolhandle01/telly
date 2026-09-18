@@ -112,7 +112,7 @@ const EBU_ORDER = [
   '#000000',
 ]
 
-describe('buildBarsCard — the card frame', () => {
+describe('buildBarsCard:the card frame', () => {
   it('defaults to a 4:3 card and reports its geometric centre', () => {
     const model = card()
 
@@ -158,7 +158,7 @@ describe('buildBarsCard — the card frame', () => {
   })
 })
 
-describe('buildBarsCard — the full-height colour bars', () => {
+describe('buildBarsCard:the full-height colour bars', () => {
   it('lays eight bars in EBU order, brightest to darkest', () => {
     expect(rects(card(), 'bar-tall').map((bar) => bar.fill)).toEqual(EBU_ORDER)
   })
@@ -205,7 +205,7 @@ describe('buildBarsCard — the full-height colour bars', () => {
   })
 })
 
-describe('buildBarsCard — the reversed band beneath', () => {
+describe('buildBarsCard:the reversed band beneath', () => {
   it('runs the same eight colours in the opposite order', () => {
     expect(rects(card(), 'colour-bar').map((bar) => bar.fill)).toEqual([...EBU_ORDER].reverse())
   })
@@ -248,7 +248,7 @@ describe('buildBarsCard — the reversed band beneath', () => {
   })
 })
 
-describe('buildBarsCard — the PLUGE strip', () => {
+describe('buildBarsCard:the PLUGE strip', () => {
   it('steps monotonically upward through distinct near-black levels', () => {
     const patches = rects(card(), 'pluge')
 
@@ -297,7 +297,7 @@ describe('buildBarsCard — the PLUGE strip', () => {
   })
 })
 
-describe('buildBarsCard — the white and black reference patches', () => {
+describe('buildBarsCard:the white and black reference patches', () => {
   const references = (model: TestCardModel): RectShape[] => rects(model, 'greyscale-step')
 
   it('shows one peak-white and one full-black patch', () => {
@@ -335,7 +335,7 @@ describe('buildBarsCard — the white and black reference patches', () => {
   })
 })
 
-describe('buildBarsCard — caption box and clock', () => {
+describe('buildBarsCard:caption box and clock', () => {
   it('captions the injected channel name', () => {
     expect(textOf(card({ channelName: 'CHANNEL TWO' }), 'caption-channel')).toBe('CHANNEL TWO')
   })
@@ -391,7 +391,7 @@ describe('buildBarsCard — caption box and clock', () => {
   })
 })
 
-describe('buildBarsCard — the interlude variant', () => {
+describe('buildBarsCard:the interlude variant', () => {
   const interlude = (overrides: Partial<TestCardSpec> = {}): TestCardModel =>
     card({ variant: 'interlude', ...overrides })
 
@@ -429,7 +429,7 @@ describe('buildBarsCard — the interlude variant', () => {
   })
 })
 
-describe('buildBarsCard — invariants', () => {
+describe('buildBarsCard:invariants', () => {
   const shapes = (model: TestCardModel): Shape[] => model.shapes
 
   it('keeps every shape inside the bounds of the card, in either variant', () => {

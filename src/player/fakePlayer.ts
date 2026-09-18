@@ -49,7 +49,7 @@ export class FakePlayer implements Player {
     for (const listener of [...this.#pictureListeners]) listener(hasPicture)
   }
 
-  /** Push a fault at whoever is listening — the screen's apology path. */
+  /** Push a fault at whoever is listening: the screen's apology path. */
   fault(fault: PlayerFault): void {
     for (const listener of [...this.#faultListeners]) listener(fault)
   }

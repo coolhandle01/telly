@@ -69,7 +69,7 @@ export class StationClassifier implements Classifier {
       score *= strandLift(strand, daypart.id, this.#weekday)
 
       // Scaled rather than clipped. Clipping at one loses the ordering
-      // exactly where it matters most — a series on its own night and a
+      // exactly where it matters most: a series on its own night and a
       // comedy on comedy night both run past one, and the packer could no
       // longer tell them apart.
       if (score > 0) affinities[daypart.id] = Math.min(1, score / MAX_SCORE)

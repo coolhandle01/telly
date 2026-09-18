@@ -3,7 +3,7 @@ import type { Shape, ShapeRole, TestCardModel } from './model'
 /**
  * How a shape's domain role surfaces in the accessibility tree. SVG elements
  * carry no implicit ARIA role worth having, so the caption and the clock are
- * given one explicitly — which is what lets a component test query by role
+ * given one explicitly, which is what lets a component test query by role
  * instead of by test id, and a screen reader read the card at all.
  */
 const ARIA: Partial<Record<ShapeRole, { role: string; level?: number }>> = {

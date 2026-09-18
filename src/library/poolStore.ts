@@ -17,12 +17,13 @@ export interface PoolStore {
   read(key: string): Promise<StoredPool | undefined>
   write(key: string, entry: StoredPool): Promise<void>
   /**
-   * Empties the store: every key, not just one account's.
+   * Removes one record.
    *
    * This is what signing out does to the copy of your subscriptions held on
-   * this machine. It takes every key because a viewer asking a browser to
-   * forget them means the browser, and a set in a hall or a library has had
-   * more than one person signed into it.
+   * this machine. One key, because the record belongs to the account that
+   * signed out and the others belong to accounts that did not: a set in a
+   * hall or a library has had more than one person signed into it, and the
+   * one leaving does not get to throw away everybody else's evening.
    */
-  clear(): Promise<void>
+  remove(key: string): Promise<void>
 }

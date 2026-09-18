@@ -46,6 +46,8 @@ export class CachedPoolSource implements PoolSource {
   readonly #ttlMs: number
   readonly #now: () => number
   readonly #scope: (() => Promise<string>) | undefined
+  /** The last key this source resolved, so signing out needs no network. */
+  #lastKey: string | undefined
   /** One fetch, however many callers ask at once. */
   #inFlight: Promise<Pool> | undefined
 
@@ -69,24 +71,30 @@ export class CachedPoolSource implements PoolSource {
   }
 
   /**
-   * Every account's record, not just the signed-in one's. See `PoolStore`.
+   * This account's record, and no other account's. See `PoolStore`.
    *
    * A fetch that was already running writes its pool when it lands, so the
-   * clear is repeated once that write has had its chance. Signing out in the
-   * second a load returns is how the subscriptions get put back afterwards.
+   * removal is repeated once that write has had its chance. Signing out in
+   * the second a load returns is how the subscriptions get put back
+   * afterwards.
    */
   async forget(): Promise<void> {
     const landing = this.#inFlight
     this.#inFlight = undefined
 
+    // Resolved before anything is torn down. The inner source is about to
+    // forget which account this was, and the token it would ask with is about
+    // to be revoked, so the key is settled while both still exist.
+    const key = this.#lastKey ?? (await this.#keyFor())
+
     // Both halves are attempted whatever the other does. A database that will
     // not open would otherwise leave the source still keyed to the account
     // that has just signed out.
-    const outcomes = await Promise.allSettled([this.#store?.clear(), this.#inner.forget?.()])
+    const outcomes = await Promise.allSettled([this.#remove(key), this.#inner.forget?.()])
 
     if (landing) {
       await landing.catch(() => undefined)
-      outcomes.push(...(await Promise.allSettled([this.#store?.clear()])))
+      outcomes.push(...(await Promise.allSettled([this.#remove(key)])))
     }
 
     // Reported, not swallowed. A load that cannot read its cache still has
@@ -98,6 +106,22 @@ export class CachedPoolSource implements PoolSource {
   }
 
   /**
+   * Takes this account's record out and leaves every other account's alone.
+   *
+   * A record belongs to the account that signed in for it. Someone signing
+   * out has asked to be forgotten, which is not the same as asking for
+   * everybody else at this machine to be forgotten too, and a record thrown
+   * away costs its owner the whole day's quota to fetch again.
+   */
+  async #remove(key: string | undefined): Promise<void> {
+    if (!this.#store) return
+    // Nothing can be taken out under a key that could not be established, and
+    // saying otherwise would be a sign-out that reported more than it did.
+    if (key === undefined) throw new Error('the account holding this record could not be established')
+    await this.#store.remove(key)
+  }
+
+  /**
    * The key this account's pool is filed under.
    *
    * A scope that cannot be established is not a key: reading under the bare
@@ -105,9 +129,9 @@ export class CachedPoolSource implements PoolSource {
    * until the account is known.
    */
   async #keyFor(): Promise<string | undefined> {
-    if (!this.#scope) return this.#key
+    if (!this.#scope) return (this.#lastKey = this.#key)
     try {
-      return `${this.#key}:${await this.#scope()}`
+      return (this.#lastKey = `${this.#key}:${await this.#scope()}`)
     } catch {
       return undefined
     }

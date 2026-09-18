@@ -51,10 +51,10 @@ export class IndexedDbPoolStore implements PoolStore {
     await fromTransaction(transaction)
   }
 
-  async clear(): Promise<void> {
+  async remove(key: string): Promise<void> {
     const database = await this.#open()
     const transaction = database.transaction(STORE_NAME, 'readwrite')
-    transaction.objectStore(STORE_NAME).clear()
+    transaction.objectStore(STORE_NAME).delete(key)
     await fromTransaction(transaction)
   }
 

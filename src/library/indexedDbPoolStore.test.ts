@@ -56,12 +56,12 @@ class FakeObjectStore {
     return request
   }
 
-  clear(): FakeRequest<void> {
+  delete(key: string): FakeRequest<void> {
     const request = new FakeRequest<void>()
     if (this.#failing) {
-      request.fail(new Error('the object store could not be emptied'))
+      request.fail(new Error('the record could not be removed'))
     } else {
-      this.records.clear()
+      this.records.delete(key)
       request.succeed()
     }
     return request
@@ -193,16 +193,18 @@ describe('IndexedDbPoolStore', () => {
     expect(await new IndexedDbPoolStore(factory).read('pool')).toBeUndefined()
   })
 
-  it('empties every key at once, because a sign-out is every account on the machine', async () => {
+  // Signing out is one account leaving, not the machine being wiped. Somebody
+  // else's record is theirs, and throwing it away costs them a day's quota.
+  it('removes one account and leaves the other alone', async () => {
     const { factory } = fakeIndexedDb()
     const store = new IndexedDbPoolStore(factory)
     await store.write('pool:UC-alice', entry(1000))
     await store.write('pool:UC-bob', entry(2000))
 
-    await store.clear()
+    await store.remove('pool:UC-alice')
 
     expect(await store.read('pool:UC-alice')).toBeUndefined()
-    expect(await store.read('pool:UC-bob')).toBeUndefined()
+    expect(await store.read('pool:UC-bob')).toBeDefined()
   })
 
   it('creates the object store on first open', async () => {

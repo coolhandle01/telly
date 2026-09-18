@@ -45,8 +45,8 @@ function inMemoryStore(): PoolStore & { entries: Map<string, StoredPool>; writes
       this.writes += 1
       this.entries.set(key, entry)
     },
-    async clear() {
-      this.entries.clear()
+    async remove(key) {
+      this.entries.delete(key)
     },
   }
 }
@@ -225,7 +225,7 @@ describe('CachedPoolSource', () => {
           throw new DOMException('the database is not open', 'InvalidStateError')
         },
         write: async () => {},
-        clear: async () => {},
+        remove: async () => {},
       }
       const inner = countingSource(poolOf('a'))
 
@@ -241,7 +241,7 @@ describe('CachedPoolSource', () => {
         write: async () => {
           throw new DOMException('quota exceeded', 'QuotaExceededError')
         },
-        clear: async () => {},
+        remove: async () => {},
       }
 
       const pool = await new CachedPoolSource(countingSource(poolOf('a')), failing, { now }).load()
@@ -461,7 +461,7 @@ describe('CachedPoolSource', () => {
       const refusing: PoolStore = {
         read: async () => undefined,
         write: async () => {},
-        clear: async () => {
+        remove: async () => {
           throw new DOMException('the database is not open', 'InvalidStateError')
         },
       }
@@ -516,6 +516,65 @@ describe('CachedPoolSource', () => {
       await new CachedPoolSource(inner, savedAtZero(), { now }).load()
 
       expect(inner.loads).toBe(1)
+    })
+  })
+
+  describe('signing out, with somebody else on the same machine', () => {
+    /*
+      The record belongs to the account that signed in for it. Someone signing
+      out has asked to be forgotten; they have not asked for everybody else at
+      this machine to be forgotten, and a record thrown away costs its owner a
+      whole day's quota to fetch again.
+    */
+    it("takes this account's record and leaves the other account's", async () => {
+      const store = inMemoryStore()
+      store.entries.set('pool:UC-bob', { savedAt: 0, videos: [], channels: [] })
+      const cached = new CachedPoolSource(countingSource(poolOf('a')), store, {
+        now,
+        scope: async () => 'UC-alice',
+      })
+      await cached.load()
+      expect([...store.entries.keys()].sort()).toEqual(['pool:UC-alice', 'pool:UC-bob'])
+
+      await cached.forget()
+
+      expect([...store.entries.keys()]).toEqual(['pool:UC-bob'])
+    })
+
+    // Signing out must not need the network: the token is being revoked in the
+    // same breath, and the account was already established when the pool was
+    // read or written.
+    it('removes the record without asking who the account is again', async () => {
+      const store = inMemoryStore()
+      let scopeCalls = 0
+      const cached = new CachedPoolSource(countingSource(poolOf('a')), store, {
+        now,
+        scope: async () => {
+          scopeCalls += 1
+          return 'UC-alice'
+        },
+      })
+      await cached.load()
+      const asked = scopeCalls
+
+      await cached.forget()
+
+      expect(scopeCalls).toBe(asked)
+      expect(store.entries.size).toBe(0)
+    })
+
+    // A key that cannot be established means nothing is known to remove, and
+    // reporting a sign-out that removed nothing would be the lie this throws
+    // to avoid.
+    it('reports a sign-out that could not establish the account', async () => {
+      const cached = new CachedPoolSource(countingSource(poolOf('a')), inMemoryStore(), {
+        now,
+        scope: async () => {
+          throw new Error('no token')
+        },
+      })
+
+      await expect(cached.forget()).rejects.toThrow(/could not be established/)
     })
   })
 })

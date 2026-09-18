@@ -1,6 +1,5 @@
 import { useEffect, useMemo } from 'react'
 import { SystemClock, type Clock } from './clock/clock'
-import { OffsetClock, offsetFromQuery } from './clock/offsetClock'
 import {
   createPoolSource,
   googleSession,
@@ -25,7 +24,11 @@ const systemClock = new SystemClock()
 const webAudioSound = new WebAudioSound(() => new AudioContext())
 
 export interface AppProps {
-  /** Overridable so a test can mount the whole app without a browser. */
+  /**
+   * Where "now" comes from. The set runs on the wall clock; a test hands it a
+   * `FakeClock` and drives the whole broadcast day by hand, which is how any
+   * hour is looked at without sitting up for it.
+   */
   clock?: Clock
   sound?: Sound
   poolSource?: PoolSource
@@ -46,16 +49,12 @@ const NO_CLIENT_ID = {
   detail: ['This receiver has not been', 'configured for a service.'],
 } as const
 
-export function App({ clock, sound = webAudioSound, poolSource, player }: AppProps = {}) {
-  // `?at=03:14` runs the channel at that hour, still ticking, so programmes
-  // end and junctions arrive as they would. It is how you look at closedown
-  // without sitting up until half one in the morning.
-  const shifted = useMemo(() => {
-    if (clock) return clock
-    const offset = offsetFromQuery(window.location.search, systemClock.now())
-    return offset === 0 ? systemClock : new OffsetClock(systemClock, offset)
-  }, [clock])
-
+export function App({
+  clock = systemClock,
+  sound = webAudioSound,
+  poolSource,
+  player,
+}: AppProps = {}) {
   const built = useMemo(() => {
     const host = document.createElement('div')
     return { player: new YouTubeIframePlayer(loadYouTubeIframeApi, host), playerHost: host }
@@ -87,10 +86,10 @@ export function App({ clock, sound = webAudioSound, poolSource, player }: AppPro
 
   return (
     // A card under every programme, and a card under the receiver itself.
-    <FaultBoundary channelName={CHANNEL_NAME} clock={shifted}>
+    <FaultBoundary channelName={CHANNEL_NAME} clock={clock}>
       <Channel
         channelName={CHANNEL_NAME}
-        clock={shifted}
+        clock={clock}
         poolSource={poolSource ?? defaultSource}
         player={player ?? built.player}
         playerHost={player ? undefined : built.playerHost}

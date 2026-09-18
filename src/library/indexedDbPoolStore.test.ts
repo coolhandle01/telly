@@ -3,7 +3,7 @@ import { IndexedDbPoolStore, openPoolStore } from './indexedDbPoolStore'
 import type { StoredPool } from './poolStore'
 
 /**
- * jsdom has no IndexedDB at all, so the transport is faked here — just enough
+ * jsdom has no IndexedDB at all, so the transport is faked here: just enough
  * of the real shape (upgrade, transactions, request callbacks fired later) to
  * exercise our own wrapper. The store under test is never stubbed.
  */
@@ -51,6 +51,17 @@ class FakeObjectStore {
       request.fail(new Error('the object store is unwritable'))
     } else {
       this.records.set(key, value)
+      request.succeed()
+    }
+    return request
+  }
+
+  clear(): FakeRequest<void> {
+    const request = new FakeRequest<void>()
+    if (this.#failing) {
+      request.fail(new Error('the object store could not be emptied'))
+    } else {
+      this.records.clear()
       request.succeed()
     }
     return request
@@ -180,6 +191,18 @@ describe('IndexedDbPoolStore', () => {
     const { factory } = fakeIndexedDb()
 
     expect(await new IndexedDbPoolStore(factory).read('pool')).toBeUndefined()
+  })
+
+  it('empties every key at once, because a sign-out is every account on the machine', async () => {
+    const { factory } = fakeIndexedDb()
+    const store = new IndexedDbPoolStore(factory)
+    await store.write('pool:UC-alice', entry(1000))
+    await store.write('pool:UC-bob', entry(2000))
+
+    await store.clear()
+
+    expect(await store.read('pool:UC-alice')).toBeUndefined()
+    expect(await store.read('pool:UC-bob')).toBeUndefined()
   })
 
   it('creates the object store on first open', async () => {

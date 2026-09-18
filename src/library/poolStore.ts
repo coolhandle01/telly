@@ -16,4 +16,13 @@ export interface StoredPool {
 export interface PoolStore {
   read(key: string): Promise<StoredPool | undefined>
   write(key: string, entry: StoredPool): Promise<void>
+  /**
+   * Empties the store: every key, not just one account's.
+   *
+   * This is what signing out does to the copy of your subscriptions held on
+   * this machine. It takes every key because a viewer asking a browser to
+   * forget them means the browser, and a set in a hall or a library has had
+   * more than one person signed into it.
+   */
+  clear(): Promise<void>
 }

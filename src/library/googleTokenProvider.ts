@@ -7,15 +7,58 @@ import type { AccessTokenProvider } from './tokenProvider'
  * is the right shape for a page with no backend: the token lives in memory for
  * its hour and is asked for again when it expires. It is never written to
  * storage, never logged, and never put in a URL.
+ *
+ * Google's token model documents two moments a token is obtained: at page load
+ * time, and from a user gesture such as a button press. Both are here
+ * (`resume` is the first, `signIn` the second) and the library refreshes
+ * nothing on its own, so expiry is this class's to notice and act on.
+ *
+ * https://developers.google.com/identity/oauth2/web/guides/use-token-model
  */
 
 export const GIS_SCRIPT_URL = 'https://accounts.google.com/gsi/client'
 export const YOUTUBE_READONLY_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly'
 
+/**
+ * Where this browser records that a grant was made from it.
+ *
+ * A flag, not a credential: it says a consent screen was completed here, which
+ * is what makes a silent page-load request worth sending. The token itself
+ * stays in memory.
+ */
+export const GRANT_KEY = 'telly.google.granted'
+
+/**
+ * A sign-in that produced no token, carrying the reason as its own field.
+ *
+ * The reason decides what the viewer is asked to do next: a closed popup is
+ * "try again", a blocked one is "allow popups", a refused scope is neither.
+ * It is a field rather than a sentence because the wording belongs to the
+ * screen, and the message here is for whoever is holding the Error.
+ */
+export class SignInError extends Error {
+  /** GIS's `error_callback` type, or the token response's `error`. */
+  readonly reason: string
+
+  constructor(reason: string) {
+    super(`YouTube sign-in failed: ${reason}`)
+    this.name = 'SignInError'
+    this.reason = reason
+  }
+}
+
+/** What a failure that never reached Google is reported as. */
+export const UNAVAILABLE = 'unavailable'
+
 /** Only the slice of GIS we actually use. */
 export interface TokenResponse {
   access_token?: string
   expires_in?: number | string
+  error?: string
+}
+
+export interface RevocationResponse {
+  successful?: boolean
   error?: string
 }
 
@@ -32,6 +75,11 @@ export interface GoogleIdentityServices {
         callback: (response: TokenResponse) => void
         error_callback?: (error: { type?: string }) => void
       }): TokenClient
+      /**
+       * Hands the token back to Google, dropping every scope granted to this
+       * app. Takes a live token: a revoked or expired one is refused.
+       */
+      revoke(accessToken: string, done?: (response: RevocationResponse) => void): void
     }
   }
 }
@@ -54,7 +102,7 @@ declare global {
 const loads = new WeakMap<HTMLScriptElement, Promise<GoogleIdentityServices>>()
 
 /**
- * Fetches the GIS script once. Rejects on a script error rather than hanging —
+ * Fetches the GIS script once. Rejects on a script error rather than hanging:
  * a blocked script that never settles is a screen that never explains itself.
  */
 export function loadGoogleIdentityServices(): Promise<GoogleIdentityServices> {
@@ -91,12 +139,46 @@ export function loadGoogleIdentityServices(): Promise<GoogleIdentityServices> {
 /** Ask again slightly early, so a request never goes out with a dead token. */
 const EXPIRY_MARGIN_MS = 60_000
 
+/**
+ * Reads and writes the grant flag.
+ *
+ * Both are wrapped because a browser with site data blocked throws on the
+ * property access itself, before any key is named: a private window in Safari
+ * and Firefox's strict mode both do it.
+ */
+function rememberGrant(storage: Storage | undefined, granted: boolean): void {
+  try {
+    if (granted) storage?.setItem(GRANT_KEY, '1')
+    else storage?.removeItem(GRANT_KEY)
+  } catch {
+    // Resuming is the only thing the flag buys, and the button is still there.
+  }
+}
+
+function hasGrant(storage: Storage | undefined): boolean {
+  try {
+    return storage?.getItem(GRANT_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function browserStorage(): Storage | undefined {
+  try {
+    return globalThis.localStorage
+  } catch {
+    return undefined
+  }
+}
+
 export interface GoogleTokenProviderOptions {
   scope?: string
   /** Injected so tests never fetch Google. */
   loadGis?: GisLoader
   /** Injected so token lifetime is testable. */
   now?: () => number
+  /** Injected so a test can drive the grant flag without a browser. */
+  storage?: Storage
 }
 
 export class GoogleTokenProvider implements AccessTokenProvider {
@@ -104,6 +186,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
   readonly #scope: string
   readonly #loadGis: GisLoader
   readonly #now: () => number
+  readonly #storage: Storage | undefined
 
   #client: TokenClient | undefined
   #token: string | undefined
@@ -112,14 +195,16 @@ export class GoogleTokenProvider implements AccessTokenProvider {
   #ready: Promise<void> | undefined
   // The token client is built once but every flight has its own settlers, so
   // the callback has to reach the *current* one rather than close over the
-  // first — otherwise a second sign-in never settles at all.
+  // first, otherwise a second sign-in never settles at all.
   #settle: { resolve: (token: string) => void; reject: (error: Error) => void } | undefined
+  readonly #listeners = new Set<(signedIn: boolean) => void>()
 
   constructor(clientId: string, options: GoogleTokenProviderOptions = {}) {
     this.#clientId = clientId
     this.#scope = options.scope ?? YOUTUBE_READONLY_SCOPE
     this.#loadGis = options.loadGis ?? loadGoogleIdentityServices
     this.#now = options.now ?? (() => Date.now())
+    this.#storage = options.storage ?? browserStorage()
   }
 
   /** True while a token is in hand and still good. */
@@ -128,11 +213,95 @@ export class GoogleTokenProvider implements AccessTokenProvider {
   }
 
   /**
+   * Follows this along its whole life (the sign-in, the hour expiring, the
+   * sign-out) so the screen shows the session that exists rather than the
+   * outcome of the last click.
+   */
+  subscribe(listener: (signedIn: boolean) => void): () => void {
+    this.#listeners.add(listener)
+    return () => {
+      this.#listeners.delete(listener)
+    }
+  }
+
+  /**
+   * Take up a grant this browser has already made, without a consent screen.
+   *
+   * Google's token model obtains a token at page load as well as from a
+   * gesture, and `prompt: ''` is the form that shows a returning viewer no
+   * screen. The stored flag gates it, so a first visit sends no request.
+   *
+   * The flag records something only Google can tell us, so only Google's
+   * answer clears it. The script is fetched first and separately: an extension
+   * or a firewall that stops it arriving means nothing was asked and nothing
+   * was learned, and a viewer whose grant is intact keeps it.
+   */
+  async resume(): Promise<boolean> {
+    if (this.isSignedIn) return true
+    if (!hasGrant(this.#storage)) return false
+
+    try {
+      await this.#loadGis()
+    } catch {
+      return false
+    }
+
+    try {
+      await this.#requestToken('')
+      return true
+    } catch {
+      rememberGrant(this.#storage, false)
+      this.#discard()
+      return false
+    }
+  }
+
+  /**
+   * Hand the token back to Google and forget it here.
+   *
+   * `revoke` drops every scope the viewer granted this app, which is what the
+   * control on the screen says it does. It needs a live token, so it goes
+   * first and the local state is cleared whatever it answers: a viewer who
+   * asked to be signed out is signed out of this page either way.
+   */
+  async signOut(): Promise<void> {
+    const token = this.#token
+    rememberGrant(this.#storage, false)
+
+    try {
+      if (token !== undefined) await this.#revoke(token)
+    } finally {
+      this.#discard()
+    }
+  }
+
+  #revoke(token: string): Promise<void> {
+    return this.#loadGis().then(
+      (gis) =>
+        new Promise<void>((resolve) => {
+          gis.accounts.oauth2.revoke(token, () => resolve())
+        }),
+    )
+  }
+
+  /** Drops the token and tells anyone watching. */
+  #discard(): void {
+    const was = this.#token !== undefined
+    this.#token = undefined
+    this.#expiresAtMs = 0
+    if (was) this.#announce(false)
+  }
+
+  #announce(signedIn: boolean): void {
+    for (const listener of [...this.#listeners]) listener(signedIn)
+  }
+
+  /**
    * Fetch the Google script and build the token client, ahead of any click.
    *
    * This is the whole reason sign-in works at all. A popup must be traceable
-   * to a user gesture, and that gesture does not survive a network round-trip
-   * — so if the script is fetched *inside* the click handler, the browser has
+   * to a user gesture, and that gesture does not survive a network round-trip,
+   * so if the script is fetched *inside* the click handler, the browser has
    * already ended the activating task by the time the popup is asked for and
    * refuses it with `popup_failed_to_open`. Call this on mount; by the time
    * anyone clicks, `signIn` has nothing left to wait for.
@@ -165,25 +334,51 @@ export class GoogleTokenProvider implements AccessTokenProvider {
    * click's own task, which is the only way a browser will allow it.
    */
   signIn(): Promise<string> {
-    if (this.#client) return this.#requestSynchronously('consent')
+    // Everything out of here is a `SignInError`, so the screen chooses its
+    // words from `reason` and never from a message meant for a developer. A
+    // script that did not arrive never reached Google, so it has no reason of
+    // Google's to carry.
+    const asSignInError = (error: unknown): never => {
+      throw error instanceof SignInError ? error : new SignInError(UNAVAILABLE)
+    }
+
+    if (this.#client) return this.#requestSynchronously('consent').catch(asSignInError)
 
     // Not ready: ask anyway, and the popup may well be blocked. Better to
     // report that than to silently do nothing.
-    return this.prepare().then(() => this.#requestToken('consent'))
+    return this.prepare()
+      .then(() => this.#requestToken('consent'))
+      .catch(asSignInError)
   }
 
   /**
-   * A currently-valid token. Returns the held one while it lasts, and tries a
-   * silent renewal after that — which succeeds when consent is still granted
-   * and fails, rather than popping up, when it is not.
+   * A currently-valid token, renewing the held one once its hour is up.
+   *
+   * GIS refreshes nothing by itself, so noticing the expiry is this class's
+   * job: the stale token goes before the request, and a renewal that Google
+   * refuses puts the screen back to signed out rather than leaving a button
+   * that is not there and a session that is not either.
    */
   async getAccessToken(): Promise<string> {
     if (this.#token !== undefined && this.isSignedIn) return this.#token
-    // A silent renewal opens no popup, so it needs no gesture and may await.
-    return this.#requestToken('')
+
+    this.#token = undefined
+    this.#expiresAtMs = 0
+
+    try {
+      // Silent: no screen for a viewer whose grant stands, so no gesture.
+      return await this.#requestToken('')
+    } catch (error) {
+      // The flag stays. A refusal here and a blocked script look the same from
+      // inside this method, and the flag is what a returning viewer's silent
+      // page-load request is gated on: `resume` is where a refusal is the
+      // answer to the question the flag asks, and where it is cleared.
+      this.#announce(false)
+      throw error
+    }
   }
 
-  /** Opens the popup in the caller's own task — no await before the request. */
+  /** Opens the popup in the caller's own task: no await before the request. */
   #requestSynchronously(prompt: string): Promise<string> {
     const client = this.#client
     if (!client) return Promise.reject(new Error('YouTube sign-in is not ready yet'))
@@ -228,18 +423,23 @@ export class GoogleTokenProvider implements AccessTokenProvider {
       return
     }
 
+    // A response that says nothing about its life is treated as the hour GIS
+    // issues, and a garbled one as already over, so `isSignedIn` stays false
+    // and the next call renews.
     const lifetimeSec = Number(response.expires_in ?? 3600)
     this.#token = response.access_token
-    this.#expiresAtMs = this.#now() + lifetimeSec * 1000
+    this.#expiresAtMs = this.#now() + (Number.isFinite(lifetimeSec) ? lifetimeSec : 0) * 1000
+    rememberGrant(this.#storage, true)
 
     const settle = this.#settle
     this.#settle = undefined
     settle?.resolve(response.access_token)
+    this.#announce(true)
   }
 
   #fail(reason: string): void {
     const settle = this.#settle
     this.#settle = undefined
-    settle?.reject(new Error(`YouTube sign-in failed: ${reason}`))
+    settle?.reject(new SignInError(reason))
   }
 }

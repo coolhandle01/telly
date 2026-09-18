@@ -30,6 +30,8 @@ is I/O bolted to the edges.
 | [google.md](google.md) | The Data API pipeline, the quota arithmetic, error triage, and sign-in brand compliance. |
 | [testing.md](testing.md) | The gates, the seams, and the precise shape of jsdom's blind spot. |
 | [threat-model.md](threat-model.md) | The trust boundaries, the data-flow diagram, and every threat with what was done about it. |
+| [technologies.md](technologies.md) | What it is made of: the two runtime dependencies, the toolchain, and the services it talks to. |
+| [release-process.md](release-process.md) | Branch to tag to deploy: every gate, what runs it, and what cannot be verified from the repository. |
 
 ## The layout, and what each directory is allowed to know
 
@@ -44,7 +46,8 @@ src/
                whose they are, plus sign-in and the Session seam over it
   testcard/    the five card designs, their geometry, and the renderer
   audio/       what comes out of the speaker: the line-up tone, and the hiss
-  ui/          the screen, and the cabinet it sits in
+  ui/          the screen, the cabinet it sits in, and the only place a
+               failure becomes words
   fixtures/    the pool it runs on with no credentials
 ```
 
@@ -85,3 +88,5 @@ the alternative.
 | A render throw shows the fault card and never retries | [components.md](components.md) |
 | Every piece of I/O sits behind an injected interface | [testing.md](testing.md) |
 | The type gate must be `tsc -b`, because `tsc --noEmit` fails open here | [testing.md](testing.md) |
+| Two runtime dependencies, and everything else is a dev tool | [technologies.md](technologies.md) |
+| Mutation testing exists but is not a gate, and cannot fail a build | [release-process.md](release-process.md) |

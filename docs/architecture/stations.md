@@ -31,6 +31,37 @@ the year. Only the last path segment is kept, percent-decoded:
 watershed as data. They are the only judgements of their kind the API makes,
 and they are taken at face value.
 
+## From a subscription to a time of day
+
+Every section below is one box of this:
+
+```mermaid
+flowchart TB
+  subgraph what["what it is: genreOf()"]
+    topics["topicCategories, most specific topic wins"] --> genre["one Genre"]
+    kids["madeForKids on every upload"] --> genre
+    cats["the modal categoryId of its uploads"] --> genre
+    named["word-bounded hints in the channel's name"] --> genre
+  end
+  subgraph how["how it is used: profile()"]
+    dur["median duration"] --> format["format, short to feature"]
+    gaps["median gap between uploads"] --> cadence["cadence, daily to occasional"]
+    views["median views, or subscribers, ranked"] --> standing["standing, 0..1"]
+  end
+  genre --> draft["assign(): appetite, THEME_BONUS, standing"]
+  standing --> draft
+  draft --> station["one station, and no other"]
+  cadence --> strands["strandsFor(): a weekly hour or feature gets one night"]
+  format --> strands
+  station --> sc["StationClassifier, per station per day"]
+  format --> sc
+  strands --> sc
+  sc --> out["an affinity per daypart, which plan() packs"]
+```
+
+Genre decides which station a subscription goes to. Length, how often it turns
+up and how well it is watched decide what time of day it goes out at.
+
 ## Genre
 
 `genre.ts` maps all of that onto the vocabulary a schedule is built from:
@@ -61,7 +92,6 @@ and who is likely to be in the room. The table is the translation.
 channel: what a controller knows about a supplier before deciding what to do
 with it.
 
-- **Genre** says which station it belongs to.
 - **Cadence** (the median gap between uploads) says how it is used. `daily`
   is a strip, across the week. `weekly` is a strand, on one night of it.
   `occasional` fills in. Median rather than mean, so one holiday or one day a
@@ -84,20 +114,46 @@ A station is a taste and a set of opening hours. Everything else follows from
 those two, which is why `stations.ts` is the whole of the policy and the rest
 of the directory is machinery.
 
-| | Hours | Taste | Cards | Tuner |
-|---|---|---|---|---|
-| One | 06.00–01.30 | news, factual, society, nature | monoscope, bars | mid-travel |
-| Two | 11.00–02.00 | factual, arts, comedy, music, food | electronic, monoscope, crosshatch | mid-travel |
-| Three | 06.00–02.30 | entertainment, sport, lifestyle, motoring | bars, ident | mid-travel |
-| Four | 15.00–03.00 | film, arts, society, comedy | crosshatch, electronic | 0.28 |
-| Five | round the clock | gaming, motoring, lifestyle, nature | ident, bars, electronic | 0.76 |
+```mermaid
+gantt
+    title The five stations, one broadcast day
+    dateFormat YYYY-MM-DD HH:mm
+    axisFormat %H.%M
+    tickInterval 3hour
+    section ONE
+    06.00 to 01.30            :2026-01-01 06:00, 2026-01-02 01:30
+    closedown                 :done, 2026-01-02 01:30, 2026-01-02 06:00
+    section TWO
+    not up yet                :done, 2026-01-01 06:00, 2026-01-01 11:00
+    11.00 to 02.00            :2026-01-01 11:00, 2026-01-02 02:00
+    closedown                 :done, 2026-01-02 02:00, 2026-01-02 06:00
+    section THREE
+    06.00 to 02.30            :2026-01-01 06:00, 2026-01-02 02:30
+    closedown                 :done, 2026-01-02 02:30, 2026-01-02 06:00
+    section FOUR
+    not up yet                :done, 2026-01-01 06:00, 2026-01-01 15:00
+    15.00 to 03.00            :2026-01-01 15:00, 2026-01-02 03:00
+    closedown                 :done, 2026-01-02 03:00, 2026-01-02 06:00
+    section FIVE
+    06.00 to 02.00            :2026-01-01 06:00, 2026-01-02 02:00
+    clip show                 :crit, 2026-01-02 02:00, 2026-01-02 04:30
+    overnight                 :2026-01-02 04:30, 2026-01-02 06:00
+```
+
+Grey is off air. Each station's `dayparts` tile its own day exactly, those
+hours included, so the axis is the same 06.00 to 06.00 for all five. Five never
+closes down, which is why the clip show exists: everything under a minute in
+the whole subscription list goes out between two and half past four.
+
+| | Taste | Cards | Tuner |
+|---|---|---|---|
+| One | news, factual, society, nature | monoscope, bars | mid-travel |
+| Two | factual, arts, comedy, music, food | electronic, monoscope, crosshatch | mid-travel |
+| Three | entertainment, sport, lifestyle, motoring | bars, ident | mid-travel |
+| Four | film, arts, society, comedy | crosshatch, electronic | 0.28 |
+| Five | gaming, motoring, lifestyle, nature | ident, bars, electronic | 0.76 |
 
 Preset six has no station behind it.
-
-Each station's `dayparts` tile its own day exactly, including the hours it is
-off air. Five never closes down, so something has to fill the small hours: the
-clip show takes 02.00 to 04.30, and everything under a minute in the whole
-subscription list ends up there.
 
 ### Finding a station in the snow
 
@@ -159,8 +215,7 @@ Two rules sit around the draft:
 ## What goes where
 
 `StationClassifier` is built per station per day, because half the decision
-depends on which day it is. It returns an affinity per daypart, and `plan()`
-does the packing.
+depends on which day it is.
 
 Three gates run first. They are not preferences:
 

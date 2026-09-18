@@ -158,20 +158,20 @@ which matters because YouTube fails quietly.
 
 ## Seeing a particular hour
 
-Most of what a schedule does happens at hours you are not awake for. `?at=`
-jumps the set to another hour, and it keeps ticking from there:
+Most of what a schedule does happens at hours you are not awake for, and the
+set has no way to jump to them. It does not need one: nothing in `src/` calls
+`new Date()` except `SystemClock`, so time is an argument.
 
-```
-http://localhost:5173/?at=03:14      # closedown on one, the clip show on five
-http://localhost:5173/?at=11:58      # the run-up to the lunchtime news junction
-http://localhost:5173/?at=21:00      # peak time, which is different on all five
+A test hands `App` a `FakeClock` and drives the day by hand:
+
+```ts
+const clock = new FakeClock(new Date(2026, 8, 9, 1, 40))
+render(<App clock={clock} />)          // closedown on one, the clip show on five
+act(() => clock.set(new Date(2026, 8, 9, 11, 58)))   // the lunchtime junction
 ```
 
-It has to land inside the broadcast day you are already in: the 06.00 behind
-you, up to but not including the 06.00 ahead. So a bare `hh:mm` before six
-lands on the day's second calendar date, and this morning is as reachable as
-tonight's closedown. Anything outside that window, or that does not parse, is
-ignored and you get the real time.
+There is no query parameter and no dev-only route, because a second mechanism
+for something the seam already does is a second mechanism to keep honest.
 
 ## Layout
 
@@ -222,9 +222,9 @@ Three things live outside the repository:
 - **The client ID.** `VITE_YOUTUBE_CLIENT_ID`, a variable on the
   `github-pages` environment. A variable rather than a secret, because it is
   inlined into a public bundle and marking it secret would only hide it from
-  the build log. Jobs that read it join that environment; the `client ID` job
-  checks for it beside the gates rather than behind them, so a missing setting
-  is reported in seconds instead of after three minutes of runner time.
+  the build log. The `build` job joins that environment and reads it, and that
+  job runs behind `needs: [checks, tests, codeql]`, so a missing setting is
+  reported only once those have passed.
 - **The release App.** `COMMITLINT_CLIENT_ID` (a variable, holding the App's
   numeric id) and `COMMITLINT_CLIENT_SECRET` (a secret, holding the App's
   private key: the `.pem`, not the OAuth client secret it sits beside) on the

@@ -6,9 +6,19 @@ The test card renders **unconditionally** beneath every programme. The picture
 is a layer above it, revealed only when the player reports one *actually
 playing*. Programming is an override on a signal that is always there.
 
-In `src/ui/Channel.tsx` that is an opacity gate (`pictureStyle(hasPicture)`)
-over a ground of `#07090b` rather than pure black, so the glass has something to
-act on.
+```mermaid
+flowchart TB
+  mount(["a programme mounts"]) --> card["TestCard up, picture layer mounted at opacity 0"]
+  card --> gate{"the player reports PLAYING, and nothing else counts"}
+  gate -->|no| card
+  gate -->|yes| shown["picture at opacity 1, over a #07090b ground"]
+  card --> watchdog["eight seconds without PLAYING or BUFFERING: fault, and the caption apologises"]
+```
+
+In `src/ui/Channel.tsx` that is an opacity gate, `pictureStyle(hasPicture)`,
+over the card. Once there is a picture the card gives way to `blackStyle`,
+`#07090b` rather than pure black, so a 16:9 programme in a 4:3 set gets proper
+bars and the glass has something to act on.
 
 This is **positive confirmation, not error detection**, and the distinction is
 load bearing.
@@ -19,13 +29,35 @@ you wait for ever, with a black screen. Wait for a picture and the worst case is
 the card staying up, and crucially, *nothing has to go right* for the card to
 be there.
 
-A watchdog backs it up: a programme that mounts without producing a picture
-within eight seconds (`DEFAULT_START_TIMEOUT_MS`) faults with `'no picture'`,
-and the caption changes from the programme title to an apology.
+The watchdog is `DEFAULT_START_TIMEOUT_MS`, and it faults with `'no picture'`.
+**Buffering counts as progress but is not a picture**: it stands the watchdog
+down without revealing the video, because buffering is a picture on its way.
 
-Only `PLAYING` (state 1) pulls the picture through. **Buffering counts as
-progress but is not a picture**: it clears the watchdog without revealing the
-video, because buffering is a picture on its way.
+## One mount, from dark to picture
+
+```mermaid
+stateDiagram-v2
+    [*] --> Dark
+    Dark --> FetchingApi: load(), no frame yet
+    FetchingApi --> Dark: loader rejects, fault player unavailable
+    FetchingApi --> Dark: host left the document, mount abandoned
+    FetchingApi --> Building: the API arrives, fresh target inside the host
+    Building --> Cued: onReady, held volume applied, latest cue played
+    Cued --> Showing: onStateChange PLAYING
+    Showing --> Cued: any other state, card back up
+    Cued --> Cued: BUFFERING, watchdog stood down, card stays
+    Cued --> Cued: eight seconds with neither, fault no picture
+    Cued --> Cued: load(), loadVideoById on the same frame
+    Building --> Dark: onError, fault then teardown
+    Cued --> Dark: onError, fault then teardown
+    Showing --> Dark: onError, fault then teardown
+    Cued --> Dark: stop() or destroy()
+    Showing --> Dark: stop() or destroy()
+```
+
+`Dark` is a card and no player object at all. Every arrow back to it from a
+built frame runs `#teardown()`, and the next `load()` builds one from scratch;
+the two out of `FetchingApi` never built one. The five things below are why.
 
 ## Five things that look odd until they don't
 
@@ -33,8 +65,7 @@ Each of these was a real evening of black screen.
 
 **An error tears the player down.** A YouTube player that has errored *stays*
 errored: `loadVideoById` on it does nothing, silently. Without a rebuild, one
-failed video means no picture for the rest of the night. `#onError` therefore
-calls `#teardown()`.
+failed video means no picture for the rest of the night.
 
 **So does `stop()`.** The surface removes its host element when it unmounts, and
 **an iframe that moves in the DOM reloads**, severing the player object from
@@ -65,11 +96,10 @@ frame reports ready. In between, the handle exists and `setVolume`,
 so turning the volume knob, or a junction arriving, during those few hundred
 milliseconds is a TypeError in the console and a programme that never starts.
 
-Every call is therefore gated on `#ready`, and nothing is dropped: the volume
-is held and applied at ready, and a cue that arrives mid-build is picked up by
-`#onReady` rather than ignored. That last part matters: the frame was built
-for one programme and the schedule may have moved on, so starting the one it
-was built for would be showing the *wrong* programme, not merely a late one.
+Every call is therefore gated on `#ready`, and nothing is dropped. The cue is
+the part that matters: the frame was built for one programme and the schedule
+may have moved on while it was building, so starting the one it was built for
+would be showing the *wrong* programme, not merely a late one.
 
 Two consequences fall out of the same fact. A mount whose host has left the
 document is **abandoned**, because the surface can unmount while the API is

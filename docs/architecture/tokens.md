@@ -87,12 +87,38 @@ and from a user gesture. `GoogleTokenProvider` has both, and because GIS
 refreshes nothing on its own it also has the two moments a token stops being
 one.
 
-| Moment | Method | What GIS is asked for |
-|---|---|---|
-| Page load, grant already made here | `resume()` | `requestAccessToken({ prompt: '' })`, silent |
-| The button | `signIn()` | `requestAccessToken({ prompt: 'consent' })`, popup |
-| The hour runs out | `getAccessToken()` | `requestAccessToken({ prompt: '' })`, silent |
-| The way out | `signOut()` | `oauth2.revoke(token, done)` |
+```mermaid
+stateDiagram-v2
+  state "Signed out · the sign-in button" as signedOut
+  state "Resuming · neither button" as resuming
+  state "Signed in · the sign-out button" as signedIn
+  state "Renewing · the stale token already dropped" as renewing
+
+  [*] --> signedOut : page load, no telly.google.granted. Google is asked nothing
+  [*] --> resuming : page load, flag present. loadGis, then prompt empty
+
+  resuming --> signedIn : token issued, no consent screen shown
+  resuming --> signedOut : Google refused the silent request. Flag cleared
+  resuming --> signedOut : the script never arrived. Flag kept
+
+  signedOut --> signedIn : signIn, prompt consent, straight from the click
+  signedIn --> signedIn : getAccessToken serves the held token while isSignedIn
+  signedIn --> renewing : now within EXPIRY_MARGIN_MS of expiresAtMs
+  renewing --> signedIn : silent renewal issued
+  renewing --> signedOut : refused. Subscribers told, flag kept
+  signedIn --> signedOut : signOut, revoke plus empty the store
+```
+
+The two ways out of `resuming` that both land on signed out are not the same
+thing, and telling them apart is `resume`'s job: Google refusing is an answer
+about the grant, and a script that never arrived is no answer at all.
+
+| Moment | Method | What GIS is asked for | What `subscribe` is told |
+|---|---|---|---|
+| Page load, grant already made here | `resume()` | `requestAccessToken({ prompt: '' })`, silent | `true` on a token. A refusal says nothing: `#discard` speaks only for a token it dropped, and there is none yet |
+| The button | `signIn()` | `requestAccessToken({ prompt: 'consent' })`, popup | `true` on a token. A refusal says nothing, and the click's own rejected promise carries it |
+| The hour runs out | `getAccessToken()` | `requestAccessToken({ prompt: '' })`, silent | `true` on a renewal, `false` on a refusal |
+| The way out | `signOut()` | `oauth2.revoke(token, done)` | `false`, from `#discard` dropping the token |
 
 ### The grant flag
 
@@ -105,7 +131,10 @@ silent page-load request is worth sending, which is why a first-time visitor
 sends none at all.
 
 - Written in `#onResponse`, at the moment a token is issued.
-- Removed when a silent renewal is refused, and when `signOut()` runs.
+- Removed when `resume()`'s silent request is refused, and when `signOut()`
+  runs. A renewal refused inside `getAccessToken()` leaves it standing: from in
+  there a refusal and a blocked script are the same event, and `resume` is where
+  a refusal is the answer to the question the flag asks.
 - Every read and write goes through `hasGrant` / `rememberGrant`, which swallow
   the throw. A browser with site data blocked throws on the `localStorage`
   property access itself, before any key is named: a private window in Safari
@@ -114,10 +143,9 @@ sends none at all.
 
 ### Resuming
 
-`resume()` returns true when a token is already in hand, false when the flag is
-absent, and otherwise asks silently. The flag is the gate, so a browser that has
-never granted anything makes no request. A refusal clears the flag, drops any
-token, and returns false, which leaves the sign-in button where it was.
+`resume()` returns true when a token is already in hand, and the flag is the
+gate on everything else, so a browser that has never granted anything sends no
+request.
 
 `Channel` shows neither button while that request is in flight (`resuming`
 state). A button saying Sign in, replaced half a second later by one saying Sign
@@ -129,10 +157,9 @@ out, is the set telling the viewer two different things.
 so the last minute of a token counts as expired.
 
 `getAccessToken()` drops the held token *before* it asks for a new one, rather
-than keeping it as a fallback. A renewal that Google refuses then clears the
-grant flag, announces signed-out to every subscriber, and rethrows: the corner
-goes back to a sign-in button instead of offering a way out of a session that
-has already ended.
+than keeping it as a fallback. A renewal that Google refuses announces
+signed-out to every subscriber and rethrows: the corner goes back to a sign-in
+button instead of offering a way out of a session that has already ended.
 
 A response that says nothing about its own life is treated as the hour GIS
 issues. A response whose `expires_in` does not parse as a finite number is
@@ -147,13 +174,19 @@ is cleared whatever it answers, because a viewer who asked to be signed out is
 signed out of this page either way.
 
 That is only the Google half. `googleSession(tokens, source)` in
-`src/library/session.ts` ties it to the other one:
+`src/library/session.ts` ties it to the other one, and attempts both whatever
+either answers:
 
-```ts
-signOut: async () => {
-  await tokens.signOut()
-  await source.forget?.()
-}
+```mermaid
+flowchart TB
+  click(["Sign out"]) --> both["Promise.allSettled"]
+  both --> revoke["tokens.signOut · revoke, then drop the token"]
+  both --> forget["source.forget · remove this account's record"]
+  revoke --> verdict{"either rejected"}
+  forget --> verdict
+  verdict -->|"no"| done(["signed out"])
+  verdict -->|"yes"| err(["SignOutError · revoked, cleared, cause"])
+  err --> words["signOutMessage picks the sentence from which half stood"]
 ```
 
 Revoking alone leaves a day-old copy of the subscriptions in this browser's

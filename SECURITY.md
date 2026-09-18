@@ -30,9 +30,11 @@ accounts used in the same browser do not read each other's record.
 
 **Sign out** does two things: it calls `google.accounts.oauth2.revoke` with the
 current access token, which hands the grant back to Google and drops every
-scope, and it empties the `pools` object store, every key in it rather than
-only the signed-in account's. If the browser refuses to empty the database the
-page says so.
+scope, and it removes your record from the `pools` object store, the one under
+your own channel id. Another account's record is left alone: it is theirs, and
+throwing it away would cost them a day's quota to fetch again. Clearing this
+site's data removes every record. If the browser refuses, or the account behind
+the record cannot be established, the page says so.
 
 Withdrawing access from Google's own security settings stops the token being
 accepted, and does not reach the database on your machine.

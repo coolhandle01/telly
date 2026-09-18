@@ -148,12 +148,15 @@ in the same browser do not read each other&rsquo;s record.</p>
 <li>It calls <code>google.accounts.oauth2.revoke</code> with the current access
 token. That hands the grant back to Google and drops every scope you granted
 telly.</li>
-<li>It empties the <code>pools</code> object store: every key in it, not only
-the record belonging to the account that was signed in.</li>
+<li>It removes your record from the <code>pools</code> object store: the one
+filed under your own channel id. A record belonging to another account that has
+signed in at this browser is left alone, because it is theirs and not yours to
+discard. Clearing this site&rsquo;s data in your browser removes every record.</li>
 </ul>
 <p>It also removes the sign-in flag. If the browser refuses to empty the
-database, the page says so, and the record stays there until a later sign-in
-overwrites it or you clear this site&rsquo;s data.</p>
+database, or cannot work out which record is yours, the page says so, and the
+record stays there until a later sign-in overwrites it or you clear this
+site&rsquo;s data.</p>
 
 <h2>Withdrawing access at Google</h2>
 <p>You can withdraw telly&rsquo;s access from Google&rsquo;s own security settings:</p>

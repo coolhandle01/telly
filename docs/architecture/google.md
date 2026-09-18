@@ -5,15 +5,33 @@ once you have one, and what Google asks of the UI that requests it.
 
 ## The pipeline
 
-```
-channels.list mine  ->  subscriptions.list  ->  channels.list  ->  playlistItems.list  ->  videos.list
-  (whose these are)        (your subs)       (uploads playlist)     (recent videos)      (durations,
-                                              50 ids per call                             embeddable,
-                                                                                          category)
-```
-
 `src/library/youTubePoolSource.ts`, and the quota table in that file's header is
 the same one as below.
+
+```mermaid
+flowchart TB
+  load(["CachedPoolSource.load"]) --> owner["ownerId · channels.list part=id mine=true · 1 unit"]
+  owner --> read[("PoolStore.read · key pool:UC…")]
+  read -->|"a record saved inside the day-long TTL"| pool(["Pool"])
+  read -->|"miss, stale, or unreadable"| subs
+
+  subgraph pipeline["YouTubePoolSource.load"]
+    direction TB
+    subs["subscriptions.list mine=true · 50 subs a page · 4 units"]
+    chans["channels.list by id · 50 ids a batch · 4 units"]
+    items["playlistItems.list · 1 per channel · 200 units"]
+    vids["videos.list by id · 50 ids a batch · 80 units"]
+    subs -->|"the subscribed channel ids"| chans
+    chans -->|"each uploads playlist"| items
+    items -->|"the recent video ids"| vids
+  end
+
+  vids --> write[("PoolStore.write")]
+  write --> pool
+```
+
+The owner id is established **before** the read, because the key is made out of
+it (`#keyFor`), so a warm cache still costs that one unit.
 
 **The two 50s are load-bearing.** `channels.list` and `videos.list` both accept
 up to 50 IDs per call, and batching them is the difference between the cost
@@ -40,38 +58,34 @@ things the classifier needs) so the last hop is not optional.
 
 ### Whose subscriptions these are
 
-`ownerId()` is the first call: `channels.list` with `part=id&mine=true`, which
-answers for whoever the token belongs to. One unit, and inside the
-`youtube.readonly` scope already granted, so it asks for no profile scope and
-learns no name and no address.
-
-It exists to key the cache. It is memoised for the life of the source, which is
-the life of a signed-in session, so it costs its one unit once; `forget()` drops
-it, and the account that signs in next is keyed as itself.
+`mine=true` answers for whoever the token belongs to, so this is an identity
+the `youtube.readonly` scope already covers: no profile scope, no name, no
+address. It exists to key the cache, and the memo lives as long as the source,
+which is the life of a signed-in session. `forget()` drops it, so the account
+that signs in next is keyed as itself.
 
 ## Error triage
 
 The rule is: **is this error about *them* or about *us*?**
 
-```ts
-} catch (error) {
-  if (isFatal(error)) throw error
-  continue
-}
+```mermaid
+flowchart TB
+  fail(["a playlistItems.list call throws, inside #listRecentVideoIds"]) --> fatal{"isFatal"}
+  fatal -->|"401, 403, 429, any QuotaExceededError"| stop(["rethrown · the whole load fails"])
+  fatal -->|"404 and everything else"| skip["count the loss, keep the first error, take the next playlist"]
+  skip --> tally{"every playlist lost"}
+  tally -->|"yes"| first(["throw the first error kept"])
+  tally -->|"no"| pool(["the pool, minus those channels"])
 ```
-
-`isFatal` returns true for **401, 403 and 429**, and for **every
-`QuotaExceededError`** whatever status it carries.
 
 A **404 playlist is skipped, not fatal.** Any subscription list that has been
 around a while contains channels that have been deleted or gone private, and
 that should cost you those channels, not the other two hundred. This was a real
 bug: one dead playlist took the whole load down.
 
-A **401, 403 or 429 fails the whole load**, because it is about our credentials
-or our allowance and will fail identically for every remaining channel.
-Continuing would mean two hundred pointless requests and a misleading empty
-result.
+A **401, 403 or 429** is about our credentials or our allowance, so it will fail
+identically for every remaining channel. Continuing would mean two hundred
+pointless requests and a misleading empty result.
 
 429 is in `isFatal` by status as well as by reason. The per-minute limit comes
 back as `rateLimitExceeded` or `userRateLimitExceeded`, which classify as
@@ -81,10 +95,8 @@ playlist, so every playlist failed the same way and the load finished with an
 empty pool, which the screen reported as "No videos found in your
 subscriptions". That was false, and it is the reason for the second rule:
 
-**Every playlist failing is a failure of the load.** `#listRecentVideoIds`
-counts the playlists it lost and throws the first error it saw when it lost all
-of them. An empty pool is shown as an empty subscription list, and this is the
-case where that would be a lie.
+**Every playlist failing is a failure of the load.** An empty pool is shown as
+an empty subscription list, and this is the case where that would be a lie.
 
 What a viewer is told about any of this is in `src/ui/faultMessage.ts`, not
 here: the endpoint, the status and Google's own wording stay in the `Error`. See

@@ -14,7 +14,7 @@ and no `Date` in it. `broadcastDayStart(now)` snaps an instant to its day's
 in instants.
 
 A day is **usually** `SECONDS_PER_DAY` = 86,400 seconds, and `assertCoversDay`
-proves a planned day is contiguous and gapless — no overlaps, no holes, first
+proves a planned day is contiguous and gapless: no overlaps, no holes, first
 item at 0, last ending at the day's true length.
 
 ### Twice a year it is not 86,400
@@ -72,13 +72,13 @@ One rule turns the packer from a matter of taste into a defined problem, and it
 is what being taken off air to go over to the news feels like.
 
 Note the asymmetry: a junction is only guaranteed to *start* on time. It may
-itself overrun into the next non-junction daypart — which is precisely what news
+itself overrun into the next non-junction daypart, which is precisely what news
 does.
 
 ## Classification
 
 `src/schedule/classify.ts` answers one question: *how well does this video suit
-each daypart?* — as `Affinities`, a **partial** map of `DaypartId -> 0..1`.
+each daypart?*, as `Affinities`, a **partial** map of `DaypartId -> 0..1`.
 
 Partial on purpose. An absent daypart means "no judgement", which a caller
 cannot confuse with a confident zero. That distinction stops a scoring bug from
@@ -102,13 +102,13 @@ free within a call.
 `HeuristicClassifier` works cheapest-signal-first:
 
 1. **Duration.** The strongest signal, because a duration tells you what a video
-   is *for*. Each daypart has a band — breakfast 1–5 min, afternoon 60–150 min,
-   late night 60–240 min — with the fit falling linearly to zero across a
+   is *for*. Each daypart has a band (breakfast 1–5 min, afternoon 60–150 min,
+   late night 60–240 min) with the fit falling linearly to zero across a
    10-minute margin either side. Closedown has no band and therefore never takes
    a programme.
 2. **Category.** YouTube's News & Politics (`25`) is a hard gate into the two
    news dayparts; a news video keeps only a quarter of its affinity elsewhere.
-3. **Title keywords**, word-bounded on purpose — "mixture" is not a mix and
+3. **Title keywords**, word-bounded on purpose: "mixture" is not a mix and
    "Newsdesk" is not news.
 4. **Channel habit.** A channel with at least three schedulable uploads gets a
    median duration, and videos that match their channel's habit get a bonus.
@@ -116,8 +116,8 @@ free within a call.
 **Duration is a gate, not just a score.** A video whose length does not fit a
 daypart at all gets no affinity for it, and no keyword or channel habit can put
 it there. Without the gate, a thirty-second short with the word "live" in its
-title scores 0.2 for late night — nothing from its duration, all of it from the
-word — and goes out between two feature-length programmes.
+title scores 0.2 for late night (nothing from its duration, all of it from the
+word) and goes out between two feature-length programmes.
 
 `Classifier` is an interface. `OverridingClassifier` decorates any
 implementation with per-channel pins, and `StationClassifier`
@@ -127,23 +127,23 @@ implementation with per-channel pins, and `StationClassifier`
 
 `plan(pool, options)` (`src/schedule/plan.ts`) is pure and deterministic: no
 clock, no `Math.random`, no I/O. Same pool, same options, same schedule, every
-time — which is what lets the tuner treat the day as a *fact* rather than a
+time, which is what lets the tuner treat the day as a *fact* rather than a
 decision.
 
 Candidates are ranked on affinity, adjusted by:
 
-- **Recency** — a 7-day half-life, so today's uploads outweigh last month's. An
+- **Recency**: a 7-day half-life, so today's uploads outweigh last month's. An
   upload whose date will not parse is treated as a year old: old, but not
   disqualified.
-- **Junction marks** — an ending near :00, :15, :30 or the next :00 is worth up
+- **Junction marks**: an ending near :00, :15, :30 or the next :00 is worth up
   to 35% more. Television ends on the quarter hour; this is why the schedule
   *feels* right even when nothing forces it to.
-- **Overrun** — appeal decays as the overrun grows, and anything over ten
+- **Overrun**: appeal decays as the overrun grows, and anything over ten
   minutes past its daypart is not offered at all. Real schedules run over; they
   do not run over by half an hour.
-- **Jitter** — seeded (`DEFAULT_SEED = 1967`), so it breaks ties between equally
+- **Jitter**: seeded (`DEFAULT_SEED = 1967`), so it breaks ties between equally
   good programmes without breaking determinism.
-- **Freshness** — a second showing is worth a fifth of a first. A programme may
+- **Freshness**: a second showing is worth a fifth of a first. A programme may
   go out twice in a day, at least four hours apart, and only once nothing new
   will fit; the second is marked `repeat`. Two uploads of one channel with the
   same name count as one programme whatever their ids say.
@@ -157,7 +157,7 @@ card, which is both the honest outcome and the thematically correct one.
 
 `tune(schedule, now)` (`src/broadcast/tune.ts`) binary-searches the items for
 the half-open interval `[startSec, endSec)` containing the instant, and returns
-what is on air — including how far into it we are:
+what is on air, including how far into it we are:
 
 ```ts
 offsetSec: content.videoStartSec + (sec - item.startSec)
@@ -173,6 +173,18 @@ one, not ambiguously in both.
 ## Shifting the clock
 
 `OffsetClock` (`src/clock/offsetClock.ts`) wraps a `Clock` at a fixed distance,
-which is what `?at=03:14` uses. It still *ticks* — it is a shifted clock, not a
-frozen instant, so a junction still arrives while you watch. A wall-clock time
-means its next occurrence; nonsense is ignored.
+which is what `?at=03:14` uses. It still *ticks*: it is a shifted clock, not a
+frozen instant, so a junction still arrives while you watch.
+
+`offsetFromQuery` takes either a wall-clock time (`?at=03:14`) or a full instant
+(`?at=2026-09-12T03:14`), and **it must land inside the broadcast day you are
+already in**: the 06.00 behind you, up to but not including the 06.00 ahead.
+That is the day the schedule was planned for, and it is a window rather than a
+direction, so this morning is as reachable as tonight's closedown.
+
+A bare `hh:mm` is placed inside that window, which is why `03:14`, being before
+06.00, lands on the day's second calendar date. Anything outside the window, and
+anything that does not parse, gives an offset of **0**, so a typo shows you the
+real time rather than a wild one: `new Date('275760-09-13')` parses to the
+largest `Date` there is, and an offset that size makes `now()` overflow to an
+invalid `Date` on the next tick, taking the schedule and the guide with it.

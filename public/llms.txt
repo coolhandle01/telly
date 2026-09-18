@@ -5,11 +5,14 @@
 > already in progress and show a test card when nothing is on. You do not pick
 > what to watch; you switch the set on, press a preset, and see what is on.
 
-telly is a browser-only single-page app — no backend, no database, no server of
-any kind. It signs in with Google Identity Services, reads the visitor's own
+telly is a browser-only single-page app: no backend and no server of its own.
+It signs in with Google Identity Services, reads the visitor's own
 subscriptions with the `youtube.readonly` scope, and plays them in YouTube's
 own embedded player. The access token lives in memory for its hour and is never
-written to storage, never logged and never put in a URL.
+written to storage, never logged and never put in a URL. The schedule data is
+cached in the visitor's own browser, in IndexedDB, under a key carrying their
+account's channel id; signing out revokes the grant at Google and empties that
+store.
 
 ## The one idea
 
@@ -37,7 +40,7 @@ the afternoon, and a fifth never closes down at all.
 
 The television itself is drawn, not photographed: the teak cabinet, the
 bakelite keys and the aluminium fascia are SVG filters, so there are no image
-assets. The controls work — volume, six channel presets, and five trimmers
+assets. The controls work: volume, six channel presets, and five trimmers
 behind the flap. V and H are the frame and line oscillators, and turning either
 off its lock rolls or tears the picture. B is black level, C is saturation, and
 T is the tuner, which loses the colour before it loses the picture. Two presets

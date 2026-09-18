@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Privacy policy · telly</title>
-<meta name="description" content="What telly reads from your YouTube account, what it does with it, and where it goes. Which is: nowhere.">
+<meta name="description" content="What telly reads from your YouTube account, what it keeps on your device, how long it keeps it, and how to remove it.">
 <style>
   :root {
     color-scheme: light dark;
@@ -70,96 +70,132 @@
 <body>
 <main>
 <h1>Privacy policy</h1>
-<p class="lede">telly &middot; last updated 15 September 2026</p>
+<p class="lede">telly &middot; last updated 17 September 2026</p>
 
-<p><strong>telly</strong> turns your YouTube subscriptions into television: it builds
-a day&rsquo;s schedule out of them and plays them in YouTube&rsquo;s own embedded player,
-so you switch it on and see what is on rather than choosing something.</p>
+<p><strong>telly</strong> builds a day&rsquo;s television schedule out of your YouTube
+subscriptions and plays the programmes in YouTube&rsquo;s embedded player. This
+policy describes the version of telly served at <code>telly.na-n.xyz</code>,
+built from the repository linked at the foot of this page.</p>
 
-<h2>The short version</h2>
-<p>telly has no server of its own, no database and no backend. It is a single page
-that runs in your browser. Nothing it reads from your Google account is ever
-sent to the developer or to anyone else, because there is nowhere for it to be
-sent.</p>
-<p>Two others are involved and each has a section below: YouTube, which plays the
-programmes, and GitHub Pages, which serves you the page.</p>
+<h2>How telly is put together</h2>
+<p>telly is a single page that runs in your browser. It has no server of its
+own, no database of its own and no user account. The requests it makes go to
+<code>accounts.google.com</code> for sign-in and to
+<code>www.googleapis.com</code> for the YouTube Data API. The page carries a
+Content Security Policy that allows connections to those two hosts and to the
+site&rsquo;s own origin, script from the site&rsquo;s own origin,
+<code>accounts.google.com</code> and <code>www.youtube.com</code>, and frames
+from <code>www.youtube.com</code>, <code>www.youtube-nocookie.com</code> and
+<code>accounts.google.com</code>.</p>
+<p>No code in the page sends anything read from your account to the developer
+or to any host other than the ones named above.</p>
 
 <h2>What telly asks for</h2>
-<p>One OAuth scope, and nothing else:</p>
+<p>One OAuth scope:</p>
 <p><code>https://www.googleapis.com/auth/youtube.readonly</code></p>
-<p>It allows telly to read the channels you subscribe to and the recent uploads
-on those channels. It does not allow telly to change anything. telly never
-posts, never comments, never subscribes or unsubscribes, and never deletes.</p>
+<p>It is read-only. It lets telly read the channels you subscribe to and the
+uploads on those channels. It carries no permission to post, comment,
+subscribe, unsubscribe or delete.</p>
 
-<h2>What telly does with it</h2>
+<h2>What telly reads from YouTube</h2>
 <ul>
-<li><strong>Your subscription list</strong> becomes the list of channels the schedule
-can draw on.</li>
-<li><strong>Each channel&rsquo;s recent uploads</strong> (titles, durations, publication
-dates, category, view counts, age rating and whether the channel is made for
-children) decide which of five stations a channel belongs to, and what time
-of day its programmes go out.</li>
-<li><strong>Nothing else is requested</strong>, and nothing about your viewing, your
-watch history or your identity is read. telly does not know your name or your
-email address, because it never asks for them.</li>
+<li><strong>Your account&rsquo;s own channel id</strong>, from a
+<code>channels.list</code> call with <code>mine=true</code>. It is what the
+cached schedule data is filed under.</li>
+<li><strong>Your subscription list</strong>: the id and title of each channel
+you subscribe to.</li>
+<li><strong>Each of those channels</strong>: its uploads playlist, the topic
+categories YouTube assigns it, and its subscriber count where the channel
+publishes one.</li>
+<li><strong>Recent uploads on each channel</strong>, twenty per channel: video
+id, channel id, title, duration, publication date, category, the uploader&rsquo;s
+tags, view count, YouTube&rsquo;s age-restriction flag, whether the video is
+declared as made for children, whether it may be embedded, and whether it is
+live.</li>
 </ul>
+<p>Those fields decide which of five stations a channel belongs to and what
+time of day its programmes go out. telly requests no profile scope and asks
+for no name, email address or watch history.</p>
 
-<h2>Where it is kept</h2>
+<h2>What is kept on your device</h2>
 <ul>
-<li><strong>The access token</strong> lives in memory for about an hour and is then
-discarded. It is never written to storage, never logged, and never put in a
-URL. There is no refresh token, because Google issues none to a browser
-application like this one.</li>
-<li><strong>The schedule data</strong> (the titles, durations and IDs described above)
-is cached in IndexedDB <em>on your own machine</em> for a day, so that
-switching the set on again does not spend your API quota. Clearing your site
-data removes it.</li>
-<li><strong>Nothing from your Google account is kept anywhere else.</strong> There
-is no account to delete and no copy of it held by anyone.</li>
+<li><strong>The access token.</strong> Google Identity Services issues one and
+issues no refresh token with it. It is held in memory in the page for about an
+hour. It is not written to storage, not put in a URL or a query string, and not
+copied into log output or error messages. Closing the tab ends it. When it
+expires, telly asks Google for another one without showing a screen.</li>
+<li><strong>A sign-in flag.</strong> <code>localStorage</code>, key
+<code>telly.google.granted</code>, value <code>1</code>. It records that a
+consent screen was completed in this browser, which is what lets a later page
+load take up the grant without prompting you again. It is not the token and it
+is not a credential. It is removed when you sign out, and when Google refuses
+to issue a new token.</li>
+<li><strong>The schedule data.</strong> IndexedDB database
+<code>testcard</code>, object store <code>pools</code>, under the key
+<code>pool:</code> followed by your account&rsquo;s own channel id. The record holds
+the video list and the channel list described above, together with the time it
+was saved. It exists so that switching the set on again does not spend your API
+quota. A record more than 24 hours old is not used: the next load fetches from
+YouTube again and overwrites it.</li>
 </ul>
+<p>The key contains your account&rsquo;s own channel id, so that identifier is in the
+database as well as in the record. Keying it that way means two accounts used
+in the same browser do not read each other&rsquo;s record.</p>
 
-<h2>How it is protected</h2>
-<p>telly holds one piece of sensitive data: the OAuth access token that lets it
-read your subscriptions. These are the measures that protect it, and the
-schedule data derived from it.</p>
+<h2>Signing out</h2>
+<p>The sign-out control in the corner of the page does two things:</p>
 <ul>
-<li><strong>In transit.</strong> The site and every request telly makes are
-HTTPS; a plain <code>http://</code> address is redirected to it. The access
-token travels in an <code>Authorization</code> header, never in a URL, a query
-string or a referrer, so it cannot be picked up from browser history, a proxy
-log or a link you share.</li>
-<li><strong>At rest.</strong> The token is never at rest: it is held in memory in
-the page, discarded when the tab closes or the hour lapses, and written to no
-storage of any kind. The cached schedule data holds no credentials and is kept
-by your browser under this site&rsquo;s own origin, readable only by this site.</li>
-<li><strong>No database, no second copy.</strong> telly has no backend and no
-database, so there is none to leak and no operator with access to one. Nothing
-read from your Google account is transmitted to the developer or to any third
-party, because there is nowhere to transmit it to. The static host that serves
-you the page never receives any of it.</li>
-<li><strong>Least privilege.</strong> One read-only scope is requested,
-<code>youtube.readonly</code>, and nothing else. telly cannot write to, post
-from, subscribe, unsubscribe or delete anything in your account under any
-circumstances.</li>
-<li><strong>Containment in the page.</strong> A Content Security Policy names the
-only three origins allowed to run script in the page and forbids everything
-else, so injected script has nowhere to load from.</li>
-<li><strong>Retention and deletion.</strong> The token expires within the hour.
-Cached schedule data expires within a day, and clearing this site&rsquo;s data in
-your browser removes it at once. Withdrawing access at Google invalidates the
-token immediately, and no new one can be issued.</li>
-<li><strong>How the code is kept honest.</strong> telly is open source and every
-change is public. Automated tests assert the claims above specifically, that the
-token reaches no storage, no log, no error object and no URL, and a change that
-breaks one of them fails the build. The source and its dependencies are scanned
-for known vulnerabilities on every change and weekly.</li>
+<li>It calls <code>google.accounts.oauth2.revoke</code> with the current access
+token. That hands the grant back to Google and drops every scope you granted
+telly.</li>
+<li>It empties the <code>pools</code> object store: every key in it, not only
+the record belonging to the account that was signed in.</li>
 </ul>
+<p>It also removes the sign-in flag. If the browser refuses to empty the
+database, the page says so, and the record stays there until a later sign-in
+overwrites it or you clear this site&rsquo;s data.</p>
+
+<h2>Withdrawing access at Google</h2>
+<p>You can withdraw telly&rsquo;s access from Google&rsquo;s own security settings:</p>
+<p><a href="https://security.google.com/settings/security/permissions">https://security.google.com/settings/security/permissions</a></p>
+<p>The token stops being accepted and no new one is issued, so telly&rsquo;s next
+request for one fails and the page returns to its signed-out state. Withdrawing
+access at Google does not empty the database on your machine. Signing out in
+the page does that, and so does clearing this site&rsquo;s data in your browser.</p>
+
+<h2>While you are signed out</h2>
+<p>The schedule is built from a list of sample programmes contained in the
+page. No request is made to the YouTube Data API and nothing is read from any
+account. Where a client id is configured for the deployment, the page still
+fetches Google&rsquo;s Identity Services script from <code>accounts.google.com</code>
+when it loads, and Google receives that request. A token is asked for at page
+load only when the sign-in flag is present in this browser.</p>
+
+<h2>In transit</h2>
+<p>The site and the requests telly makes are HTTPS, and a plain
+<code>http://</code> address is redirected to the HTTPS one. HSTS is not set on
+this site, so a request typed or linked as <code>http://</code> leaves your
+browser before it is redirected. The access token travels in an
+<code>Authorization</code> header rather than in a URL, a query string or a
+referrer.</p>
+
+<h2>How the code is checked</h2>
+<p>The source is public and every change to it is public. Tests in the
+repository assert that the access token does not reach
+<code>localStorage</code>, <code>sessionStorage</code>, a cookie, a request URL
+or an error object, and a change that breaks one of them fails the checks that
+run on every pull request. CodeQL runs over the source on pull requests, on
+pushes to the main branch, and once a week. Dependabot checks the dependencies
+once a week.</p>
 
 <h2>What telly does not do</h2>
 <ul>
-<li>No analytics, no tracking pixels, no advertising, and no cookies of its own.</li>
-<li>telly does not sell, share or transfer your data to anybody, for any purpose.</li>
-<li>No profiling, and no use of your data to train any model.</li>
+<li>It loads no analytics script, no tracking pixel and no advertising, and it
+sets no cookie of its own.</li>
+<li>It has no code that sells, shares or transfers your data to a third
+party.</li>
+<li>It builds no profile of you, and it passes what it reads to no service
+other than the ones named in this policy.</li>
 </ul>
 
 <h2>Where the site is served from</h2>
@@ -169,28 +205,20 @@ each request, and its documentation says the visitor&rsquo;s IP address is logge
 and stored for security purposes. What GitHub does with that is covered by the
 <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub
 Privacy Statement</a>, not by this one.</p>
-<p>Nothing from your Google account reaches the host. Signing in goes from your
-browser to <code>accounts.google.com</code>, and every YouTube request goes from
-your browser to <code>www.googleapis.com</code>. Neither passes through it.</p>
+<p>Sign-in goes from your browser to <code>accounts.google.com</code>, and
+every YouTube Data API request goes from your browser to
+<code>www.googleapis.com</code>. Neither passes through the host that serves
+the page.</p>
 
 <h2>YouTube&rsquo;s player</h2>
 <p>Programmes play in YouTube&rsquo;s own embedded player, loaded from
 <code>www.youtube.com</code>. That player is YouTube&rsquo;s, not telly&rsquo;s: it may set
-cookies and collect data about what you watch, exactly as it would on YouTube.
-telly cannot see or control any of that.</p>
+cookies and collect data about what you watch, as it would on YouTube. telly
+cannot see or control what it does.</p>
 <p>By using telly you are also using YouTube, so the
 <a href="https://www.youtube.com/t/terms">YouTube Terms of Service</a> and the
 <a href="https://policies.google.com/privacy">Google Privacy Policy</a> apply to
 that part of it.</p>
-
-<h2>Taking access away</h2>
-<p>You can revoke telly&rsquo;s access to your Google account at any time, from
-Google&rsquo;s own security settings:</p>
-<p><a href="https://security.google.com/settings/security/permissions">https://security.google.com/settings/security/permissions</a></p>
-<p>Revoking takes effect immediately: telly&rsquo;s access token stops working and no
-new one can be issued. To remove the cached schedule data from your machine as
-well, clear this site&rsquo;s data in your browser. It expires by itself within a day
-in any case.</p>
 
 <h2>Limited use</h2>
 <p>telly&rsquo;s use of information received from Google APIs adheres to the
@@ -198,16 +226,17 @@ in any case.</p>
 including the Limited Use requirements.</p>
 
 <h2>Children</h2>
-<p>telly is not directed at children and requires a Google account to sign in to.
-telly collects nothing from anyone knowingly, children included, because telly
-collects nothing.</p>
+<p>telly is not directed at children and requires a Google account to sign in
+to. telly requests no profile information and reads no name, email address or
+date of birth, so it has no way to tell whose account is signed in beyond the
+channel id described above.</p>
 
 <h2>Changes</h2>
 <p>If this policy changes, the date at the top changes with it, and the history
 of every version is public in the repository linked below.</p>
 
 <h2>Contact</h2>
-<p>telly is a hobby project maintained by one person. The best way to raise
+<p>telly is a hobby project maintained by one person. The way to raise
 anything, including a privacy question, is an issue on the repository:</p>
 <p><a href="https://github.com/coolhandle01/telly">github.com/coolhandle01/telly</a></p>
 

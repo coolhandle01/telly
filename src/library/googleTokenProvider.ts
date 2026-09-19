@@ -39,11 +39,22 @@ export const GRANT_KEY = 'telly.google.granted'
 export class SignInError extends Error {
   /** GIS's `error_callback` type, or the token response's `error`. */
   readonly reason: string
+  /**
+   * True when Google answered and the answer was no.
+   *
+   * A token response carrying an `error` is Google speaking about the grant.
+   * An `error_callback` is the browser or the network speaking about the
+   * attempt: a popup it would not open, a request that never arrived. Both
+   * reach the same `catch` and mean opposite things, so the one place that
+   * acts on a refusal is told which it is holding.
+   */
+  readonly answered: boolean
 
-  constructor(reason: string) {
+  constructor(reason: string, answered = false) {
     super(`YouTube sign-in failed: ${reason}`)
     this.name = 'SignInError'
     this.reason = reason
+    this.answered = answered
   }
 }
 
@@ -249,8 +260,12 @@ export class GoogleTokenProvider implements AccessTokenProvider {
     try {
       await this.#requestToken('')
       return true
-    } catch {
-      rememberGrant(this.#storage, false)
+    } catch (error) {
+      // Only Google's own answer clears the flag. A popup the browser would
+      // not open at page load, and a request that never arrived, say nothing
+      // about whether the grant still stands, and clearing on those means one
+      // bad load stops every later load from even asking.
+      if (error instanceof SignInError && error.answered) rememberGrant(this.#storage, false)
       this.#discard()
       return false
     }
@@ -419,7 +434,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
 
   #onResponse(response: TokenResponse): void {
     if (response.error !== undefined || response.access_token === undefined) {
-      this.#fail(response.error ?? 'no token returned')
+      this.#fail(response.error ?? 'no token returned', true)
       return
     }
 
@@ -437,9 +452,10 @@ export class GoogleTokenProvider implements AccessTokenProvider {
     this.#announce(true)
   }
 
-  #fail(reason: string): void {
+  /** `answered` is true only when the reason came back from Google. */
+  #fail(reason: string, answered = false): void {
     const settle = this.#settle
     this.#settle = undefined
-    settle?.reject(new SignInError(reason))
+    settle?.reject(new SignInError(reason, answered))
   }
 }

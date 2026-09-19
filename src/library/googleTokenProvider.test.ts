@@ -224,13 +224,43 @@ describe('GoogleTokenProvider', () => {
       expect(provider.isSignedIn).toBe(true)
     })
 
-    it('forgets the grant when Google refuses to renew it', async () => {
+    it('forgets the grant when Google answers that it is gone', async () => {
+      const storage = fakeStorage({ [GRANT_KEY]: '1' })
+      const { load } = fakeGis(() => ({ error: 'access_denied' }))
+      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage })
+
+      await expect(provider.resume()).resolves.toBe(false)
+      expect(storage.getItem(GRANT_KEY)).toBeNull()
+    })
+
+    // Reported from a real refresh that signed the viewer out. A page-load
+    // request carries no gesture, so the browser can refuse to open anything,
+    // and that refusal says nothing about whether the grant still stands.
+    it('keeps the grant when the browser refuses the request', async () => {
       const storage = fakeStorage({ [GRANT_KEY]: '1' })
       const { load } = fakeGis(() => 'silent')
       const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage })
 
       await expect(provider.resume()).resolves.toBe(false)
-      expect(storage.getItem(GRANT_KEY)).toBeNull()
+
+      expect(storage.getItem(GRANT_KEY)).toBe('1')
+    })
+
+    // The flag is what gates the request, so clearing it on a failure Google
+    // did not send stopped every later load from even asking.
+    it('still asks on the next load after one the browser refused', async () => {
+      const storage = fakeStorage({ [GRANT_KEY]: '1' })
+      let refuse = true
+      const { load, prompts } = fakeGis(() => (refuse ? 'silent' : granted()))
+      await expect(
+        new GoogleTokenProvider('client-1', { loadGis: load, storage }).resume(),
+      ).resolves.toBe(false)
+
+      refuse = false
+      const next = new GoogleTokenProvider('client-1', { loadGis: load, storage })
+
+      await expect(next.resume()).resolves.toBe(true)
+      expect(prompts).toEqual(['', ''])
     })
 
     // Found by running the built app behind a proxy that broke the script

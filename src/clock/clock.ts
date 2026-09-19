@@ -9,7 +9,7 @@ export interface Clock {
   subscribe(listener: (now: Date) => void): () => void
 }
 
-/** How often the wall clock is sampled — the card's clock shows seconds. */
+/** How often the wall clock is sampled: the card's clock shows seconds. */
 const TICK_MS = 1000
 
 export class SystemClock implements Clock {

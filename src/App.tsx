@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from 'react'
 import { SystemClock, type Clock } from './clock/clock'
-import { OffsetClock, offsetFromQuery } from './clock/offsetClock'
 import {
   createPoolSource,
+  googleSession,
   GoogleTokenProvider,
   isYouTubeConfigured,
   type PoolSource,
@@ -24,7 +24,11 @@ const systemClock = new SystemClock()
 const webAudioSound = new WebAudioSound(() => new AudioContext())
 
 export interface AppProps {
-  /** Overridable so a test can mount the whole app without a browser. */
+  /**
+   * Where "now" comes from. The set runs on the wall clock; a test hands it a
+   * `FakeClock` and drives the whole broadcast day by hand, which is how any
+   * hour is looked at without sitting up for it.
+   */
   clock?: Clock
   sound?: Sound
   poolSource?: PoolSource
@@ -33,7 +37,7 @@ export interface AppProps {
 
 /**
  * A build that reached a viewer without a client ID cannot show anyone their
- * own television, and no viewer can do anything about it — the ID is baked in
+ * own television, and no viewer can do anything about it: the ID is baked in
  * at build time, so its absence is a deployment that went out wrong.
  *
  * In development it is not a fault at all: it is how the app is meant to run
@@ -45,16 +49,12 @@ const NO_CLIENT_ID = {
   detail: ['This receiver has not been', 'configured for a service.'],
 } as const
 
-export function App({ clock, sound = webAudioSound, poolSource, player }: AppProps = {}) {
-  // `?at=03:14` runs the channel at that hour — still ticking, so programmes
-  // end and junctions arrive as they would. It is how you look at closedown
-  // without sitting up until half one in the morning.
-  const shifted = useMemo(() => {
-    if (clock) return clock
-    const offset = offsetFromQuery(window.location.search, systemClock.now())
-    return offset === 0 ? systemClock : new OffsetClock(systemClock, offset)
-  }, [clock])
-
+export function App({
+  clock = systemClock,
+  sound = webAudioSound,
+  poolSource,
+  player,
+}: AppProps = {}) {
   const built = useMemo(() => {
     const host = document.createElement('div')
     return { player: new YouTubeIframePlayer(loadYouTubeIframeApi, host), playerHost: host }
@@ -70,25 +70,32 @@ export function App({ clock, sound = webAudioSound, poolSource, player }: AppPro
   )
   const defaultSource = useMemo(() => createPoolSource({ tokens }), [tokens])
 
+  // Signing out is both halves at once: the grant goes back to Google and the
+  // copy of the subscriptions goes out of this browser's database.
+  const session = useMemo(
+    () => (tokens ? googleSession(tokens, defaultSource) : undefined),
+    [tokens, defaultSource],
+  )
+
   // Fetch Google's script now, not when the button is clicked: a popup must
   // be traceable to a user gesture, and that gesture does not survive the
-  // round-trip. Failure is ignored here — sign-in reports it properly.
+  // round-trip. Failure is ignored here: sign-in reports it properly.
   useEffect(() => {
     void tokens?.prepare().catch(() => undefined)
   }, [tokens])
 
   return (
     // A card under every programme, and a card under the receiver itself.
-    <FaultBoundary channelName={CHANNEL_NAME} clock={shifted}>
+    <FaultBoundary channelName={CHANNEL_NAME} clock={clock}>
       <Channel
         channelName={CHANNEL_NAME}
-        clock={shifted}
+        clock={clock}
         poolSource={poolSource ?? defaultSource}
         player={player ?? built.player}
         playerHost={player ? undefined : built.playerHost}
         sound={sound}
         sourceUrl={SOURCE_URL}
-        signIn={tokens ? () => tokens.signIn().then(() => undefined) : undefined}
+        session={session}
         // A deployed build with no client ID is broken, and says so on the
         // screen. A dev build with none is running on fixtures, which is the
         // documented way to work on this without credentials.

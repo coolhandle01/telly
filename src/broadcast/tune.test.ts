@@ -31,7 +31,7 @@ const programme = (
  *
  *   0 .. 600     programme `one`, from the top of the video
  *   600 .. 660   continuity caption
- *   660 .. 1500  programme `two`, joined 300s in — a junction cut its front off
+ *   660 .. 1500  programme `two`, joined 300s in: a junction cut its front off
  *   1500 .. 1800 interlude filler
  */
 const DAY: Schedule = {

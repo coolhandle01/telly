@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   GIS_SCRIPT_URL,
   GoogleTokenProvider,
+  GRANT_KEY,
   loadGoogleIdentityServices,
   YOUTUBE_READONLY_SCOPE,
   type GoogleIdentityServices,
@@ -12,6 +13,7 @@ import {
 function fakeGis(respond: (prompt: string) => TokenResponse | 'silent') {
   const prompts: string[] = []
   const configs: { client_id: string; scope: string }[] = []
+  const revoked: string[] = []
   const gis: GoogleIdentityServices = {
     accounts: {
       oauth2: {
@@ -27,10 +29,33 @@ function fakeGis(respond: (prompt: string) => TokenResponse | 'silent') {
             },
           }
         },
+        revoke: (accessToken, done) => {
+          revoked.push(accessToken)
+          done?.({ successful: true })
+        },
       },
     },
   }
-  return { gis, prompts, configs, load: vi.fn(() => Promise.resolve(gis)) }
+  return { gis, prompts, configs, revoked, load: vi.fn(() => Promise.resolve(gis)) }
+}
+
+/** A `Storage` each test owns, so none inherits another's grant flag. */
+function fakeStorage(seed: Record<string, string> = {}): Storage {
+  const entries = new Map(Object.entries(seed))
+  return {
+    get length() {
+      return entries.size
+    },
+    clear: () => entries.clear(),
+    getItem: (key) => entries.get(key) ?? null,
+    key: (index) => [...entries.keys()][index] ?? null,
+    removeItem: (key) => {
+      entries.delete(key)
+    },
+    setItem: (key, value) => {
+      entries.set(key, value)
+    },
+  }
 }
 
 const granted = (expiresIn = 3600): TokenResponse => ({
@@ -59,7 +84,7 @@ describe('GoogleTokenProvider', () => {
 
     const pending = provider.signIn()
 
-    // Asked for before this test ever yields — no await stands between the
+    // Asked for before this test ever yields: no await stands between the
     // click and the popup.
     expect(prompts).toEqual(['consent'])
     await expect(pending).resolves.toBe('tok-abc')
@@ -131,14 +156,14 @@ describe('GoogleTokenProvider', () => {
   })
 
   // Widened: the original only ever refused *consent*, which happens after
-  // #loadGis() has already resolved — so #ready held a fulfilled promise and
+  // #loadGis() has already resolved, so #ready held a fulfilled promise and
   // the only state the retry had to clear was #pending. The refusal that
   // latches is the one that happens *during* the load, and it was unreachable
   // while the fake's loader was hard-wired to `Promise.resolve(gis)`.
   it.each([
     ['the user refuses consent', false],
     ['the script cannot be fetched the first time', true],
-  ])('can be retried after a refusal — %s', async (_case, refuseTheLoad) => {
+  ])('can be retried after a refusal: %s', async (_case, refuseTheLoad) => {
     let allow = refuseTheLoad
     const { gis, prompts } = fakeGis(() => (allow ? granted() : { error: 'access_denied' }))
     let loads = 0
@@ -172,6 +197,290 @@ describe('GoogleTokenProvider', () => {
     ].join(' ')
     expect(stored).not.toContain('tok-abc')
   })
+
+  describe('resume', () => {
+    it('asks Google nothing on a browser that has never granted', async () => {
+      const { load } = fakeGis(() => granted())
+      const provider = new GoogleTokenProvider('client-1', {
+        loadGis: load,
+        storage: fakeStorage(),
+      })
+
+      await expect(provider.resume()).resolves.toBe(false)
+      expect(load).not.toHaveBeenCalled()
+    })
+
+    it('takes a token silently where a grant was made before', async () => {
+      const { load, prompts } = fakeGis(() => granted())
+      const provider = new GoogleTokenProvider('client-1', {
+        loadGis: load,
+        storage: fakeStorage({ [GRANT_KEY]: '1' }),
+      })
+
+      await expect(provider.resume()).resolves.toBe(true)
+      // The silent form. Anything else would put a consent screen in front of
+      // a viewer who only reloaded the page.
+      expect(prompts).toEqual([''])
+      expect(provider.isSignedIn).toBe(true)
+    })
+
+    it('forgets the grant when Google answers that it is gone', async () => {
+      const storage = fakeStorage({ [GRANT_KEY]: '1' })
+      const { load } = fakeGis(() => ({ error: 'access_denied' }))
+      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage })
+
+      await expect(provider.resume()).resolves.toBe(false)
+      expect(storage.getItem(GRANT_KEY)).toBeNull()
+    })
+
+    // Reported from a real refresh that signed the viewer out. A page-load
+    // request carries no gesture, so the browser can refuse to open anything,
+    // and that refusal says nothing about whether the grant still stands.
+    it('keeps the grant when the browser refuses the request', async () => {
+      const storage = fakeStorage({ [GRANT_KEY]: '1' })
+      const { load } = fakeGis(() => 'silent')
+      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage })
+
+      await expect(provider.resume()).resolves.toBe(false)
+
+      expect(storage.getItem(GRANT_KEY)).toBe('1')
+    })
+
+    // The flag is what gates the request, so clearing it on a failure Google
+    // did not send stopped every later load from even asking.
+    it('still asks on the next load after one the browser refused', async () => {
+      const storage = fakeStorage({ [GRANT_KEY]: '1' })
+      let refuse = true
+      const { load, prompts } = fakeGis(() => (refuse ? 'silent' : granted()))
+      await expect(
+        new GoogleTokenProvider('client-1', { loadGis: load, storage }).resume(),
+      ).resolves.toBe(false)
+
+      refuse = false
+      const next = new GoogleTokenProvider('client-1', { loadGis: load, storage })
+
+      await expect(next.resume()).resolves.toBe(true)
+      expect(prompts).toEqual(['', ''])
+    })
+
+    // Found by running the built app behind a proxy that broke the script
+    // fetch: the grant was forgotten on the strength of an answer Google never
+    // gave. Only Google knows whether a grant still stands.
+    it('keeps the grant when the script never arrives', async () => {
+      const storage = fakeStorage({ [GRANT_KEY]: '1' })
+      const load = vi.fn(() => Promise.reject(new Error('Google Identity Services could not be loaded')))
+      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage })
+
+      await expect(provider.resume()).resolves.toBe(false)
+
+      expect(storage.getItem(GRANT_KEY)).toBe('1')
+    })
+  })
+
+  describe('signOut', () => {
+    it('hands the token back to Google and forgets it here', async () => {
+      const storage = fakeStorage()
+      const { load, revoked } = fakeGis(() => granted())
+      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage })
+      await provider.signIn()
+
+      await provider.signOut()
+
+      expect(revoked).toEqual(['tok-abc'])
+      expect(provider.isSignedIn).toBe(false)
+      expect(storage.getItem(GRANT_KEY)).toBeNull()
+    })
+
+    it('tells whoever is watching, so the screen follows', async () => {
+      const { load } = fakeGis(() => granted())
+      const provider = new GoogleTokenProvider('client-1', {
+        loadGis: load,
+        storage: fakeStorage(),
+      })
+      const seen: boolean[] = []
+      provider.subscribe((signedIn) => seen.push(signedIn))
+
+      await provider.signIn()
+      await provider.signOut()
+
+      expect(seen).toEqual([true, false])
+    })
+  })
+
+  describe('an expired token', () => {
+    it('is renewed rather than handed out', async () => {
+      let clock = 0
+      let issued = 0
+      const { load } = fakeGis(() => ({ access_token: `tok-${++issued}`, expires_in: 3600 }))
+      const provider = new GoogleTokenProvider('client-1', {
+        loadGis: load,
+        now: () => clock,
+        storage: fakeStorage(),
+      })
+
+      await expect(provider.getAccessToken()).resolves.toBe('tok-1')
+      clock += 3600 * 1000
+      await expect(provider.getAccessToken()).resolves.toBe('tok-2')
+    })
+
+    it('leaves the session signed out when the renewal is refused', async () => {
+      let clock = 0
+      let issued = 0
+      const storage = fakeStorage()
+      const { load } = fakeGis(() =>
+        issued++ === 0 ? { access_token: 'tok-1', expires_in: 3600 } : 'silent',
+      )
+      const provider = new GoogleTokenProvider('client-1', {
+        loadGis: load,
+        now: () => clock,
+        storage,
+      })
+      const seen: boolean[] = []
+      await provider.getAccessToken()
+      provider.subscribe((signedIn) => seen.push(signedIn))
+
+      clock += 3600 * 1000
+      await expect(provider.getAccessToken()).rejects.toThrow(/sign-in failed/i)
+
+      expect(seen).toEqual([false])
+      expect(provider.isSignedIn).toBe(false)
+      // The grant flag survives. A refusal and a blocked script are the same
+      // rejection here, and `resume` is where a refusal answers the question
+      // the flag asks.
+      expect(storage.getItem(GRANT_KEY)).toBe('1')
+    })
+  })
+
+  /*
+    Mutation-testing survivors: each of these guards was written from reasoning
+    about what Google can send, and none of them was ever observed.
+  */
+  describe('what the token response says about its life', () => {
+    const lifetimeOf = async (expires_in: unknown) => {
+      let clock = 0
+      const { load } = fakeGis(() => ({ access_token: 'tok-abc', expires_in } as TokenResponse))
+      const provider = new GoogleTokenProvider('client-1', {
+        loadGis: load,
+        now: () => clock,
+        storage: fakeStorage(),
+      })
+      await provider.signIn()
+      return {
+        at: (ms: number) => {
+          clock = ms
+          return provider.isSignedIn
+        },
+      }
+    }
+
+    it('takes the hour GIS issues when the response says nothing', async () => {
+      const token = await lifetimeOf(undefined)
+
+      expect(token.at(0)).toBe(true)
+      expect(token.at(3_600_000)).toBe(false)
+    })
+
+    it('reads the seconds GIS sends as a string, which is how it sends them', async () => {
+      const token = await lifetimeOf('1800')
+
+      expect(token.at(0)).toBe(true)
+      expect(token.at(1_800_000)).toBe(false)
+    })
+
+    // A life that cannot be read is treated as already over, so the next call
+    // renews rather than sending a token of unknown standing.
+    it('treats a life it cannot read as spent', async () => {
+      const token = await lifetimeOf('not a number')
+
+      expect(token.at(0)).toBe(false)
+    })
+
+    // The margin exists so a request never goes out on a token that expires
+    // while it is in flight.
+    it('gives the token up a minute before Google would', async () => {
+      const token = await lifetimeOf(3600)
+
+      expect(token.at(3_600_000 - 60_001)).toBe(true)
+      expect(token.at(3_600_000 - 60_000)).toBe(false)
+    })
+  })
+
+  // A private window throws on the property access itself, before any key is
+  // named. Sign-in has to work anyway; only resuming without a prompt is lost.
+  describe('a browser with storage blocked', () => {
+    const throwing = (): Storage =>
+      new Proxy({} as Storage, {
+        get() {
+          throw new DOMException('access is denied for this document', 'SecurityError')
+        },
+      })
+
+    it('signs in', async () => {
+      const { load } = fakeGis(() => granted())
+      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage: throwing() })
+
+      await expect(provider.signIn()).resolves.toBe('tok-abc')
+      expect(provider.isSignedIn).toBe(true)
+    })
+
+    it('asks Google nothing at page load, having no grant it can read', async () => {
+      const { load } = fakeGis(() => granted())
+      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage: throwing() })
+
+      await expect(provider.resume()).resolves.toBe(false)
+      expect(load).not.toHaveBeenCalled()
+    })
+
+    it('signs out', async () => {
+      const { load, revoked } = fakeGis(() => granted())
+      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage: throwing() })
+      await provider.signIn()
+
+      await expect(provider.signOut()).resolves.toBeUndefined()
+      expect(revoked).toEqual(['tok-abc'])
+    })
+  })
+
+  it('takes up nothing twice over: a live session resumes as itself', async () => {
+    const { load, prompts } = fakeGis(() => granted())
+    const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage: fakeStorage() })
+    await provider.signIn()
+
+    await expect(provider.resume()).resolves.toBe(true)
+
+    // The held token answered it. Nothing was asked of Google a second time.
+    expect(prompts).toEqual(['consent'])
+  })
+
+  /*
+    A response that carries neither an error nor a token. Survived mutation on
+    both halves of the guard, which means nothing proved either half was load
+    bearing.
+  */
+  describe('a response with nothing in it', () => {
+    it('is a failure, not a token of undefined', async () => {
+      const { load } = fakeGis(() => ({}) as TokenResponse)
+      const provider = new GoogleTokenProvider('client-1', {
+        loadGis: load,
+        storage: fakeStorage(),
+      })
+
+      await expect(provider.signIn()).rejects.toThrow(/no token returned/)
+      expect(provider.isSignedIn).toBe(false)
+    })
+
+    it('is a failure even when it names an error and a token at once', async () => {
+      const { load } = fakeGis(() => ({ error: 'access_denied', access_token: 'tok-abc' }))
+      const provider = new GoogleTokenProvider('client-1', {
+        loadGis: load,
+        storage: fakeStorage(),
+      })
+
+      // Google said no. A token beside the refusal is not consent.
+      await expect(provider.signIn()).rejects.toThrow(/access_denied/)
+      expect(provider.isSignedIn).toBe(false)
+    })
+  })
 })
 
 describe('loadGoogleIdentityServices', () => {
@@ -196,7 +505,7 @@ describe('loadGoogleIdentityServices', () => {
     // Widened: one call can never see the hang. This path leaves its <script>
     // in the document (only the error path removes it), so a second call takes
     // the `existing` branch at googleTokenProvider.ts:56, attaches listeners to
-    // a tag that has already fired, and appends nothing — no event will ever
+    // a tag that has already fired, and appends nothing: no event will ever
     // come. The docstring at :48-50 says a blocked script must not hang; the
     // narrow test only proved that of the very first call.
     const second = loadGoogleIdentityServices()

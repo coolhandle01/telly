@@ -1,7 +1,7 @@
 import type { PoolStore, StoredPool } from './poolStore'
 
 /**
- * A very small promise wrapper over raw IndexedDB — one object store, one
+ * A very small promise wrapper over raw IndexedDB: one object store, one
  * record per key. Deliberately not a library: the API surface we need is a get
  * and a put, and a dependency here would be more code than this file.
  *
@@ -48,6 +48,13 @@ export class IndexedDbPoolStore implements PoolStore {
     const database = await this.#open()
     const transaction = database.transaction(STORE_NAME, 'readwrite')
     transaction.objectStore(STORE_NAME).put(entry, key)
+    await fromTransaction(transaction)
+  }
+
+  async remove(key: string): Promise<void> {
+    const database = await this.#open()
+    const transaction = database.transaction(STORE_NAME, 'readwrite')
+    transaction.objectStore(STORE_NAME).delete(key)
     await fromTransaction(transaction)
   }
 

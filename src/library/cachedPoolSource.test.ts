@@ -45,7 +45,18 @@ function inMemoryStore(): PoolStore & { entries: Map<string, StoredPool>; writes
       this.writes += 1
       this.entries.set(key, entry)
     },
+    async remove(key) {
+      this.entries.delete(key)
+    },
   }
+}
+
+
+/** The cache reads its store before it asks the source, so the inner `load` is
+    not reached in the same turn as the call. */
+const until = async (ready: () => boolean) => {
+  for (let turn = 0; turn < 50 && !ready(); turn += 1) await Promise.resolve()
+  if (!ready()) throw new Error('the inner source was never asked')
 }
 
 const HOUR = 60 * 60 * 1000
@@ -131,7 +142,7 @@ describe('CachedPoolSource', () => {
     })
 
     // Widened: the original modelled corruption as *absence*, which is exactly
-    // what `stored.videos ?? []` at cachedPoolSource.ts:97-98 was written for —
+    // what `stored.videos ?? []` at cachedPoolSource.ts:97-98 was written for:
     // it exercised the guard instead of probing past it. A record written by
     // anything other than this app has fields that are present and the wrong
     // type, and `??` cannot see those at all.
@@ -149,7 +160,7 @@ describe('CachedPoolSource', () => {
       await expect(loading).resolves.toBeDefined()
       const pool = await loading
       // The old assertions only checked the two `?? []` defaults. They never
-      // asked whether what came back was a usable Pool at all — which is the
+      // asked whether what came back was a usable Pool at all, which is the
       // property the render downstream depends on.
       expect(Array.isArray(pool.videos)).toBe(true)
       expect(pool.channels).toBeInstanceOf(Map)
@@ -172,7 +183,7 @@ describe('CachedPoolSource', () => {
     // wrong one, so the subtraction at cachedPoolSource.ts:73 always succeeded
     // and only the comparison was ever exercised. That arithmetic runs outside
     // the file's only try/catch (:60-65), so a stamp of the wrong type is not a
-    // cache miss — it is a rejected load, on every visit, until site data goes.
+    // cache miss: it is a rejected load, on every visit, until site data goes.
     it.each([
       ['stamped in the future', () => clock + 10 * 24 * HOUR],
       ['stamped with something that is not a number', () => 'the day before yesterday'],
@@ -214,6 +225,7 @@ describe('CachedPoolSource', () => {
           throw new DOMException('the database is not open', 'InvalidStateError')
         },
         write: async () => {},
+        remove: async () => {},
       }
       const inner = countingSource(poolOf('a'))
 
@@ -229,6 +241,7 @@ describe('CachedPoolSource', () => {
         write: async () => {
           throw new DOMException('quota exceeded', 'QuotaExceededError')
         },
+        remove: async () => {},
       }
 
       const pool = await new CachedPoolSource(countingSource(poolOf('a')), failing, { now }).load()
@@ -244,6 +257,105 @@ describe('CachedPoolSource', () => {
       }
 
       await expect(new CachedPoolSource(broken, inMemoryStore(), { now }).load()).rejects.toThrow('quota spent')
+    })
+  })
+
+  describe('two accounts on one browser', () => {
+    const alice = async () => 'UC-alice'
+    const bob = async () => 'UC-bob'
+
+    it('does not serve one account the record the other one wrote', async () => {
+      const store = inMemoryStore()
+      const alicesSource = countingSource(poolOf('alice-1'))
+      const bobsSource = countingSource(poolOf('bob-1'))
+      await new CachedPoolSource(alicesSource, store, { now, key: 'pool', scope: alice }).load()
+
+      const pool = await new CachedPoolSource(bobsSource, store, { now, key: 'pool', scope: bob }).load()
+
+      expect(bobsSource.loads).toBe(1)
+      expect(pool.videos.map((each) => each.id)).toEqual(['bob-1'])
+      // Alice's television is still Alice's, under the key it was filed with.
+      expect(store.entries.get('pool:UC-alice')?.videos.map((each) => each.id)).toEqual(['alice-1'])
+      expect(store.entries.get('pool:UC-bob')?.videos.map((each) => each.id)).toEqual(['bob-1'])
+    })
+
+    it('reads an account its own record back without asking the source again', async () => {
+      const store = inMemoryStore()
+      const inner = countingSource(poolOf('a'))
+      await new CachedPoolSource(inner, store, { now, key: 'pool', scope: alice }).load()
+
+      const second = await new CachedPoolSource(inner, store, { now, key: 'pool', scope: alice }).load()
+
+      expect(inner.loads).toBe(1)
+      expect(second.videos.map((each) => each.id)).toEqual(['a'])
+    })
+
+    it('touches the store neither way while the account is unknown', async () => {
+      const store = inMemoryStore()
+      const inner = countingSource(poolOf('a'))
+      const cached = new CachedPoolSource(inner, store, {
+        now,
+        key: 'pool',
+        scope: async () => {
+          throw new Error('the token was rejected')
+        },
+      })
+
+      const pool = await cached.load()
+
+      // Television carries on: a scope that cannot be established is a cache
+      // miss, and the record under the bare key belongs to whoever wrote it.
+      expect(inner.loads).toBe(1)
+      expect(pool.videos.map((each) => each.id)).toEqual(['a'])
+      expect(store.writes).toBe(0)
+      expect(store.entries.size).toBe(0)
+    })
+
+    it('files a source with no scope under the bare key, as it always did', async () => {
+      const store = inMemoryStore()
+      const inner = countingSource(poolOf('a'))
+
+      await new CachedPoolSource(inner, store, { now, key: 'pool' }).load()
+      const second = await new CachedPoolSource(inner, store, { now, key: 'pool' }).load()
+
+      expect(store.entries.get('pool')?.videos.map((each) => each.id)).toEqual(['a'])
+      expect(inner.loads).toBe(1)
+      expect(second.videos.map((each) => each.id)).toEqual(['a'])
+    })
+  })
+
+  describe('forgetting, which is what signing out does', () => {
+    it('empties the store, so the next load goes back to the source', async () => {
+      const store = inMemoryStore()
+      const inner = countingSource(poolOf('a'))
+      const cached = new CachedPoolSource(inner, store, { now, key: 'pool' })
+      await cached.load()
+
+      await cached.forget()
+
+      expect(store.entries.size).toBe(0)
+      await cached.load()
+      expect(inner.loads).toBe(2)
+    })
+
+    it('passes the forgetting on to a source that keeps something of its own', async () => {
+      let forgotten = 0
+      const inner: PoolSource = {
+        load: async () => poolOf('a'),
+        forget: async () => {
+          forgotten += 1
+        },
+      }
+
+      await new CachedPoolSource(inner, inMemoryStore(), { now }).forget()
+
+      expect(forgotten).toBe(1)
+    })
+
+    it('finishes quietly over a source that keeps nothing', async () => {
+      const inner = countingSource(poolOf('a'))
+
+      await expect(new CachedPoolSource(inner, inMemoryStore(), { now }).forget()).resolves.toBeUndefined()
     })
   })
 
@@ -271,6 +383,198 @@ describe('CachedPoolSource', () => {
       expect((await first).videos.map((each) => each.id)).toEqual(['a'])
       expect((await second).videos.map((each) => each.id)).toEqual(['a'])
       expect(loads).toBe(1)
+    })
+  })
+
+  /*
+    Every one of these was a mutation-testing survivor: the behaviour was
+    reasoned about when it was written and never observed.
+  */
+  describe('signing out while the set is still fetching', () => {
+    it('does not let the load put the pool back after the clear', async () => {
+      const store = inMemoryStore()
+      let release: ((pool: Pool) => void) | undefined
+      const slow: PoolSource = {
+        load: () => new Promise<Pool>((resolve) => { release = resolve }),
+      }
+      const cached = new CachedPoolSource(slow, store, { now })
+
+      const loading = cached.load()
+      await until(() => release !== undefined)
+      const forgetting = cached.forget()
+      // The fetch lands after the sign-out has already emptied the store.
+      release!(poolOf('a'))
+      await loading
+      await forgetting
+
+      expect(store.entries.size).toBe(0)
+    })
+
+    it('waits for that load rather than returning before it lands', async () => {
+      const store = inMemoryStore()
+      let release: ((pool: Pool) => void) | undefined
+      const slow: PoolSource = {
+        load: () => new Promise<Pool>((resolve) => { release = resolve }),
+      }
+      const cached = new CachedPoolSource(slow, store, { now })
+
+      const loading = cached.load()
+      await until(() => release !== undefined)
+      let done = false
+      const forgetting = cached.forget().then(() => { done = true })
+
+      await Promise.resolve()
+      expect(done).toBe(false)
+
+      release!(poolOf('a'))
+      await loading
+      await forgetting
+      expect(done).toBe(true)
+    })
+
+    it('finishes without a store at all, which is a browser that gave us none', async () => {
+      const cached = new CachedPoolSource(countingSource(poolOf('a')), undefined, { now })
+      await cached.load()
+
+      await expect(cached.forget()).resolves.toBeUndefined()
+    })
+  })
+
+  describe('the age of a record', () => {
+    it('serves one saved this very instant', async () => {
+      const store = inMemoryStore()
+      const inner = countingSource(poolOf('a'))
+      const cached = new CachedPoolSource(inner, store, { now })
+      await cached.load()
+
+      // No time passes at all: age is exactly zero, which is fresh.
+      await cached.load()
+
+      expect(inner.loads).toBe(1)
+    })
+  })
+
+  describe('a store that refuses', () => {
+    // Survived mutation: the rethrow could be deleted and nothing noticed. A
+    // sign-out that silently failed to clear is the whole reason this throws.
+    it('reports a clear that did not happen, rather than reporting success', async () => {
+      const refusing: PoolStore = {
+        read: async () => undefined,
+        write: async () => {},
+        remove: async () => {
+          throw new DOMException('the database is not open', 'InvalidStateError')
+        },
+      }
+
+      await expect(
+        new CachedPoolSource(countingSource(poolOf('a')), refusing, { now }).forget(),
+      ).rejects.toThrow(/database is not open/)
+    })
+  })
+
+  describe('the freshness window, at its edges', () => {
+    const savedAtZero = () => {
+      const store = inMemoryStore()
+      store.entries.set('pool', { savedAt: 0, videos: [...poolOf('a').videos], channels: [] })
+      return store
+    }
+
+    it('serves a record saved exactly now', async () => {
+      clock = 0
+      const inner = countingSource(poolOf('b'))
+
+      const pool = await new CachedPoolSource(inner, savedAtZero(), { now }).load()
+
+      expect(inner.loads).toBe(0)
+      expect(pool.videos.map((each) => each.id)).toEqual(['a'])
+    })
+
+    it('serves a record one millisecond inside the day', async () => {
+      clock = 24 * HOUR - 1
+      const inner = countingSource(poolOf('b'))
+
+      await new CachedPoolSource(inner, savedAtZero(), { now }).load()
+
+      expect(inner.loads).toBe(0)
+    })
+
+    // The TTL is closedown to closedown, so the instant it is reached the
+    // record is old: a day is a day, not a day and a moment.
+    it('refetches the moment the day is up', async () => {
+      clock = 24 * HOUR
+      const inner = countingSource(poolOf('b'))
+
+      await new CachedPoolSource(inner, savedAtZero(), { now }).load()
+
+      expect(inner.loads).toBe(1)
+    })
+
+    it('refetches for a stamp one millisecond in the future', async () => {
+      clock = -1
+      const inner = countingSource(poolOf('b'))
+
+      await new CachedPoolSource(inner, savedAtZero(), { now }).load()
+
+      expect(inner.loads).toBe(1)
+    })
+  })
+
+  describe('signing out, with somebody else on the same machine', () => {
+    /*
+      The record belongs to the account that signed in for it. Someone signing
+      out has asked to be forgotten; they have not asked for everybody else at
+      this machine to be forgotten, and a record thrown away costs its owner a
+      whole day's quota to fetch again.
+    */
+    it("takes this account's record and leaves the other account's", async () => {
+      const store = inMemoryStore()
+      store.entries.set('pool:UC-bob', { savedAt: 0, videos: [], channels: [] })
+      const cached = new CachedPoolSource(countingSource(poolOf('a')), store, {
+        now,
+        scope: async () => 'UC-alice',
+      })
+      await cached.load()
+      expect([...store.entries.keys()].sort()).toEqual(['pool:UC-alice', 'pool:UC-bob'])
+
+      await cached.forget()
+
+      expect([...store.entries.keys()]).toEqual(['pool:UC-bob'])
+    })
+
+    // Signing out must not need the network: the token is being revoked in the
+    // same breath, and the account was already established when the pool was
+    // read or written.
+    it('removes the record without asking who the account is again', async () => {
+      const store = inMemoryStore()
+      let scopeCalls = 0
+      const cached = new CachedPoolSource(countingSource(poolOf('a')), store, {
+        now,
+        scope: async () => {
+          scopeCalls += 1
+          return 'UC-alice'
+        },
+      })
+      await cached.load()
+      const asked = scopeCalls
+
+      await cached.forget()
+
+      expect(scopeCalls).toBe(asked)
+      expect(store.entries.size).toBe(0)
+    })
+
+    // A key that cannot be established means nothing is known to remove, and
+    // reporting a sign-out that removed nothing would be the lie this throws
+    // to avoid.
+    it('reports a sign-out that could not establish the account', async () => {
+      const cached = new CachedPoolSource(countingSource(poolOf('a')), inMemoryStore(), {
+        now,
+        scope: async () => {
+          throw new Error('no token')
+        },
+      })
+
+      await expect(cached.forget()).rejects.toThrow(/could not be established/)
     })
   })
 })

@@ -24,7 +24,7 @@ interface FaultBoundaryState {
  * render-time throw arrives here and the set puts a fault card up.
  *
  * It shows the card rather than re-rendering what threw. The cause is still
- * there — a pool of the wrong shape does not fix itself — so it stays on the
+ * there (a pool of the wrong shape does not fix itself) so it stays on the
  * fault, as a real set does.
  */
 export class FaultBoundary extends Component<FaultBoundaryProps, FaultBoundaryState> {

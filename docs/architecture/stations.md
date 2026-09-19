@@ -10,8 +10,8 @@ classifier. `programming/` supplies all three, five times over.
 
 ## What the API is asked for
 
-Three calls were already being made. Parts are free within a call — the quota
-cost is per call, not per part — so the fields the policy needs come for
+Three calls were already being made. Parts are free within a call (the quota
+cost is per call, not per part) so the fields the policy needs come for
 nothing.
 
 | Call | Parts | What it gives |
@@ -21,7 +21,7 @@ nothing.
 
 `topicDetails.topicCategories` is the important one. It is YouTube's own
 judgement of what a whole channel is about, as a list of Wikipedia URLs, and it
-is steadier than any single video's category — an uploader picks a category per
+is steadier than any single video's category: an uploader picks a category per
 upload, but a channel filed under `Humour` is a comedy channel every week of
 the year. Only the last path segment is kept, percent-decoded:
 `https://en.wikipedia.org/wiki/Video_game_culture` becomes
@@ -30,6 +30,37 @@ the year. Only the last path segment is kept, percent-decoded:
 `contentDetails.contentRating.ytRating` and `status.madeForKids` are the
 watershed as data. They are the only judgements of their kind the API makes,
 and they are taken at face value.
+
+## From a subscription to a time of day
+
+Every section below is one box of this:
+
+```mermaid
+flowchart TB
+  subgraph what["what it is: genreOf()"]
+    topics["topicCategories, most specific topic wins"] --> genre["one Genre"]
+    kids["madeForKids on every upload"] --> genre
+    cats["the modal categoryId of its uploads"] --> genre
+    named["word-bounded hints in the channel's name"] --> genre
+  end
+  subgraph how["how it is used: profile()"]
+    dur["median duration"] --> format["format, short to feature"]
+    gaps["median gap between uploads"] --> cadence["cadence, daily to occasional"]
+    views["median views, or subscribers, ranked"] --> standing["standing, 0..1"]
+  end
+  genre --> draft["assign(): appetite, THEME_BONUS, standing"]
+  standing --> draft
+  draft --> station["one station, and no other"]
+  cadence --> strands["strandsFor(): a weekly hour or feature gets one night"]
+  format --> strands
+  station --> sc["StationClassifier, per station per day"]
+  format --> sc
+  strands --> sc
+  sc --> out["an affinity per daypart, which plan() packs"]
+```
+
+Genre decides which station a subscription goes to. Length, how often it turns
+up and how well it is watched decide what time of day it goes out at.
 
 ## Genre
 
@@ -61,12 +92,11 @@ and who is likely to be in the room. The table is the translation.
 channel: what a controller knows about a supplier before deciding what to do
 with it.
 
-- **Genre** says which station it belongs to.
-- **Cadence** — the median gap between uploads — says how it is used. `daily`
+- **Cadence** (the median gap between uploads) says how it is used. `daily`
   is a strip, across the week. `weekly` is a strand, on one night of it.
   `occasional` fills in. Median rather than mean, so one holiday or one day a
   channel posted four times does not change what the channel is.
-- **Format** — the median duration, as a slot — says how long. `short` under
+- **Format** (the median duration, as a slot) says how long. `short` under
   65 seconds, then `segment`, `half-hour`, `hour`, `feature`. These are slots
   and not running times: a half-hour has never held thirty minutes, so a
   thirty-four minute programme is a half-hour and a seventy-minute one has
@@ -84,20 +114,46 @@ A station is a taste and a set of opening hours. Everything else follows from
 those two, which is why `stations.ts` is the whole of the policy and the rest
 of the directory is machinery.
 
-| | Hours | Taste | Cards | Tuner |
-|---|---|---|---|---|
-| One | 06.00–01.30 | news, factual, society, nature | monoscope, bars | mid-travel |
-| Two | 11.00–02.00 | factual, arts, comedy, music, food | electronic, monoscope, crosshatch | mid-travel |
-| Three | 06.00–02.30 | entertainment, sport, lifestyle, motoring | bars, ident | mid-travel |
-| Four | 15.00–03.00 | film, arts, society, comedy | crosshatch, electronic | 0.28 |
-| Five | round the clock | gaming, motoring, lifestyle, nature | ident, bars, electronic | 0.76 |
+```mermaid
+gantt
+    title The five stations, one broadcast day
+    dateFormat YYYY-MM-DD HH:mm
+    axisFormat %H.%M
+    tickInterval 3hour
+    section ONE
+    06.00 to 01.30            :2026-01-01 06:00, 2026-01-02 01:30
+    closedown                 :done, 2026-01-02 01:30, 2026-01-02 06:00
+    section TWO
+    not up yet                :done, 2026-01-01 06:00, 2026-01-01 11:00
+    11.00 to 02.00            :2026-01-01 11:00, 2026-01-02 02:00
+    closedown                 :done, 2026-01-02 02:00, 2026-01-02 06:00
+    section THREE
+    06.00 to 02.30            :2026-01-01 06:00, 2026-01-02 02:30
+    closedown                 :done, 2026-01-02 02:30, 2026-01-02 06:00
+    section FOUR
+    not up yet                :done, 2026-01-01 06:00, 2026-01-01 15:00
+    15.00 to 03.00            :2026-01-01 15:00, 2026-01-02 03:00
+    closedown                 :done, 2026-01-02 03:00, 2026-01-02 06:00
+    section FIVE
+    06.00 to 02.00            :2026-01-01 06:00, 2026-01-02 02:00
+    clip show                 :crit, 2026-01-02 02:00, 2026-01-02 04:30
+    overnight                 :2026-01-02 04:30, 2026-01-02 06:00
+```
+
+Grey is off air. Each station's `dayparts` tile its own day exactly, those
+hours included, so the axis is the same 06.00 to 06.00 for all five. Five never
+closes down, which is why the clip show exists: everything under a minute in
+the whole subscription list goes out between two and half past four.
+
+| | Taste | Cards | Tuner |
+|---|---|---|---|
+| One | news, factual, society, nature | monoscope, bars | mid-travel |
+| Two | factual, arts, comedy, music, food | electronic, monoscope, crosshatch | mid-travel |
+| Three | entertainment, sport, lifestyle, motoring | bars, ident | mid-travel |
+| Four | film, arts, society, comedy | crosshatch, electronic | 0.28 |
+| Five | gaming, motoring, lifestyle, nature | ident, bars, electronic | 0.76 |
 
 Preset six has no station behind it.
-
-Each station's `dayparts` tile its own day exactly, including the hours it is
-off air. Five never closes down, so something has to fill the small hours: the
-clip show takes 02.00 to 04.30, and everything under a minute in the whole
-subscription list ends up there.
 
 ### Finding a station in the snow
 
@@ -123,7 +179,7 @@ quarter: the packer looks ahead to the next junction mark, and reaches for it
 whenever it is within three minutes. More than that is a real gap, which is the
 card's job.
 
-The five marks are five mechanisms rather than five colours of one — a sphere
+The five marks are five mechanisms rather than five colours of one: a sphere
 whose meridians sweep, a numeral turning into its rule, a chevron assembling, a
 figure gathering out of four blocks, an orbit of dots. That is what made an
 ident recognisable in the second before the name appeared. None reproduces any
@@ -144,7 +200,7 @@ It is a draft, not an auction. Settling the keenest claims first sounds fair
 and is not: two stations a tenth of a point apart on a genre are not equally
 served by it, and the keener one takes every channel of that genre before the
 other gets a look in. Each station picks in turn instead, in an order that
-snakes — 1,2,3,4,5 then 5,4,3,2,1 — so picking last in one round is picking
+snakes (1,2,3,4,5 then 5,4,3,2,1) so picking last in one round is picking
 first in the next.
 
 Two rules sit around the draft:
@@ -159,8 +215,7 @@ Two rules sit around the draft:
 ## What goes where
 
 `StationClassifier` is built per station per day, because half the decision
-depends on which day it is. It returns an affinity per daypart, and `plan()`
-does the packing.
+depends on which day it is.
 
 Three gates run first. They are not preferences:
 
@@ -185,7 +240,7 @@ On top of that:
   a habit.
 - **Strands.** A weekly supplier of hours or features gets one night and one
   slot, dealt round the week so four strands are four different nights. It is
-  worth a great deal in its own slot and little outside it — without the second
+  worth a great deal in its own slot and little outside it: without the second
   half it goes out on the first day of the week with room for it and stops
   being a series.
 

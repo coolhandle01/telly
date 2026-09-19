@@ -16,4 +16,14 @@ export interface StoredPool {
 export interface PoolStore {
   read(key: string): Promise<StoredPool | undefined>
   write(key: string, entry: StoredPool): Promise<void>
+  /**
+   * Removes one record.
+   *
+   * This is what signing out does to the copy of your subscriptions held on
+   * this machine. One key, because the record belongs to the account that
+   * signed out and the others belong to accounts that did not: a set in a
+   * hall or a library has had more than one person signed into it, and the
+   * one leaving does not get to throw away everybody else's evening.
+   */
+  remove(key: string): Promise<void>
 }

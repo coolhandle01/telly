@@ -32,7 +32,7 @@ export interface Channel {
   title: string
   /**
    * What YouTube says this channel is about, as the last segment of each
-   * Wikipedia URL in `topicDetails.topicCategories` — `Humour`, `Food`,
+   * Wikipedia URL in `topicDetails.topicCategories`: `Humour`, `Food`,
    * `Video_game_culture`. YouTube's own judgement of a whole channel, which is
    * steadier than any one video's category and is the strongest genre signal
    * available without asking a model anything.

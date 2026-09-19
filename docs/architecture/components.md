@@ -3,36 +3,51 @@
 The set is a React tree with one composition root and a line through the middle
 of it. Everything above the line is the television; everything below is not.
 
-```
-App                       clock, pool source, token provider — the wiring
-└── Channel               the composition root
-    ├── Cabinet           teak carcass, top, four legs
-    │   ├── Screen        the glass: 4:3, black, CRT phases
-    │   │   ├── TestCard        the base signal, under every programme
-    │   │   ├── PlayerSurface   the picture, revealed over it
-    │   │   ├── Caption         a continuity announcement
-    │   │   ├── Ident           the station's symbol, between programmes
-    │   │   ├── ChannelOverlay  CH n, transient
-    │   │   └── VolumeOverlay   VOL bars, transient
-    │   └── ControlPanel  fascia: presets, trimmers, POWER, volume, grille
-    ├── .set__corner      GoogleSignInButton, Telly Guide — out of the flow
-    ├── .set__source      SourceLink — the other corner, also out of the flow
-    ├── .set__footer      the carpet: faults, and the privacy and terms links
-    └── Guide             the listings, portalled to the body
+```mermaid
+flowchart TB
+  root["main.tsx renders App into the root element"] --> app("App · the wiring")
+  app -->|"clock · poolSource · player · sound · session · fault"| fb("FaultBoundary")
+  fb -->|"its children, while nothing has thrown"| ch("Channel · the composition root")
+  fb -.->|"a render threw anywhere below"| fbcard["TestCard · Fault 02 receiver fault"]
+
+  ch --> corner[".set__corner"]
+  ch --> src[".set__source"]
+  ch --> stage[".set__stage"]
+  ch --> footer[".set__footer · the carpet"]
+
+  corner --> signin["GoogleSignInButton, or the set's own Sign out"]
+  corner --> guidebtn["Telly Guide"]
+  src --> link["SourceLink"]
+  stage --> room["Room · wall, skirting, carpet"]
+  stage --> guide["Guide · the listings, portalled to document.body"]
+  stage --> cab("Cabinet · teak carcass, top, four legs")
+  cab -->|"controls"| panel["ControlPanel · presets, trimmers, POWER, volume, grille"]
+  cab -->|"children"| screen("Screen · the glass, 4:3, black, CRT phases")
+  screen -->|"overlay"| osd["ChannelOverlay · CH n · VolumeOverlay · VOL bars, both transient"]
+  screen -->|"children"| air["TestCard · PlayerSurface · Caption · Ident"]
+  footer --> alert[".set__fault · role=alert"]
+  footer --> legal["Privacy · Terms"]
 ```
 
 ## The line
 
-`.set__corner` and `.off-set` hold everything that is not the television. A set
+`.set__corner` and `.set__source` hold everything that is not the television. A set
 of this period had a power switch, a volume knob and some presets. It had no
 button for signing in to anything, and the listings came in a paper on the arm
 of the chair.
+
+One control in the corner, not two: the Google sign-in button while nobody is
+signed in, the set's own `Sign out` button while somebody is. Neither appears
+while a grant already made in this browser is being taken up at page load, which
+is the one moment the answer is not yet known. The sign-out button carries no
+Google mark and no Google wording, because the branding guidelines cover the
+sign-in button alone ([google.md](google.md)).
 
 Keeping the anachronisms off the cabinet is what lets the fascia stay strict,
 and it is why the Google button's modern styling does not jar: it is not
 pretending to be part of the set.
 
-Both sit in the corner of the room — top left, absolutely positioned — rather
+Both sit in the corner of the room (top left, absolutely positioned) rather
 than in a row under the cabinet. That is a height decision. A row beneath the
 set costs about fifty pixels of page, and every pixel it takes comes out of the
 television. Out of the flow they cost none, which buys the height cap three rem
@@ -43,7 +58,7 @@ and the picture about five per cent at laptop sizes.
 of the flow and a stretched out-of-flow box is an invisible sheet across the
 whole page that swallows every click underneath it. Written as
 everything-but-the-corner it was right until the second corner was added, and
-then silently wrong — the source link blanketed the top of the page and the
+then silently wrong: the source link blanketed the top of the page and the
 Telly Guide button stopped responding. An exception list is the wrong shape for
 a rule like this, which is the same lesson the room's stacking context teaches
 further down.
@@ -51,7 +66,7 @@ further down.
 `SourceLink` holds the one image in the app that is not ours. Linking back to
 GitHub is what GitHub publishes its mark for, where the test cards and the
 station idents are original because the alternative would be copying somebody's
-work — so this is the case where copying is the point, and it is copied rather
+work, so this is the case where copying is the point, and it is copied rather
 than re-traced: the path is `icons/mark-github-16.svg` from primer/octicons
 v19.33.0, character for character. The 16px drawing is its own set of curves
 rather than a shrunk 24px one, so that is the file to take at this size. The
@@ -63,7 +78,7 @@ brand-compliance tests in UI-test clothing, because the edits that break a brand
 rule are sympathetic ones nobody flags in review.
 
 It stands down while the listings are up, which the opposite corner does
-not — the listings put their own close button in that exact spot, and two
+not: the listings put their own close button in that exact spot, and two
 controls stacked reads as a mistake even dimmed behind the scrim.
 
 `.set__footer` is a carpet rather than a row. A site
@@ -79,7 +94,7 @@ scrolled 12px by the trade in
 The two links name `privacy/index.html` and `terms/index.html`, not the
 directories holding them. A static host answers `/privacy/` with the index
 inside it; Vite's static middleware does not, so such a request falls through to
-the single-page fallback and the dev server answers with the television — at an
+the single-page fallback and the dev server answers with the television, at an
 address that is not the television, against which the relative hrefs then
 compound into `/privacy/terms/` and worse. Naming the file resolves on every
 server. The `public-directory-index` plugin in `vite.config.ts` closes the other
@@ -102,29 +117,67 @@ the player and the cabinet all exist at once. It holds:
 - the preset state, and `stationById` to turn it into a station;
 - `blackStyle` at `#07090b` rather than pure black, so the glass has something
   to act on;
-- `pictureStyle(hasPicture)` — the opacity gate that reveals the picture over
+- `pictureStyle(hasPicture)`: the opacity gate that reveals the picture over
   the card (see [player.md](player.md));
-- `useCrtPower(on)` — the tube's own idea of whether it is on.
+- `useCrtPower(on)`: the tube's own idea of whether it is on.
+- the `session` prop, and the four pieces of state that follow it: `signedIn`,
+  `resuming`, `signingOut` and `sessionError`.
 
 All five schedules are planned in one `planStations` call and held together.
 The stations have to be divided up before any one of them can be planned, and
 the listings print every channel whether the set is tuned to one or not. The
 preset decides which of the five is on the screen and nothing more.
 
+**That call is wrapped.** It runs inside a render, so a throw would reach the
+root boundary and take the whole receiver to a fault card that never clears. A
+pool that cannot be planned is caught and the listings are `undefined` for that
+day instead: the set stays on, shows the card, and tomorrow is planned from
+tomorrow's pool. `unplannable` is that state, and it is the pool's failure, not
+the receiver's.
+
+### What decides what is on the screen
+
+One chain of conditions in `Channel`, in this order. The tube's own phase comes
+first and the schedule comes last, so nothing the schedule says can put a
+caption on a dark screen.
+
+```mermaid
+flowchart TB
+  lit{"useCrtPower · the tube is lit"}
+  lit -->|"off"| nothing(["nothing at all, and the glass is dark"])
+  lit -->|"warming, on, collapsing"| fault{"the fault prop"}
+  fault -->|"present"| faultcard(["TestCard design=fault · nothing else is on"])
+  fault -->|"none"| carrier{"a station on this preset"}
+  carrier -->|"none"| snow(["NO_SIGNAL snow, and no card under it"])
+  carrier -->|"one"| onair{"useOnAir covers this instant"}
+  onair -->|"no"| closed(["closedown TestCard · NO PROGRAMME INFORMATION AVAILABLE when the pool failed or could not be planned"])
+  onair -->|"yes"| kind{"onAir.kind"}
+  kind -->|"programme"| picture{"the player reports a picture"}
+  picture -->|"not yet"| under(["TestCard carrying the title, or NORMAL SERVICE WILL BE RESUMED for a video that has already faulted"])
+  picture -->|"yes"| shown(["black behind PlayerSurface, revealed over the card"])
+  kind -->|"continuity"| caption(["Caption · the announcement"])
+  kind -->|"filler, variant ident"| ident(["Ident · the station's symbol"])
+  kind -->|"filler, any other variant"| interlude(["closedown TestCard · PROGRAMMES WILL CONTINUE SHORTLY for an interlude"])
+```
+
+The card is the default state of a channel and not its error state. A programme
+that fails in a way nobody predicted, no error event, a silent iframe, a blocked
+script, leaves the card up rather than a blank screen, because nothing had to go
+right for the card to be there.
+
 ### Four states that are easy to conflate
 
 A screen with nothing on it can be in four different conditions, and a viewer
 could tell them apart across the room.
 
-**Off is nothing at all.** No caption and no channel name: the screen renders
-`null` and the glass is dark. The only thing a dark screen can say is the one
-thing it has already said.
+**Off is nothing at all.** No caption and no channel name. The only thing a
+dark screen can say is the one thing it has already said.
 
-**An empty preset is snow and hiss.** Six keys on the fascia, five stations. A
-key with no station behind it has no carrier at all, so the set draws the noise
-that lies underneath one. `NO_SIGNAL` in [`picture.ts`](../../src/ui/picture.ts)
-pins the snow to full and the colour to nothing, and no picture control moves
-it, because there is nothing for them to work on.
+**An empty preset is snow and hiss.** Six keys on the fascia, five stations, so
+one key has no carrier under it at all. `NO_SIGNAL` in
+[`picture.ts`](../../src/ui/picture.ts) pins the snow to full and the colour to
+nothing, and no picture control moves it, because there is nothing for them to
+work on.
 
 **A mistuned preset is snow with a station under it.** Each preset has its own
 point in the tuner's travel, and two of them are not at mid-travel. Turning the
@@ -154,7 +207,7 @@ different, which is the set lying about one of them.
 The volume knob drives `setLevel(0..1)` and each sound is scaled into its own
 ceiling: the hiss is quieter than the tone at the same setting, because
 broadband noise at one frequency's level is a hairdryer. A fault card is
-silent — nobody transmitted it. A click and a clunk go straight to the
+silent: nobody transmitted it. A click and a clunk go straight to the
 destination past the volume gain, because they are made in the room rather than
 sent by a transmitter, and turning the sound down does not stop a switch
 clicking.
@@ -170,6 +223,242 @@ viewer last touched.
 one corner would draw over each other. `useTransientFlag(value)` is false on
 first render and true for two seconds after the value changes: arriving at a
 channel is not the same event as changing it.
+
+## The pool source seam
+
+`PoolSource` in `src/library/poolSource.ts` is one method wide, and nothing
+above it can tell which implementation it was handed. `forget` is the second
+method and it is optional: only a source that keeps something has anything to
+drop.
+
+```mermaid
+classDiagram
+  class PoolSource {
+    <<interface>>
+    +load() Promise~Pool~
+    +forget() Promise~void~
+  }
+  class FixturePoolSource {
+    +load() Promise~Pool~
+  }
+  class YouTubePoolSource {
+    +load() Promise~Pool~
+    +ownerId() Promise~string~
+    +forget() Promise~void~
+  }
+  class CachedPoolSource {
+    +load() Promise~Pool~
+    +forget() Promise~void~
+  }
+  class PoolStore {
+    <<interface>>
+    +read(key) Promise~StoredPool~
+    +write(key, entry) Promise~void~
+    +clear() Promise~void~
+  }
+  PoolSource <|.. FixturePoolSource
+  PoolSource <|.. YouTubePoolSource
+  PoolSource <|.. CachedPoolSource
+  CachedPoolSource o-- PoolSource : wraps one
+  CachedPoolSource --> PoolStore : reads, writes and clears
+```
+
+The record `CachedPoolSource` keeps is filed under whose it is: the key is
+`pool:<the account's own channel id>`, and the id comes from `channels.list`
+with `mine=true` through `YouTubePoolSource.ownerId`. A scope that cannot be
+established is not a key, so there is no read and no write until the account is
+known.
+
+`createPoolSource` builds the source from the configuration, `App` holds it, and
+`Channel` chooses between it and a fixture of its own.
+
+```mermaid
+flowchart TB
+  id{"VITE_YOUTUBE_CLIENT_ID configured"}
+  id -->|"no"| nosession["App builds no GoogleTokenProvider, so no session prop"]
+  nosession --> fix["createPoolSource returns FixturePoolSource"]
+  fix --> runs1(["the fixture pool, and nothing to sign in to"])
+  id -->|"yes"| built["GoogleTokenProvider · googleSession · createPoolSource returns CachedPoolSource over YouTubePoolSource"]
+  built --> state{"Channel: session present and signedIn"}
+  state -->|"signed out, or still resuming"| demo(["Channel's own FixturePoolSource, the demo pool"])
+  state -->|"signed in"| live(["CachedPoolSource over YouTubePoolSource, keyed to the account"])
+```
+
+Signed out with a service configured, the set runs on the demo pool. The
+alternative is a request with no token behind it, which fails, so the first
+thing a first-time viewer would see is a failure rather than television.
+
+The screen says nothing about it, because these are real videos and they
+schedule like any others. The paper does: the listings carry `Sample
+programmes. Sign in to see your own subscriptions.`
+
+## The session seam
+
+`src/library/session.ts`. One object, four methods:
+
+```ts
+export interface Session {
+  signIn(): Promise<void>
+  signOut(): Promise<void>
+  resume(): Promise<boolean>
+  subscribe(listener: (signedIn: boolean) => void): () => void
+}
+```
+
+It is an object rather than a handful of callbacks because the screen has to
+show a session rather than the outcome of the last click. A token expires an
+hour in whether or not anyone touched the set, and `subscribe` is how the button
+that says Sign out learns to say Sign in again.
+
+`googleSession(tokens, source)` is the implementation a signed-in viewer gets,
+and it is where signing out becomes two obligations rather than a sequence. The
+token half is in [tokens.md](tokens.md).
+
+```mermaid
+sequenceDiagram
+  participant C as Channel
+  participant S as googleSession
+  participant T as GoogleTokenProvider
+  participant P as CachedPoolSource
+  participant G as accounts.google.com
+  participant D as IndexedDB
+  C->>S: signOut
+  par the grant goes back
+    S->>T: signOut
+    T->>G: oauth2.revoke, on a live token
+  and this machine gives up its copy
+    S->>P: forget
+    P->>D: remove this account's record
+  end
+  Note over S: Promise.allSettled, then decide
+  S-->>C: SignOutError carrying revoked and cleared, or nothing
+  C->>C: signOutMessage, and the pool comes off the screen
+```
+
+`App` builds one only when a client ID is configured. No client ID, no session
+prop, and `Channel` runs on the fixture pool with nothing to sign in to. The
+prop must be **stable across renders**: it feeds a subscription and a page-load
+effect, and a fresh object each paint would re-run both.
+
+A sign-out that only revoked would leave a day-old list of somebody's
+subscriptions on a machine they have just finished using, and one that only
+cleared would leave the grant standing at Google, so each half is attempted
+whatever the other does and each is reported. Which half survived decides the
+sentence: `signOutMessage`, below. Either way the pool comes off the screen with
+the session.
+
+### `forget` and `clear`
+
+Two new methods on two old interfaces, and what the cache makes of them:
+
+| | |
+|---|---|
+| `PoolSource.forget?(): Promise<void>` | Optional. Only a source that keeps something has anything to drop. `YouTubePoolSource` drops the memoised owner id, so the next account to sign in is keyed as itself. |
+| `CachedPoolSource.forget()` | Both halves are attempted whatever the other does, or a database that will not open would leave the source still keyed to the account that just signed out. A fetch already in flight writes its pool when it lands, so the removal is repeated once that write has had its chance. A rejection from either half is rethrown rather than swallowed: a load that cannot read its cache still has television to fall back on, and a sign-out that cannot clear it has left somebody's subscriptions on the machine after telling them otherwise. |
+| `PoolStore.remove(key): Promise<void>` | Required, so no store can quietly lack it. `IndexedDbPoolStore` implements it as an object-store `delete(key)`: one record, not the whole store. |
+
+One key on purpose. A record belongs to the account that signed in for it, and
+a viewer signing out has asked to be forgotten rather than asked for everybody
+else at this machine to be forgotten with them. A set in a hall or a library has
+had more than one person signed into it, which is the reason to leave the others
+alone, not the reason to take them. Clearing the site's data is how a viewer
+removes the lot.
+
+The key is resolved before either half of a sign-out runs, because the inner
+source is about to forget which account this was and the token it would ask
+with is about to be revoked. A key that cannot be established throws rather than
+reporting a removal that did not happen.
+
+## When something fails
+
+`src/ui/faultMessage.ts` is the only place in the app that turns a failure into
+words. Everything it is given is a typed error carrying the one field that
+decides the sentence, so no handler has to guess which thing went wrong and no
+`error.message` reaches the screen anywhere.
+
+| Failure | The field that decides | The function |
+|---|---|---|
+| The programmes could not be fetched | `YouTubeApiError.status` | `faultMessage` |
+| Signing in produced no token | `SignInError.reason` | `signInMessage` |
+| Signing out left one half undone | `SignOutError.revoked` and `.cleared` | `signOutMessage` |
+
+Three components, three different failures, and they are not the same screen.
+
+### `faultMessage`: the programmes could not be fetched
+
+`src/ui/faultMessage.ts` maps an error to the station's own words. The
+endpoint, the status code and Google's own message stay in the `Error` object,
+which is the right thing for whoever is holding it and the wrong thing on a
+screen somebody is sitting in front of.
+
+| What came back | What the viewer is told |
+|---|---|
+| 429 | `YouTube is asking for fewer requests. Programmes return in a minute or two.` |
+| 401 | `Your YouTube sign-in has run out. Sign in again to see your subscriptions.` |
+| 403 with `quotaExceeded` or `dailyLimitExceeded` | `Today's allowance of YouTube requests is spent. Programmes return tomorrow.` |
+| 403 otherwise | `YouTube would not answer for this account.` |
+| anything else, including anything that is not a `YouTubeApiError` | `YouTube could not be reached.` |
+
+429 and 403-with-a-quota-reason are separate sentences because they are
+different waits: the per-minute limit clears in seconds, the day's budget clears
+at midnight Pacific. Telling a viewer to come back tomorrow when the answer is
+"in a minute" is as wrong as the reverse.
+
+### `signInMessage`: signing in produced no token
+
+Each reason asks the viewer for something different, and one asks for nothing.
+
+| `reason` | What the viewer is told |
+|---|---|
+| `popup_closed`, `popup_closed_by_user`, `dismissed` | `Sign-in was closed before it finished.` |
+| `popup_failed_to_open` | `This browser would not open Google's sign-in window. Allow pop-ups for this site, then try again.` |
+| `access_denied` | `Google did not grant access to your subscriptions. Signing in again asks for it once more.` |
+| `unavailable`, and anything that is not a `SignInError` | `Google's sign-in could not be loaded. An extension or a network filter may be blocking accounts.google.com.` |
+| any reason this app has no sentence for | `Sign-in did not finish. Try again.` |
+
+A viewer who closed the window meant to close it, so that sentence asks nothing
+of them. `unavailable` is a script that never arrived, so it never reached
+Google to be given a reason of Google's.
+
+### `signOutMessage`: one half of signing out did not happen
+
+Signing out revokes the grant at Google and empties this machine. They fail
+independently, and which one failed decides what the viewer has left to do.
+
+| Which half survived | What the viewer is told |
+|---|---|
+| The grant still stands | `Signed out here, and the saved programme list is gone. Your access is still granted at Google: withdraw it in your Google account permissions.` |
+| The list is still here | `Signed out, and your access is withdrawn at Google. This browser would not clear its saved programme list: clearing this site data removes it.` |
+| Neither happened, or the error is not a `SignOutError` | Both are named. |
+
+Naming the wrong half sends somebody to fix a thing that is not broken while
+the thing that is stays broken, so each sentence is asserted not to mention the
+half that succeeded.
+
+The message lands under the cabinet in `.set__footer` with `role="alert"`, and
+in the listings as the page's notice. Nothing goes to a console: there is no
+logging layer here, on purpose, because a token must never reach a log.
+
+### `FaultBoundary`: the part that says things is the part that broke
+
+`src/ui/FaultBoundary.tsx` is the root error boundary. `main.tsx` renders `App`
+straight into the root and `App` renders `FaultBoundary` around `Channel`, so a
+render-time throw anywhere in the tree arrives here.
+
+It puts up the fault card, `Fault 02 · receiver fault`, over `Something has gone
+wrong inside this receiver.` The card needs a sized box to resolve against, so
+the boundary renders its own `main.set` and `.screen` wrapper rather than
+reusing anything that may have been what threw.
+
+**It never retries.** A boundary that re-renders its children is betting the
+cause has gone away, and the cause of a render throw has not: a pool of the
+wrong shape is still the wrong shape. A real set that has lost its line output
+does not have another go every few seconds either.
+
+This is the receiver's own fault card, and it is not the one a missing client ID
+shows (`Fault 01 · no service configuration`, handed to `Channel` as the `fault`
+prop) and not the one an unplannable pool shows, which is an ordinary closedown
+card with the set still on the air.
 
 ## Screen, and the tube
 
@@ -194,13 +483,13 @@ The lift and snow overlays sit inside `.screen__tube`, so the collapse takes
 them down with the picture. Snow is the same beam drawing noise instead of a
 signal, not a sheet laid over the glass.
 
-The set's own display — `CH 3`, `VOL` — goes in the `overlay` slot, which sits
+The set's own display (`CH 3`, `VOL`) goes in the `overlay` slot, which sits
 inside the tube but above the snow and outside all three deflection layers.
 Those characters are made in the cabinet and mixed in after the tuner, so
 nothing the tuner does reaches them: a set that hid its volume display whenever
 there was no signal would hide it exactly when you were most likely to be
 turning something. Passed as `children` instead, the display lands inside
-`.screen__line` and a fully opaque snow layer paints straight over it — present,
+`.screen__line` and a fully opaque snow layer paints straight over it: present,
 correctly sized, and invisible, which jsdom cannot tell from working. The tests
 therefore assert where the node sits rather than that it exists.
 
@@ -277,16 +566,16 @@ is where the feet are, so the set stands on the carpet at every size without a
 measurement anywhere.
 
 It sits at `z-index: -1` inside a stage that `isolation: isolate` makes a
-stacking context. Lifting the siblings instead — `.set__stage > :not(.room) {
-position: relative; z-index: 1 }` — reaches absolutely positioned children too
+stacking context. Lifting the siblings instead (`.set__stage > :not(.room) {
+position: relative; z-index: 1 }`) reaches absolutely positioned children too
 and undoes them. A rule that says "everything except" eventually catches
 something that needed to be excepted.
 
-`.off-set` carries `position: relative; z-index: 1`. `.set__stage` is
+`.set__footer` carries `position: relative; z-index: 1`. `.set__stage` is
 positioned, and a positioned element paints above the in-flow content of a
 later sibling, so the room's floor would otherwise paint straight over the
 fault row. The element would be present, the right size, in the right place,
-and returned by `elementFromPoint` as topmost — and never drawn.
+and returned by `elementFromPoint` as topmost, and never drawn.
 
 Neither rule is visible to the test suite. jsdom has no paint, so a node that
 is present, correctly sized and completely invisible looks exactly like a node
@@ -304,14 +593,14 @@ printed one, and no television could have drawn one.
 
 `listing(schedule, dayparts)` turns a `Schedule` into a page. Programmes get a
 line each, runs of card and continuity collapse into one, and a daypart marked
-`stripped` collapses its programmes too — a paper printed `2.00 Clip Show`, not
+`stripped` collapses its programmes too: a paper printed `2.00 Clip Show`, not
 two hundred and forty clips. Repeats are printed `(R)`.
 
 ### Two rules that keep it quick
 
 **The pool arrives in a transition.** Planning five broadcast days is a couple
 of hundred milliseconds of arithmetic inside a render, and a source that
-resolves without touching the network resolves in a microtask — so without
+resolves without touching the network resolves in a microtask, so without
 `startTransition` around `setPool`, the click that opened the listings, the
 pool arriving and all five days being planned land in one task and the browser
 paints none of it until the end. The page is in the DOM the whole time and
@@ -322,7 +611,7 @@ anything on screen, against 243ms with the transition.
 column is settled for the whole broadcast day except which line is ringed, and
 the ring moves a few times an hour. Passing the set's own clock straight
 through re-reads five schedules and re-lays two hundred lines sixty times for
-each time the answer changes — 14ms of main thread a second on that same
+each time the answer changes: 14ms of main thread a second on that same
 throttled CPU, for nothing.
 
 ### An empty page still goes out
@@ -330,7 +619,7 @@ throttled CPU, for nothing.
 The page goes out as soon as it is asked for, whether or not there is anything
 to print on it. The listings are worked out from a pool that has to be fetched,
 and a page that renders nothing until that lands is indistinguishable from a
-button that does not work — so an empty one carries the masthead, the date, and
+button that does not work, so an empty one carries the masthead, the date, and
 the line a paper printed when the schedules had not arrived, or the reason the
 fetch failed where there is one.
 
@@ -344,8 +633,8 @@ width and no height to anything. The set is measured open and closed at six
 widths and is pixel-identical.
 
 **The scrim scrolls, and the sheet inside it is one piece of paper.** A
-newspaper has no fixed masthead with the columns sliding underneath it — you
-move the whole page — so nothing here scrolls on its own and no heading is
+newspaper has no fixed masthead with the columns sliding underneath it (you
+move the whole page) so nothing here scrolls on its own and no heading is
 sticky. The sheet is centred with `margin: auto` rather than by the scrim,
 because a centred item taller than its scroll container has its top clipped
 with no way to scroll back to it; auto margins centre and give way.
@@ -357,7 +646,7 @@ there. It stays inside the dialog element so a screen reader still sees it.
 
 **Every column carries the same rule and the same padding**, and only the
 colour of the rule changes. Putting the border and the padding on the adjacent
-sibling alone — the obvious way to keep a rule out of the first gutter — makes
+sibling alone (the obvious way to keep a rule out of the first gutter) makes
 the first column's content box wider than the rest by exactly that much. The
 grid tracks stay equal and the headings inside them do not, which shows as one
 bar being longer than its neighbours: 216px against 199px at 1440.
@@ -365,7 +654,7 @@ bar being longer than its neighbours: 216px against 199px at 1440.
 **The channel the set is tuned to is marked down the whole column**, not round
 its heading. An outer `box-shadow` ring paints two pixels on every side and
 contributes nothing to layout, so the ringed bar measures identically to its
-neighbours and looks four pixels bigger in both directions — and the space
+neighbours and looks four pixels bigger in both directions, and the space
 cannot be reserved on the others, because a transparent ring paints nothing.
 `getBoundingClientRect` reports all five as equal either way, so measuring the
 boxes will not find it. Anything marking one column has to sit inside the box
@@ -382,8 +671,8 @@ jsdom sees none of this. Both rules are checked in a browser.
 
 **The ink stays small; the target grows.** A slotted trimmer is the size of a
 screwdriver head, and drawing it bigger would be drawing a different control.
-So the trimmer row is wider than the trimmers in it — each cell clears the
-24×24 minimum with the drawing in the middle of it — and the power key, a slim
+So the trimmer row is wider than the trimmers in it (each cell clears the
+24×24 minimum with the drawing in the middle of it) and the power key, a slim
 rectangle because that is what it was, reaches past its own moulding with a
 pseudo-element. Both stop short of the gap to their neighbours, because two
 targets that overlap fail the spacing rule as surely as one that is too small.
@@ -404,12 +693,12 @@ reading the site rather than watching it.
 
 ## Sizing
 
-The cabinet is `max-width: min(72rem, calc(137vh - 19rem))`. The height follows
-from the width — a 4:3 tube in a fixed surround — so on a short window it has
+The cabinet is `max-width: min(72rem, calc(137vh - 16rem))`, set as `--set-w` in `Cabinet`. The height follows
+from the width (a 4:3 tube in a fixed surround) so on a short window it has
 to be told to stop, or it grows taller than the viewport and you scroll to find
 the legs.
 
-`#root` is a two-row grid with `align-self: safe center`. Safe centring matters:
+`.set` is a two-row grid, and `.set__stage` and `.set__footer` take `align-self: safe center`. Safe centring matters:
 on a short window the set is taller than the space it has, and plain centring
 pushes its top off screen with no way to scroll back. `safe` aligns to the
 start instead.

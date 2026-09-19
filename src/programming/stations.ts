@@ -5,8 +5,8 @@ import type { Genre } from './genre'
 /**
  * The five stations, and what each of them is for.
  *
- * A station is a taste and a set of opening hours. Everything else — which
- * subscription belongs to it, what goes out at nine on a Thursday — falls out
+ * A station is a taste and a set of opening hours. Everything else (which
+ * subscription belongs to it, what goes out at nine on a Thursday) falls out
  * of those two things, so this file is the whole of the editorial policy and
  * the rest of `programming/` is the machinery that carries it out.
  */
@@ -146,7 +146,7 @@ const FOUR_DAY: readonly Daypart[] = [
 
 /**
  * Twenty-four hours. Nothing closes down, which means something has to fill
- * the small hours — so the clip show gets them, and everything under a minute
+ * the small hours, so the clip show gets them, and everything under a minute
  * in the whole subscription list ends up there.
  */
 const FIVE_DAY: readonly Daypart[] = [

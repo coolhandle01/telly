@@ -57,7 +57,7 @@ describe('designForDate', () => {
   // Widened: this was the only test asking "whatever the date, a card comes
   // back", and its one extreme input was a perfectly ordinary Date. `?at=`
   // reaches the clock unvalidated (offsetClock.ts:52-53), so the date this is
-  // handed can be an Invalid Date — from which the arithmetic yields NaN and
+  // handed can be an Invalid Date, from which the arithmetic yields NaN and
   // the rotation is indexed with it. The caller then looks the result up in
   // CARD_DESIGNS and calls what it finds.
   it.each([

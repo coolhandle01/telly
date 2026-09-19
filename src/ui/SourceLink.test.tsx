@@ -49,8 +49,8 @@ describe('SourceLink', () => {
     const fill = screen.getByRole('link').querySelector('path')?.getAttribute('fill')
 
     // GitHub publishes the mark in black and in white. currentColor would hand
-    // the logo whatever the chip's text colour happens to be — off-white
-    // today, a sympathetic teak tomorrow — and neither is a variant GitHub
+    // the logo whatever the chip's text colour happens to be (off-white
+    // today, a sympathetic teak tomorrow) and neither is a variant GitHub
     // publishes.
     expect(fill).toBe('#ffffff')
   })

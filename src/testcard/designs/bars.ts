@@ -12,7 +12,7 @@ import type { RectShape, Shape, TestCardModel, TestCardSpec } from '../model'
 
 /**
  * The colour bars card: eight full-height EBU bars down the whole picture, a
- * shallow band of their complements beneath, then the engineer's row — a PLUGE
+ * shallow band of their complements beneath, then the engineer's row: a PLUGE
  * run of near-black steps with a peak-white and a full-black reference either
  * side of it.
  *
@@ -78,7 +78,7 @@ export function buildBarsCard(spec: TestCardSpec): TestCardModel {
       strokeWidth: Math.max(1, Math.round(border / 16)),
     },
     // The interlude card is the closedown card with the test signals taken
-    // out — the bars are the card, so they stay, and with the rows beneath
+    // out: the bars are the card, so they stay, and with the rows beneath
     // gone they simply run the full height of the picture.
     ...tallBars(picture, closedown),
     ...(closedown
@@ -119,8 +119,8 @@ function tallBars(picture: Picture, closedown: boolean): RectShape[] {
 }
 
 /**
- * The same eight colours in the opposite order, which — the EBU order being
- * symmetric in luminance — puts each bar's exact complement underneath it.
+ * The same eight colours in the opposite order, which (the EBU order being
+ * symmetric in luminance) puts each bar's exact complement underneath it.
  * White meets black, yellow meets blue, cyan meets red, green meets magenta.
  */
 function reversedBars(picture: Picture): RectShape[] {

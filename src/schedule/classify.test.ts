@@ -113,8 +113,8 @@ describe('HeuristicClassifier', () => {
 
   it('will not let a keyword put a short in a two-hour slot', () => {
     // The bug from a real evening: a thirty-second short with "live" in its
-    // title scored 0.2 for late night — nothing from its duration, all of it
-    // from the word — and went out between two feature-length programmes.
+    // title scored 0.2 for late night (nothing from its duration, all of it
+    // from the word) and went out between two feature-length programmes.
     // Duration is the hard signal; a keyword can move a programme up the
     // running order, not into a slot it does not fit.
     const short = heuristic.classify(

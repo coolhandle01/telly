@@ -15,7 +15,7 @@ export interface ControlPanelProps {
   channel: number
   onChannelChange: (channel: number) => void
   /**
-   * Lights the amber lamp. A 1975 fascia has no words on it — anything that
+   * Lights the amber lamp. A 1975 fascia has no words on it: anything that
    * needs explaining belongs outside the cabinet, not stamped into it.
    */
   faulted?: boolean
@@ -46,7 +46,7 @@ export interface TrimmerControl {
 
 /**
  * The channel presets. One station broadcasts; the other five are tuned in and
- * empty, and show what an empty preset showed — snow. The second number is how
+ * empty, and show what an empty preset showed: snow. The second number is how
  * worn each cap is, because nobody ever pressed 6.
  */
 const PRESETS: readonly [number, number][] = [
@@ -62,7 +62,7 @@ const PRESETS: readonly [number, number][] = [
  * The tuning adjusters. On a G8-chassis set the six presets hinged open to
  * expose these, and they are not buttons at all: they are small slotted
  * trimmers, set once by the engineer and then left alone. The angle is where
- * each one was left — vertical, horizontal, brightness, colour, tone — and
+ * each one was left (vertical, horizontal, brightness, colour, tone) and
  * they are all in different places because nobody ever set five trimmers to
  * the same mark.
  */
@@ -119,7 +119,7 @@ const CSS = `
   /* Under the veneer, and all that is left of it without filters. */
   background: #7d5a35;
   /*
-    The control column is its own board, laid on the front of the carcass —
+    The control column is its own board, laid on the front of the carcass,
     which the reference sets bear out: the Marconiphone's slotted grille is
     plainly a separate insert. A board on a board shows four edges, and it had
     only two. Lit along the top and left where the light reaches the arris,
@@ -167,7 +167,7 @@ const CSS = `
   The fascia proper: a linished silver plate let into the teak, not a panel of
   teak with controls on it. It is a separate pressing dropped into a routed
   rebate, so the veneer shows all the way round it and runs on below it to the
-  lip — and the rebate is what the shadows describe. Light from the upper left,
+  lip, and the rebate is what the shadows describe. Light from the upper left,
   as everywhere else on this set: the wood shades the top and left of the
   plate, and the plate's own lower edge is what catches.
 
@@ -180,7 +180,7 @@ const CSS = `
   z-index: 1;
   /* The plate fills the opening cut for it. It used to stop at 86% of the
      column, which left fifty-odd pixels of bare veneer under it against eight
-     above — and an inset panel with one margin seven times another reads as a
+     above, and an inset panel with one margin seven times another reads as a
      mistake rather than as a panel. Even reveal all round; the controls space
      out to fill, and what grows is the speaker grille, which is what a console
      set had most of. */
@@ -197,7 +197,7 @@ const CSS = `
   background: #bab6af;
   /*
     The rebate. A metal panel let into a wooden carcass is read entirely at its
-    edge, and the edge has four parts — all of them lit from the upper left,
+    edge, and the edge has four parts, all of them lit from the upper left,
     like everything else on this set:
 
       the cut edge of the veneer, hard against the plate;
@@ -317,13 +317,13 @@ const CSS = `
 /*
   The tuning adjusters, in a row under the presets they used to hide behind.
   Bare aluminium collars on black bodies, and their legends engraved into the
-  plate beneath them rather than printed on the knobs — a trimmer is too small
+  plate beneath them rather than printed on the knobs: a trimmer is too small
   to carry a letter.
 */
 /*
   The row is wider than the trimmers in it, on purpose. A slotted trimmer is
   the size of a screwdriver head and drawing it any bigger would be drawing a
-  different control — so the *target* grows instead of the ink: each cell is
+  different control, so the *target* grows instead of the ink: each cell is
   comfortably over the 24px minimum and the drawing sits in the middle of it.
 */
 .tv-fascia__tuners {
@@ -337,7 +337,7 @@ const CSS = `
 }
 /*
   Each cell keeps its 24px whatever the column does, and the row wraps to two
-  when there is not room for five. Which is period anyway — the reference
+  when there is not room for five. Which is period anyway: the reference
   Philips carries its small controls in two rows, not one.
 */
 .tv-fascia__tuner { min-width: 1.62rem; }
@@ -383,7 +383,7 @@ const CSS = `
   border-radius: 0.06rem;
   /*
     Slotted, not punched. Every reference set has a slatted or slotted speaker
-    panel — horizontal wooden louvres, vertical fluting, or what the
+    panel: horizontal wooden louvres, vertical fluting, or what the
     Marconiphone brochure calls "a contrasting black slotted speaker grille".
     A drilled panel of round holes reads as a wireless, or as a set fifteen
     years older than this one.
@@ -414,7 +414,7 @@ const CSS = `
   align-self: center;
   justify-content: center;
   /* Pushed to the foot of the plate: the space this leaves between the knob
-     and the lamps is the point — a fascia is mostly empty metal. */
+     and the lamps is the point: a fascia is mostly empty metal. */
   margin-top: auto;
   padding: 0.26rem 0.3rem;
   border-radius: 0.1rem;
@@ -457,7 +457,7 @@ const CSS = `
   A small set, tightened.
 
   The fascia's controls are sized in rem, so below a certain cabinet width they
-  stop shrinking and the cabinet stops obeying its own aspect ratio — it gets
+  stop shrinking and the cabinet stops obeying its own aspect ratio: it gets
   taller than the height cap expects and a short window scrolls. This is the
   floor, lowered: the same controls, the same 24px targets, less air between
   them and a shallower speaker.
@@ -470,7 +470,7 @@ const CSS = `
   .tv-fascia__badge { font-size: 0.52rem; }
   .tv-fascia__well { padding-bottom: 0; }
   /* The knob is sized against the viewport, which on a short window is much
-     wider than the cabinet — so on a small set it was 72px of a 90px column,
+     wider than the cabinet, so on a small set it was 72px of a 90px column,
      and the single biggest thing holding the fascia's height up. */
   .tv-knob__stack { width: 3.2rem; }
 }
@@ -513,7 +513,7 @@ const CSS = `
   border-radius: 0.06rem;
   /*
     Slotted, not punched. Every reference set has a slatted or slotted speaker
-    panel — horizontal wooden louvres, vertical fluting, or what the
+    panel: horizontal wooden louvres, vertical fluting, or what the
     Marconiphone brochure calls "a contrasting black slotted speaker grille".
     A drilled panel of round holes reads as a wireless, or as a set fifteen
     years older than this one.
@@ -545,7 +545,7 @@ const CSS = `
 
 /**
  * The fascia: the tall control column down the right-hand side of a wooden
- * console set — a linished silver plate let into teak veneer, which is what
+ * console set, a linished silver plate let into teak veneer, which is what
  * a Philips colour set of 1972–76 actually wore. Everything that works is a
  * real control; the presets are a preset bank, and the trimmer row, the badge
  * and the lamps are cabinetry, hidden from the accessibility tree so nobody
@@ -684,7 +684,7 @@ export function ControlPanel({
             <stop offset="0.55" stopColor="#ddcfaf" />
             <stop offset="1" stopColor="#9e8b6c" />
           </radialGradient>
-          {/* The trimmer body: black plastic, not metal — only its collar is. */}
+          {/* The trimmer body: black plastic, not metal; only its collar is. */}
           <radialGradient id={id('trim')} cx="0.34" cy="0.28" r="0.8">
             <stop offset="0" stopColor="#413c37" />
             <stop offset="0.6" stopColor="#1d1a18" />
@@ -762,8 +762,8 @@ export function ControlPanel({
 
         {/*
           A real preset bank is mechanical: pressing one releases the others, and
-          there is always exactly one in. Native radios give that for free —
-          including arrow-key movement between them — so the caps are labels over
+          there is always exactly one in. Native radios give that for free
+          (including arrow-key movement between them) so the caps are labels over
           a hidden input rather than six buttons pretending to interlock.
         */}
         <div className="tv-fascia__presets" role="radiogroup" aria-label="Channel">
@@ -817,7 +817,7 @@ export function ControlPanel({
             B     black level. Down crushes the shadows; up stops the blacks
                   being black at all.
             C     saturation, from monochrome to lurid.
-            T     the tuner. Off station it snows — and it loses the colour
+            T     the tuner. Off station it snows, and it loses the colour
                   long before it loses the picture.
 
           A trimmer this set has not wired up gets no role, no tab stop and no
@@ -847,7 +847,7 @@ export function ControlPanel({
 
         <div className="tv-fascia__stack">
           {/*
-            POWER, which the reference sets of the period do carry — it was
+            POWER, which the reference sets of the period do carry. It was
             briefly MAINS here on the reasoning that POWER was a later hi-fi
             import, and the photographs say otherwise.
 
@@ -858,7 +858,7 @@ export function ControlPanel({
 
             What the research did settle is which symbol *not* to reach for.
             IEC 417 landed in 1973, so the marks existed by 1975, but the one
-            everybody now reads as "power" is 5009 — and 5009 means
+            everybody now reads as "power" is 5009, and 5009 means
             *stand-by*, a low-power state that explicitly does not
             disconnect. On a set with a hard mains switch and no standby to
             return from, it would mark the key with the one thing it cannot
@@ -866,7 +866,7 @@ export function ControlPanel({
 
             And a real button does not relabel itself when you press it. The
             legend is stamped into the bakelite and stays put; what changes is
-            whether the button is in or out — which is what `pressed` carries,
+            whether the button is in or out, which is what `pressed` carries,
             to the eye and to a screen reader alike.
           */}
           <PushButton onClick={onToggleOn} pressed={on}>
@@ -886,7 +886,7 @@ export function ControlPanel({
       <div className="tv-fascia__grille" aria-hidden="true" />
 
       {/*
-        Three lamps, three different things, and none of them labelled —
+        Three lamps, three different things, and none of them labelled:
         a fascia of this period explained nothing and expected you to learn it.
 
           red     mains. On when the set is on, and on for no other reason.
@@ -917,7 +917,7 @@ export function ControlPanel({
 
 /**
  * A trimmer that adjusts something. The same rotary behaviour as the volume
- * knob — drag it, or focus it and use the keys — at a third of the size, so a
+ * knob (drag it, or focus it and use the keys) at a third of the size, so a
  * trimmer feels like the knob beside it rather than like a slider that
  * happens to be round.
  *

@@ -23,7 +23,7 @@ The vocabulary is standard British scheduling.
 **Breakfast** is a strip: short items, briskly, because nobody sits down to it.
 People are in and out of the room and the set is on for company.
 
-**Daytime** is the house — cookery, property, factual, whatever can be followed
+**Daytime** is the house: cookery, property, factual, whatever can be followed
 with your back to the screen. Repeats live here without embarrassment.
 
 **Children's television** is after school, and it stops. The boundary is the
@@ -65,7 +65,7 @@ children's material may not go out after six.
 ## Strips and strands
 
 A **strip** is the same thing at the same time every weekday. It is what a
-schedule does with a supply it can rely on — a daily news bulletin, a cookery
+schedule does with a supply it can rely on: a daily news bulletin, a cookery
 programme, a magazine. Strips make a schedule feel inhabited, because the
 viewer learns them without trying.
 
@@ -107,7 +107,7 @@ may overrun into what follows, which is exactly what news does.
 ## Themed nights
 
 A station with a habit is a station people can plan around. Thursday comedy,
-Saturday variety, Sunday film — the specific pairings vary by broadcaster and
+Saturday variety, Sunday film. The specific pairings vary by broadcaster and
 by decade, but the principle does not.
 
 A themed night only reads as one if the rest of the night gives way. A Thursday
@@ -133,5 +133,5 @@ another. That is what makes tuning around mean anything: five channels drawing
 on one pool would be one channel wearing five hats.
 
 The cost is real and worth paying. Divide thirty subscriptions five ways and
-each station has six, so there will be gaps — and gaps are what the card is
+each station has six, so there will be gaps, and gaps are what the card is
 for.

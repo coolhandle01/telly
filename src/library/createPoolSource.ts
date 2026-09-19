@@ -15,7 +15,7 @@ import { YouTubePoolSource } from './youTubePoolSource'
  * the channel runs on fixture programmes rather than showing a sign-in wall.
  *
  * `import.meta.env.VITE_*` is inlined into the bundle at build time and is
- * therefore **public** — readable by anyone who views source. Only the OAuth
+ * therefore **public**, readable by anyone who views source. Only the OAuth
  * *client ID* may live here, which is fine: it is a public identifier by
  * design. A client secret or API key must never be given a `VITE_` name; an
  * access token is never configured at all, it is fetched at runtime and kept in
@@ -49,9 +49,17 @@ export function createPoolSource(config: PoolSourceConfig = {}): PoolSource {
 
   if (!isYouTubeConfigured(clientId) || !config.tokens) return new FixturePoolSource()
 
-  return new CachedPoolSource(
-    new YouTubePoolSource({ fetch, tokens: config.tokens, videosPerChannel: config.videosPerChannel }),
-    config.store ?? openPoolStore(),
-    config.cache,
-  )
+  const live = new YouTubePoolSource({
+    fetch,
+    tokens: config.tokens,
+    videosPerChannel: config.videosPerChannel,
+  })
+
+  return new CachedPoolSource(live, config.store ?? openPoolStore(), {
+    // What is kept on this machine is filed under whose it is: the signed-in
+    // account's own channel id. Overridable, like the rest of this, so a test
+    // can pin the key.
+    scope: () => live.ownerId(),
+    ...config.cache,
+  })
 }

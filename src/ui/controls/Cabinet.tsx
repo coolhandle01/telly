@@ -21,7 +21,7 @@ const LEGS = ['near-left', 'near-right']
 
 const CSS = `
 /*
-  The set's width, defined once and read by the page's layout too — the void
+  The set's width, defined once and read by the page's layout too: the void
   either side of the cabinet is whatever this leaves, and the guide lives in
   it. Zero specificity, so a page may override it.
 */
@@ -37,10 +37,10 @@ const CSS = `
   container-name: cabinet;
   width: 100%;
   /* The set's height follows from its width (a 4:3 tube in a fixed surround),
-     so on a short window it has to be told to stop — otherwise it grows taller
+     so on a short window it has to be told to stop, otherwise it grows taller
      than the screen and you scroll to see the legs. The carcass is about
      1.375:1 now, hence the 137vh; the 16rem is everything that is not carcass
-     and still has to fit under it — legs and the page's own padding. It used
+     and still has to fit under it: legs and the page's own padding. It used
      to include a row of controls under the cabinet too; those moved to the
      corner of the room, out of the flow, and the set got the height back.
 
@@ -55,7 +55,7 @@ const CSS = `
   /* Behind the veneer, and all that is left of it if filters are refused. */
   background: #7d5a35;
   box-shadow:
-    /* Contact shadow first — tight and dark, where the set meets the floor —
+    /* Contact shadow first (tight and dark, where the set meets the floor),
        then the soft ambient one. A single wide shadow reads as a sticker. */
     0 0.14rem 0.3rem rgba(0, 0, 0, 0.55),
     0 1.1rem 2.2rem rgba(0, 0, 0, 0.42),
@@ -111,7 +111,7 @@ const CSS = `
      and the picture is smaller in it than instinct suggests.
 
      The apron below the tube is the *deepest* part of that border, not the
-     shallowest — the chassis lives under the tube and the carcass needs a base
+     shallowest: the chassis lives under the tube and the carcass needs a base
      rail to stand on. Matching it to the top rail, which is the instinct,
      leaves the picture looking as though it is about to fall out of the
      bottom of the set. */
@@ -127,7 +127,7 @@ const CSS = `
   /*
     The biggest joint on the set: a hole cut clean through the front panel.
     It had a flat dark ring and no light on it anywhere, which is a sticker.
-    Four parts, lit from the upper left like everything else —
+    Four parts, lit from the upper left like everything else:
 
       the cut edge itself, hard and dark against the opening;
       the arris along the bottom and right of the cut, catching the light;
@@ -216,7 +216,7 @@ const CSS = `
 /*
   The joint at the top: a leg screws to a rail up inside the carcass, so it
   comes out of shadow rather than starting in daylight. Without this the legs
-  read as stuck on afterwards — two shapes that happen to touch the bottom
+  read as stuck on afterwards: two shapes that happen to touch the bottom
   edge, rather than two pieces of the same object.
 */
 .tv-cabinet__leg::before {
@@ -282,7 +282,7 @@ const CSS = `
 /**
  * The moulded plastic surround. A sheen along the top where the light rolls
  * off the moulding, matte below, and the trim line drawn as a stroke with a
- * metal gradient down it rather than a flat white rule — a brushed edge is
+ * metal gradient down it rather than a flat white rule: a brushed edge is
  * never one value.
  */
 function Bezel() {
@@ -375,7 +375,7 @@ function Glass() {
 /**
  * The cabinet the set is built into: teak veneer with the grain turned to
  * suit each face, a bulged CRT well in a moulded surround, the control column
- * down the right and a cream lip along the bottom — on four tapered legs.
+ * down the right and a cream lip along the bottom, on four tapered legs.
  * Pure scenery: it holds a picture and a fascia and has no behaviour of its
  * own, which is why none of it appears in the accessibility tree.
  */

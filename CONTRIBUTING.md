@@ -99,7 +99,7 @@ Open the pull request and wait for the checks.
 | Check | What it is |
 |---|---|
 | `oxlint` | the lint |
-| `commit messages` | the pull request title, which is what `main` keeps, and every commit on the branch. It re-runs when you rename, so a bad title can be fixed in place |
+| `conventional pull request title` | the title, which squash merging makes the commit subject on `main`. It re-runs when you rename, so a bad title can be fixed in place |
 | `tsc` | the typecheck, separate because Vite strips types without checking them |
 | `vite build` | proves it bundles |
 | `vitest` | the suite, with coverage |

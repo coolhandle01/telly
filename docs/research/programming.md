@@ -107,7 +107,7 @@ may overrun into what follows, which is exactly what news does.
 ## Themed nights
 
 A station with a habit is a station people can plan around. Thursday comedy,
-Saturday variety, Sunday film. The specific pairings vary by broadcaster and
+Saturday variety, Sunday film — the specific pairings vary by broadcaster and
 by decade, but the principle does not.
 
 A themed night only reads as one if the rest of the night gives way. A Thursday

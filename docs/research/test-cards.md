@@ -17,7 +17,7 @@ This is the part worth getting right, because the answer is not the obvious one.
 
 **The engineering vocabulary is free.** Colour bars, castellations, greyscale
 wedges, frequency gratings, resolution wedges, convergence crosshatch, a
-Siemens star, a PLUGE strip. These are standardised measurement patterns. They
+Siemens star, a PLUGE strip — these are standardised measurement patterns. They
 exist because a specific electrical property needs measuring, their proportions
 are set by standards bodies, and nobody owns them.
 

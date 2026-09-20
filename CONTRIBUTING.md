@@ -94,8 +94,7 @@ then reads like a changelog instead of a pile of nouns.
 `claude/*` is refused too. Agents branch by what the change does, like
 everybody else.
 
-Open the pull request and wait for the checks. There are eight, one per thing
-that can be wrong, so a red one says what broke before you open it:
+Open the pull request and wait for the checks.
 
 | Check | What it is |
 |---|---|

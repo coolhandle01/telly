@@ -73,8 +73,24 @@ export interface RevocationResponse {
   error?: string
 }
 
+/**
+ * What a token request may ask of the viewer, as GIS defines it.
+ *
+ * The values are not interchangeable and the difference is the whole of the
+ * page-load behaviour. `'none'` shows nothing at all. The empty string asks
+ * only on the first request this app makes, so it is the value for a sign-in
+ * button and not for a page load. `'consent'` and `'select_account'` always
+ * show a screen, and `'select_account'` is what GIS uses when nothing is
+ * passed.
+ *
+ * Narrowed to the four rather than left as `string`, because passing a value
+ * GIS does not define is how this app spent a week signing people out on
+ * every refresh.
+ */
+export type TokenPrompt = '' | 'none' | 'consent' | 'select_account'
+
 export interface TokenClient {
-  requestAccessToken(overrides?: { prompt?: string }): void
+  requestAccessToken(overrides?: { prompt?: TokenPrompt }): void
 }
 
 export interface GoogleIdentityServices {
@@ -239,8 +255,9 @@ export class GoogleTokenProvider implements AccessTokenProvider {
    * Take up a grant this browser has already made, without a consent screen.
    *
    * Google's token model obtains a token at page load as well as from a
-   * gesture, and `prompt: ''` is the form that shows a returning viewer no
-   * screen. The stored flag gates it, so a first visit sends no request.
+   * gesture, and `prompt: 'none'` is the form that displays no authentication
+   * or consent screen at all. The stored flag gates it, so a first visit sends
+   * no request.
    *
    * The flag records something only Google can tell us, so only Google's
    * answer clears it. The script is fetched first and separately: an extension
@@ -258,7 +275,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
     }
 
     try {
-      await this.#requestToken('')
+      await this.#requestToken('none')
       return true
     } catch (error) {
       // Only Google's own answer clears the flag. A popup the browser would
@@ -382,7 +399,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
 
     try {
       // Silent: no screen for a viewer whose grant stands, so no gesture.
-      return await this.#requestToken('')
+      return await this.#requestToken('none')
     } catch (error) {
       // The flag stays. A refusal here and a blocked script look the same from
       // inside this method, and the flag is what a returning viewer's silent
@@ -394,7 +411,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
   }
 
   /** Opens the popup in the caller's own task: no await before the request. */
-  #requestSynchronously(prompt: string): Promise<string> {
+  #requestSynchronously(prompt: TokenPrompt): Promise<string> {
     const client = this.#client
     if (!client) return Promise.reject(new Error('YouTube sign-in is not ready yet'))
 
@@ -407,7 +424,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
     return this.#pending
   }
 
-  #requestToken(prompt: string): Promise<string> {
+  #requestToken(prompt: TokenPrompt): Promise<string> {
     // One flight at a time: two callers must not open two popups.
     this.#pending ??= this.#openFlight(prompt).finally(() => {
       this.#pending = undefined
@@ -415,7 +432,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
     return this.#pending
   }
 
-  async #openFlight(prompt: string): Promise<string> {
+  async #openFlight(prompt: TokenPrompt): Promise<string> {
     const gis = await this.#loadGis()
 
     return new Promise<string>((resolve, reject) => {

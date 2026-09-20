@@ -127,8 +127,8 @@ describe('GoogleTokenProvider', () => {
     clock += 3_600_000 // an hour on
 
     await expect(provider.getAccessToken()).resolves.toBe('tok-abc')
-    // '' is the silent prompt: renew if consent still stands, fail if not.
-    expect(prompts).toEqual(['consent', ''])
+    // 'none' displays nothing: renew if the grant still stands, fail if not.
+    expect(prompts).toEqual(['consent', 'none'])
   })
 
   it('opens one popup even when two callers ask at once', async () => {
@@ -218,9 +218,10 @@ describe('GoogleTokenProvider', () => {
       })
 
       await expect(provider.resume()).resolves.toBe(true)
-      // The silent form. Anything else would put a consent screen in front of
-      // a viewer who only reloaded the page.
-      expect(prompts).toEqual([''])
+      // 'none' is the value GIS documents as displaying no authentication or
+      // consent screen. The empty string asks on the app's first request, so
+      // it would put a screen in front of a viewer who only reloaded.
+      expect(prompts).toEqual(['none'])
       expect(provider.isSignedIn).toBe(true)
     })
 
@@ -260,7 +261,7 @@ describe('GoogleTokenProvider', () => {
       const next = new GoogleTokenProvider('client-1', { loadGis: load, storage })
 
       await expect(next.resume()).resolves.toBe(true)
-      expect(prompts).toEqual(['', ''])
+      expect(prompts).toEqual(['none', 'none'])
     })
 
     // Found by running the built app behind a proxy that broke the script

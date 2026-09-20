@@ -5,6 +5,7 @@ import {
   GIS_SCRIPT_URL,
   GoogleTokenProvider,
   GRANT_KEY,
+  NO_LOGIN_HINT,
   loadGoogleIdentityServices,
   YOUTUBE_READONLY_SCOPE,
   type GoogleIdentityServices,
@@ -316,13 +317,27 @@ describe('GoogleTokenProvider', () => {
       expect(storage.getItem(ACCOUNT_KEY)).toBeNull()
     })
 
-    it('forgets the grant when Google answers that it is gone', async () => {
+    it('forgets the account when Google answers that the grant is gone', async () => {
       const storage = fakeStorage({ [ACCOUNT_KEY]: 'sub-alice' })
       const { load } = fakeGis(() => ({ error: 'access_denied' }))
       const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage })
 
       await expect(provider.resume()).resolves.toBe(false)
       expect(storage.getItem(ACCOUNT_KEY)).toBeNull()
+    })
+
+    // Read out of the GIS library: the silent path reports `no_login_hint`
+    // when the request arrived without one. That is a complaint about the
+    // request, not a verdict on the grant, and acting on it as a verdict
+    // would delete the value whose absence caused it.
+    it('keeps the account when the complaint is about the hint', async () => {
+      const storage = fakeStorage({ [ACCOUNT_KEY]: 'sub-alice' })
+      const { load } = fakeGis(() => ({ error: NO_LOGIN_HINT }))
+      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage })
+
+      await expect(provider.resume()).resolves.toBe(false)
+
+      expect(storage.getItem(ACCOUNT_KEY)).toBe('sub-alice')
     })
 
     // Reported from a real refresh that signed the viewer out. A page-load

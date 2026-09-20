@@ -66,6 +66,14 @@ export class SignInError extends Error {
 /** What a failure that never reached Google is reported as. */
 export const UNAVAILABLE = 'unavailable'
 
+/**
+ * What GIS reports when a silent request arrived without a `login_hint`.
+ *
+ * It is a complaint about the request rather than a verdict on the grant,
+ * which is why it does not make the stored account go.
+ */
+export const NO_LOGIN_HINT = 'no_login_hint'
+
 /** Only the slice of GIS we actually use. */
 export interface TokenResponse {
   access_token?: string
@@ -578,7 +586,12 @@ export class GoogleTokenProvider implements AccessTokenProvider {
 
   #onResponse(response: TokenResponse): void {
     if (response.error !== undefined || response.access_token === undefined) {
-      this.#fail(response.error ?? 'no token returned', true)
+      // A response usually carries Google's verdict on the grant. One of them
+      // does not: the silent path reports `no_login_hint` when the request
+      // arrived without one, which is this app failing to say which account
+      // it meant. Treating that as a verdict would throw away the very value
+      // whose absence caused it, and the next load would have nothing to send.
+      this.#fail(response.error ?? 'no token returned', response.error !== NO_LOGIN_HINT)
       return
     }
 

@@ -8,7 +8,7 @@ are named as such at the end, and not guessed at.
 ```mermaid
 flowchart TB
   branch["branch : type/short-desc"] --> pr["pull request"]
-  pr --> analysers["analysers.yml : oxlint, tsc, vite build, conventional pull request title"]
+  pr --> analysers["analysers.yml : oxlint, tsc, vite build, commit messages"]
   pr --> tests["tests.yml : vitest, british summer time"]
   pr --> codeql["codeql.yml : javascript-typescript, actions"]
   analysers --> merge["squash merge to main"]
@@ -48,7 +48,7 @@ repository ruleset, which is a GitHub setting rather than a file here. See
 - `body-max-line-length`: 80.
 
 Because the merge is a squash, **the pull request title faces this rule**, and
-it is the title the `conventional pull request title` job checks. That job pipes it into
+it is the title the `commit messages` job checks. That job pipes the title into
 `npx commitlint` and nothing else: individual commits on a branch are not
 checked by CI, because nothing they say survives the merge. The type in that
 title is also what chooses the next version number, so a change filed under the
@@ -79,7 +79,7 @@ controls.
 | `analysers.yml` | `oxlint` | `npm run lint` |
 | `analysers.yml` | `tsc` | `npm run typecheck` (`tsc -b --noEmit`), then a step comparing the major in `.nvmrc` with the major of the `@types/node` range and failing if they differ |
 | `analysers.yml` | `vite build` | `npx vite build` |
-| `analysers.yml` | `conventional pull request title` | `echo "$TITLE" \| npx commitlint`, on `pull_request` events only |
+| `analysers.yml` | `commit messages` | `echo "$TITLE" \| npx commitlint`, on `pull_request` events only |
 | `codeql.yml` | `Analyze (javascript-typescript)` | CodeQL init and analyze, `build-mode: none` |
 | `codeql.yml` | `Analyze (actions)` | the same over the workflow files, which run with a token |
 

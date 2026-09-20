@@ -65,7 +65,19 @@ export function App({
   // is nothing to sign in to.
   const clientId = import.meta.env.VITE_YOUTUBE_CLIENT_ID as string | undefined
   const tokens = useMemo(
-    () => (isYouTubeConfigured(clientId) ? new GoogleTokenProvider(clientId!.trim()) : undefined),
+    () =>
+      isYouTubeConfigured(clientId)
+        ? new GoogleTokenProvider(clientId!.trim(), {
+            // Every way a page load can stay signed out ends at the same
+            // sign-in button, so the reason is lost at the moment it is
+            // known. A development build puts it in the console, where
+            // somebody working on this can read it. A deployed build is
+            // given nothing and reports nothing.
+            diagnose: import.meta.env.DEV
+              ? (event, detail) => console.info(`[telly] ${event}${detail ? `: ${detail}` : ''}`)
+              : undefined,
+          })
+        : undefined,
     [clientId],
   )
   const defaultSource = useMemo(() => createPoolSource({ tokens }), [tokens])

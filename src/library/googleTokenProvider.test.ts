@@ -265,6 +265,37 @@ describe('GoogleTokenProvider', () => {
   })
 
   describe('resume', () => {
+    // Every one of these paths puts the same sign-in button on the screen, so
+    // without this the reason is gone at the moment it is known.
+    it('says why it stayed signed out', async () => {
+      const said: string[] = []
+      const diagnose = (event: string, detail?: string) => said.push(detail ? `${event}: ${detail}` : event)
+
+      await new GoogleTokenProvider('client-1', {
+        loadGis: fakeGis(() => granted()).load,
+        storage: fakeStorage(),
+        diagnose,
+      }).resume()
+
+      await new GoogleTokenProvider('client-1', {
+        loadGis: fakeGis(() => 'silent').load,
+        storage: fakeStorage({ [ACCOUNT_KEY]: 'sub-alice' }),
+        diagnose,
+      }).resume()
+
+      await new GoogleTokenProvider('client-1', {
+        loadGis: fakeGis(() => granted()).load,
+        storage: fakeStorage({ [ACCOUNT_KEY]: 'sub-alice' }),
+        diagnose,
+      }).resume()
+
+      expect(said).toEqual([
+        'resume: no account stored, so no silent request was sent',
+        'resume: refused: popup_closed, not from Google',
+        'resume: took a token',
+      ])
+    })
+
     it('asks Google nothing on a browser that has never granted', async () => {
       const { load } = fakeGis(() => granted())
       const provider = new GoogleTokenProvider('client-1', {

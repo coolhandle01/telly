@@ -221,6 +221,27 @@ const EXPIRY_MARGIN_MS = 60_000
 const IDENTIFY_TIMEOUT_MS = 5_000
 
 /**
+ * What a developer is told about a page load that did not restore a session.
+ *
+ * The viewer is told nothing: the screen says what it always says, which is
+ * that they are signed out, and none of this reaches it. These are the facts
+ * somebody debugging needs and cannot otherwise get, because the failure
+ * paths here all end in `false` and a sign-in button.
+ *
+ * No value from Google is included beyond the reason it gave, and the token
+ * is not one of them.
+ */
+export type Diagnostic =
+  | 'resume: no account stored, so no silent request was sent'
+  | 'resume: the identity script could not be fetched'
+  | 'resume: refused'
+  | 'resume: took a token'
+  | 'identify: this build of the library offers no id namespace'
+  | 'identify: nothing came back before the timeout'
+  | 'identify: the credential carried no usable account'
+  | 'identify: account learned'
+
+/**
  * Reads and writes the grant flag.
  *
  * Both are wrapped because a browser with site data blocked throws on the
@@ -284,6 +305,15 @@ export interface GoogleTokenProviderOptions {
   now?: () => number
   /** Injected so a test can drive the grant flag without a browser. */
   storage?: Storage
+  /**
+   * Where the reason a page load stayed signed out is reported.
+   *
+   * Every failure path in `resume` and `identify` ends in the same thing on
+   * screen, a sign-in button, so without this the reason is lost at the
+   * moment it is known. Injected rather than logged from here, so a test
+   * reads it and production is given nothing.
+   */
+  diagnose?: (event: Diagnostic, detail?: string) => void
 }
 
 export class GoogleTokenProvider implements AccessTokenProvider {
@@ -292,6 +322,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
   readonly #loadGis: GisLoader
   readonly #now: () => number
   readonly #storage: Storage | undefined
+  readonly #diagnose: (event: Diagnostic, detail?: string) => void
 
   #client: TokenClient | undefined
   #token: string | undefined
@@ -310,6 +341,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
     this.#loadGis = options.loadGis ?? loadGoogleIdentityServices
     this.#now = options.now ?? (() => Date.now())
     this.#storage = options.storage ?? browserStorage()
+    this.#diagnose = options.diagnose ?? (() => undefined)
   }
 
   /** True while a token is in hand and still good. */
@@ -346,18 +378,29 @@ export class GoogleTokenProvider implements AccessTokenProvider {
     if (this.isSignedIn) return true
 
     const account = storedAccount(this.#storage)
-    if (account === undefined) return false
+    if (account === undefined) {
+      this.#diagnose('resume: no account stored, so no silent request was sent')
+      return false
+    }
 
     try {
       await this.#loadGis()
     } catch {
+      this.#diagnose('resume: the identity script could not be fetched')
       return false
     }
 
     try {
       await this.#requestToken('none', account)
+      this.#diagnose('resume: took a token')
       return true
     } catch (error) {
+      this.#diagnose(
+        'resume: refused',
+        error instanceof SignInError
+          ? `${error.reason}, ${error.answered ? 'from Google' : 'not from Google'}`
+          : 'no reason given',
+      )
       // Only Google's own answer forgets the account. A popup the browser
       // would not open at page load, and a request that never arrived, say
       // nothing about whether the grant still stands, and forgetting on those
@@ -393,8 +436,12 @@ export class GoogleTokenProvider implements AccessTokenProvider {
     }
 
     const id = gis.accounts.id
-    if (!id) return
+    if (!id) {
+      this.#diagnose('identify: this build of the library offers no id namespace')
+      return
+    }
 
+    let answered = false
     const account = await new Promise<string | undefined>((resolve) => {
       const done = setTimeout(() => resolve(undefined), IDENTIFY_TIMEOUT_MS)
       id.initialize({
@@ -403,13 +450,26 @@ export class GoogleTokenProvider implements AccessTokenProvider {
         itp_support: true,
         callback: (response) => {
           clearTimeout(done)
+          answered = true
           resolve(accountFromCredential(response.credential))
         },
       })
       id.prompt()
     })
 
-    if (account !== undefined) rememberAccount(this.#storage, account)
+    if (account !== undefined) {
+      rememberAccount(this.#storage, account)
+      this.#diagnose('identify: account learned')
+      return
+    }
+
+    // Two different failures, and the screen cannot tell them apart. Nothing
+    // came back at all, or something came back that carried no account.
+    this.#diagnose(
+      answered
+        ? 'identify: the credential carried no usable account'
+        : 'identify: nothing came back before the timeout',
+    )
   }
 
   /**

@@ -38,7 +38,7 @@ of the chair.
 
 One control in the corner, not two: the Google sign-in button while nobody is
 signed in, the set's own `Sign out` button while somebody is. Neither appears
-while a grant already made in this browser is being taken up at page load, which
+while the page load is still working out whether this tab held a token, which
 is the one moment the answer is not yet known. The sign-out button carries no
 Google mark and no Google wording, because the branding guidelines cover the
 sign-in button alone ([google.md](google.md)).

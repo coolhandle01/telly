@@ -60,7 +60,7 @@ IndexedDB, so without these seams the behaviour could not be tested at all.
 | `PoolStore` | `IndexedDbPoolStore` | `inMemoryStore()`: a Map, and a write counter |
 | `Session` | `googleSession` | `fakeSession()`: records the calls, resolves on demand |
 | `AccessTokenProvider` | `GoogleTokenProvider` | any object returning a string |
-| `Storage` | `localStorage` | `fakeStorage()`: so the grant flag is drivable |
+| `Storage` | `localStorage` and `sessionStorage` | `fakeStorage()`: so the account identifier and the held token are both drivable |
 | `FetchLike` | the platform `fetch` | canned payloads; no test can reach a network |
 
 ## A fake must not be more capable than the real thing

@@ -86,78 +86,87 @@ wording at all.
 If the client somehow is not ready, `signIn()` prepares and asks anyway: the
 popup may well be blocked, but reporting that beats silently doing nothing.
 
-`getAccessToken()` is the opposite case: a **silent** renewal opens no popup, so
-it needs no gesture and is free to `await`. It succeeds while consent stands and
-fails (rather than popping up) when it does not.
+`getAccessToken()` never asks for a popup, so it needs no gesture: it hands back
+the token already in hand, and once that is past its hour it drops it and
+rejects. There is nothing else it could do. A renewal would need a popup, a
+popup needs a click, and a request for programmes has no click behind it.
 
 ## The session, from page load to sign-out
 
-Google's token model documents two moments a token is obtained: at page load,
-and from a user gesture. `GoogleTokenProvider` has both, and because GIS
-refreshes nothing on its own it also has the two moments a token stops being
-one.
+A token is obtained one way, from a click, and because GIS refreshes nothing on
+its own the hour running out is the end of the session rather than the start of
+a renewal.
 
 ```mermaid
 stateDiagram-v2
   state "Signed out · the sign-in button" as signedOut
   state "Resuming · neither button" as resuming
   state "Signed in · the sign-out button" as signedIn
-  state "Renewing · the stale token already dropped" as renewing
 
-  [*] --> signedOut : page load, no telly.google.granted. Google is asked nothing
-  [*] --> resuming : page load, flag present. loadGis, then prompt empty
-
-  resuming --> signedIn : token issued, no consent screen shown
-  resuming --> signedOut : Google refused the silent request. Flag cleared
-  resuming --> signedOut : the script never arrived. Flag kept
+  [*] --> resuming : page load. resume reads this tab's own storage
+  resuming --> signedIn : a held token with time left on it
+  resuming --> signedOut : nothing held, or what was held is past its hour
 
   signedOut --> signedIn : signIn, prompt consent, straight from the click
   signedIn --> signedIn : getAccessToken serves the held token while isSignedIn
-  signedIn --> renewing : now within EXPIRY_MARGIN_MS of expiresAtMs
-  renewing --> signedIn : silent renewal issued
-  renewing --> signedOut : refused. Subscribers told, flag kept
+  signedIn --> signedOut : now within EXPIRY_MARGIN_MS of expiresAtMs
   signedIn --> signedOut : signOut, revoke plus empty the store
 ```
 
-The two ways out of `resuming` that both land on signed out are not the same
-thing, and telling them apart is `resume`'s job: Google refusing is an answer
-about the grant, and a script that never arrived is no answer at all.
+Google is asked nothing on a page load. The state is read back out of the tab,
+so the only question `resume` has to answer is whether what it found is still
+good.
 
 | Moment | Method | What GIS is asked for | What `subscribe` is told |
 |---|---|---|---|
 | Page load, this tab held a token | `resume()` | nothing is asked of Google | `true` where the held token has time left, `false` where it does not |
-| The button | `signIn()` | `requestAccessToken({ prompt: 'consent' })`, popup | `true` on a token. A refusal says nothing, and the click's own rejected promise carries it |
+| The button | `signIn()` | `requestAccessToken({ prompt: 'consent', login_hint })`, popup | `true` on a token. A refusal says nothing, and the click's own rejected promise carries it |
 | The hour runs out | `getAccessToken()` | nothing is asked of Google | `false`: the token goes and the sign-in button comes back |
 | The way out | `signOut()` | `oauth2.revoke(token, done)` | `false`, from `#discard` dropping the token |
 
-### The grant flag
+### The held token
 
-`localStorage`, key `GRANT_KEY` (`telly.google.granted`), value `"1"`.
+`sessionStorage`, key `TOKEN_KEY` (`telly.google.token`), holding the token and
+the moment it expires.
 
-It records that a consent screen was completed in this browser, and that is all
-it records. It is not a credential and it is not a token: it cannot be replayed
-against Google and it names no account. What it buys is one decision, whether a
-silent page-load request is worth sending, which is why a first-time visitor
-sends none at all.
+Session storage rather than local: it survives the reload it exists for, it dies
+with the tab, and what it holds Google already limits to an hour.
 
-- Written in `#onResponse`, at the moment a token is issued.
-- Removed when `resume()`'s silent request is refused, and when `signOut()`
-  runs. A renewal refused inside `getAccessToken()` leaves it standing: from in
-  there a refusal and a blocked script are the same event, and `resume` is where
-  a refusal is the answer to the question the flag asks.
-- Every read and write goes through `hasGrant` / `rememberGrant`, which swallow
-  the throw. A browser with site data blocked throws on the `localStorage`
-  property access itself, before any key is named: a private window in Safari
-  and Firefox's strict mode both do it. Without the flag the set still works;
-  the viewer presses the button instead.
+- Written in `#onResponse`, at the moment a token is issued, so what the tab
+  holds is always a token the app is actually using.
+- Removed by `#discard`, which runs on expiry and on sign-out.
+- Read back by `resume()`. Anything that is not the pair this app wrote is
+  treated as nothing: a half-written record, another version's shape, or a
+  value some other script put under the key. The cost of refusing one is a
+  sign-in button.
+- Every read and write is wrapped, because a browser with site data blocked
+  throws on the property access itself, before any key is named: a private
+  window in Safari and Firefox's strict mode both do it. Without the store the
+  set still works, and the viewer presses the button after each reload.
+
+### The account identifier
+
+`localStorage`, key `ACCOUNT_KEY` (`telly.google.account`), holding Google's
+own `sub` for the account that granted.
+
+It is not a credential and not a token: it cannot be replayed against Google,
+and it is scoped to this client id, so it names the account to nobody else.
+What it buys is `login_hint` on the next sign-in, so a returning viewer is not
+asked to pick their account out of a list.
+
+It comes from Sign In With Google rather than from YouTube. The token client
+returns an access token and says nothing about whose it is, so `#identify` asks
+the identity half once, after the viewer already has their television, and
+keeps the `sub` out of the ID token it returns. Every failure there is quiet: it
+costs the next sign-in its `login_hint`, which is a list the viewer picks from.
 
 ### Resuming
 
-`resume()` returns true when a token is already in hand, and the flag is the
-gate on everything else, so a browser that has never granted anything sends no
-request.
+`resume()` returns true when a token is already in hand, and otherwise reads the
+one this tab stored. A record past its hour is dropped rather than adopted, so
+the screen shows the sign-in button and the next token comes from a click.
 
-`Channel` shows neither button while that request is in flight (`resuming`
+`Channel` shows neither button while that is being worked out (`resuming`
 state). A button saying Sign in, replaced half a second later by one saying Sign
 out, is the set telling the viewer two different things.
 
@@ -166,14 +175,16 @@ out, is the set telling the viewer two different things.
 `isSignedIn` is false once `now()` is inside `EXPIRY_MARGIN_MS` of the expiry,
 so the last minute of a token counts as expired.
 
-`getAccessToken()` drops the held token *before* it asks for a new one, rather
-than keeping it as a fallback. A renewal that Google refuses announces
-signed-out to every subscriber and rethrows: the corner goes back to a sign-in
-button instead of offering a way out of a session that has already ended.
+`getAccessToken()` serves the held token while it is good, and once it is not,
+drops it, tells every subscriber, and rejects. It asks Google for nothing: a
+token comes from a popup, a popup comes from a click, and there is no click
+behind a request for programmes. So the corner goes back to a sign-in button
+rather than offering a way out of a session that has already ended.
 
 A response that says nothing about its own life is treated as the hour GIS
 issues. A response whose `expires_in` does not parse as a finite number is
-treated as already over, so `isSignedIn` stays false and the next call renews.
+treated as already over, so `isSignedIn` stays false and the next request for
+programmes ends the session.
 
 ### Signing out is two operations
 

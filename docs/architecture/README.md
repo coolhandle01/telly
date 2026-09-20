@@ -78,7 +78,7 @@ the alternative.
 | The sound follows what is on the screen, never what is in the schedule | [components.md](components.md) |
 | An error, and a stop, both tear the player down | [player.md](player.md) |
 | The GIS script is fetched on mount, never in the click handler | [tokens.md](tokens.md) |
-| A grant already made in this browser is taken up silently at page load, gated on one flag | [tokens.md](tokens.md) |
+| A reload keeps the session because the token crosses it; Google is asked nothing at page load | [tokens.md](tokens.md) |
 | Signing out is two operations: revoke at Google, and empty the store | [tokens.md](tokens.md) |
 | The screen follows the session, not the last click | [tokens.md](tokens.md) |
 | A 404 playlist is skipped; 401, 403, 429 and a spent quota are fatal | [google.md](google.md) |

@@ -4,14 +4,17 @@ import type { AccessTokenProvider } from './tokenProvider'
  * Sign-in, via Google Identity Services.
  *
  * GIS hands a browser a short-lived access token and no refresh token, which
- * is the right shape for a page with no backend: the token lives in memory for
- * its hour and is asked for again when it expires. It is never written to
- * storage, never logged, and never put in a URL.
+ * is the right shape for a page with no backend: the token is good for an hour
+ * and a new one is asked for when that hour is up. It is never logged and
+ * never put in a URL. It is held in `sessionStorage` for the life of the tab,
+ * which is what carries a session across a reload.
  *
- * Google's token model documents two moments a token is obtained: at page load
- * time, and from a user gesture such as a button press. Both are here
- * (`resume` is the first, `signIn` the second) and the library refreshes
- * nothing on its own, so expiry is this class's to notice and act on.
+ * A token is obtained one way: `requestAccessToken`, which opens a popup
+ * window. A popup wants a user gesture behind it, and a page load has none, so
+ * every token this app holds comes from a click. `signIn` is that click.
+ * `resume` asks Google for nothing; it reads back the token this tab already
+ * has. The library refreshes nothing on its own, so expiry is this class's to
+ * notice and act on.
  *
  * https://developers.google.com/identity/oauth2/web/guides/use-token-model
  */
@@ -32,6 +35,20 @@ export const ACCOUNT_KEY = 'telly.google.account'
 
 /** The boolean an earlier version wrote here. Removed, never read. */
 export const GRANT_KEY = 'telly.google.granted'
+
+/**
+ * Where the token and the moment it dies are kept, so a reload keeps them.
+ *
+ * GIS holds a token in the page and nowhere else, and the only way to ask for
+ * another is a popup window, which the browser refuses without a gesture
+ * behind it. A reload that keeps nothing therefore lands on the sign-in button
+ * with an hour of grant still unspent. Writing the token here is what makes a
+ * refresh keep the session.
+ *
+ * `sessionStorage`, so the record goes when the tab does, and what it holds
+ * is a bearer token Google already limits to an hour.
+ */
+export const TOKEN_KEY = 'telly.google.token'
 
 /**
  * A sign-in that produced no token, carrying the reason as its own field.
@@ -65,6 +82,9 @@ export class SignInError extends Error {
 
 /** What a failure that never reached Google is reported as. */
 export const UNAVAILABLE = 'unavailable'
+
+/** What a session whose hour has run out is reported as. */
+export const EXPIRED = 'expired'
 
 /**
  * What GIS reports when a silent request arrived without a `login_hint`.
@@ -232,10 +252,9 @@ const IDENTIFY_TIMEOUT_MS = 5_000
  * is not one of them.
  */
 export type Diagnostic =
-  | 'resume: no account stored, so no silent request was sent'
-  | 'resume: the identity script could not be fetched'
-  | 'resume: refused'
-  | 'resume: took a token'
+  | 'resume: this tab held no token, so it starts at the button'
+  | 'resume: the held token was past its hour'
+  | 'resume: took up the token this tab held'
   | 'identify: this build of the library offers no id namespace'
   | 'identify: nothing came back before the timeout'
   | 'identify: the credential carried no usable account'
@@ -297,6 +316,64 @@ function browserStorage(): Storage | undefined {
   }
 }
 
+function browserSession(): Storage | undefined {
+  try {
+    return globalThis.sessionStorage
+  } catch {
+    return undefined
+  }
+}
+
+/** A token and the moment it stops being one. */
+export interface HeldToken {
+  token: string
+  expiresAtMs: number
+}
+
+/**
+ * Reads and writes the held token.
+ *
+ * Wrapped for the same reason the account is: a browser with site data
+ * blocked throws on the property access itself, before any key is named.
+ */
+function rememberToken(session: Storage | undefined, held: HeldToken | undefined): void {
+  try {
+    if (held !== undefined) session?.setItem(TOKEN_KEY, JSON.stringify(held))
+    else session?.removeItem(TOKEN_KEY)
+  } catch {
+    // Crossing a reload is the only thing this buys, and the button is still
+    // there.
+  }
+}
+
+/**
+ * The held token, or nothing at all.
+ *
+ * Anything that is not the pair this app wrote is treated as nothing: a
+ * half-written record, another version's shape, or a value some other script
+ * put under the key. The cost of refusing one is a sign-in button.
+ */
+function storedToken(session: Storage | undefined): HeldToken | undefined {
+  let raw: string | null | undefined
+  try {
+    raw = session?.getItem(TOKEN_KEY)
+  } catch {
+    return undefined
+  }
+  if (raw === null || raw === undefined || raw === '') return undefined
+
+  try {
+    const held: unknown = JSON.parse(raw)
+    const token = (held as { token?: unknown }).token
+    const expiresAtMs = (held as { expiresAtMs?: unknown }).expiresAtMs
+    if (typeof token !== 'string' || token.length === 0) return undefined
+    if (typeof expiresAtMs !== 'number' || !Number.isFinite(expiresAtMs)) return undefined
+    return { token, expiresAtMs }
+  } catch {
+    return undefined
+  }
+}
+
 export interface GoogleTokenProviderOptions {
   scope?: string
   /** Injected so tests never fetch Google. */
@@ -314,6 +391,8 @@ export interface GoogleTokenProviderOptions {
    * reads it and production is given nothing.
    */
   diagnose?: (event: Diagnostic, detail?: string) => void
+  /** Injected so a test can drive the held token without a browser. */
+  session?: Storage
 }
 
 export class GoogleTokenProvider implements AccessTokenProvider {
@@ -323,6 +402,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
   readonly #now: () => number
   readonly #storage: Storage | undefined
   readonly #diagnose: (event: Diagnostic, detail?: string) => void
+  readonly #session: Storage | undefined
 
   #client: TokenClient | undefined
   #token: string | undefined
@@ -342,6 +422,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
     this.#now = options.now ?? (() => Date.now())
     this.#storage = options.storage ?? browserStorage()
     this.#diagnose = options.diagnose ?? (() => undefined)
+    this.#session = options.session ?? browserSession()
   }
 
   /** True while a token is in hand and still good. */
@@ -362,55 +443,37 @@ export class GoogleTokenProvider implements AccessTokenProvider {
   }
 
   /**
-   * Take up a grant this browser has already made, without a consent screen.
+   * Take up the session this tab is already in.
    *
-   * Google's token model obtains a token at page load as well as from a
-   * gesture, and `prompt: 'none'` is the form that displays no authentication
-   * or consent screen at all. The stored flag gates it, so a first visit sends
-   * no request.
+   * Nothing is asked of Google here. The one way to obtain a token is
+   * `requestAccessToken`, which opens a popup window, and a page load carries
+   * no user gesture for a popup to be traced to, so the browser refuses it.
+   * What crosses the reload is the token itself, read back from the tab's own
+   * storage.
    *
-   * The flag records something only Google can tell us, so only Google's
-   * answer clears it. The script is fetched first and separately: an extension
-   * or a firewall that stops it arriving means nothing was asked and nothing
-   * was learned, and a viewer whose grant is intact keeps it.
+   * A record whose hour is up is dropped rather than adopted, so the screen
+   * shows the sign-in button and the next token comes from a click.
    */
-  async resume(): Promise<boolean> {
-    if (this.isSignedIn) return true
+  resume(): Promise<boolean> {
+    if (this.isSignedIn) return Promise.resolve(true)
 
-    const account = storedAccount(this.#storage)
-    if (account === undefined) {
-      this.#diagnose('resume: no account stored, so no silent request was sent')
-      return false
+    const held = storedToken(this.#session)
+    if (held === undefined) {
+      this.#diagnose('resume: this tab held no token, so it starts at the button')
+      return Promise.resolve(false)
     }
 
-    try {
-      await this.#loadGis()
-    } catch {
-      this.#diagnose('resume: the identity script could not be fetched')
-      return false
+    if (this.#now() >= held.expiresAtMs - EXPIRY_MARGIN_MS) {
+      rememberToken(this.#session, undefined)
+      this.#diagnose('resume: the held token was past its hour')
+      return Promise.resolve(false)
     }
 
-    try {
-      await this.#requestToken('none', account)
-      this.#diagnose('resume: took a token')
-      return true
-    } catch (error) {
-      this.#diagnose(
-        'resume: refused',
-        error instanceof SignInError
-          ? `${error.reason}, ${error.answered ? 'from Google' : 'not from Google'}`
-          : 'no reason given',
-      )
-      // Only Google's own answer forgets the account. A popup the browser
-      // would not open at page load, and a request that never arrived, say
-      // nothing about whether the grant still stands, and forgetting on those
-      // means one bad load stops every later load from even asking.
-      if (error instanceof SignInError && error.answered) {
-        rememberAccount(this.#storage, undefined)
-      }
-      this.#discard()
-      return false
-    }
+    this.#token = held.token
+    this.#expiresAtMs = held.expiresAtMs
+    this.#announce(true)
+    this.#diagnose('resume: took up the token this tab held')
+    return Promise.resolve(true)
   }
 
   /**
@@ -515,6 +578,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
     const was = this.#token !== undefined
     this.#token = undefined
     this.#expiresAtMs = 0
+    rememberToken(this.#session, undefined)
     if (was) this.#announce(false)
   }
 
@@ -568,41 +632,33 @@ export class GoogleTokenProvider implements AccessTokenProvider {
       throw error instanceof SignInError ? error : new SignInError(UNAVAILABLE)
     }
 
-    if (this.#client) return this.#requestSynchronously('consent').catch(asSignInError)
+    // The hint names the account that granted before, so a viewer signing in
+    // again is not asked to pick it out of the list a second time.
+    const hint = storedAccount(this.#storage)
+
+    if (this.#client) return this.#requestSynchronously('consent', hint).catch(asSignInError)
 
     // Not ready: ask anyway, and the popup may well be blocked. Better to
     // report that than to silently do nothing.
     return this.prepare()
-      .then(() => this.#requestToken('consent'))
+      .then(() => this.#requestToken('consent', hint))
       .catch(asSignInError)
   }
 
   /**
-   * A currently-valid token, renewing the held one once its hour is up.
+   * A currently-valid token, or the end of the session.
    *
    * GIS refreshes nothing by itself, so noticing the expiry is this class's
-   * job: the stale token goes before the request, and a renewal that Google
-   * refuses puts the screen back to signed out rather than leaving a button
-   * that is not there and a session that is not either.
+   * job. Renewing needs `requestAccessToken`, which needs a popup, which needs
+   * a click, and there is no click behind a request for programmes. So the
+   * hour running out ends the session here: the token goes, everyone watching
+   * is told, and the screen puts the button back that starts the next one.
    */
-  async getAccessToken(): Promise<string> {
-    if (this.#token !== undefined && this.isSignedIn) return this.#token
+  getAccessToken(): Promise<string> {
+    if (this.#token !== undefined && this.isSignedIn) return Promise.resolve(this.#token)
 
-    this.#token = undefined
-    this.#expiresAtMs = 0
-
-    try {
-      // Silent: no screen for a viewer whose grant stands, so no gesture. The
-      // hint is what a request showing nothing resolves the account by.
-      return await this.#requestToken('none', storedAccount(this.#storage))
-    } catch (error) {
-      // The stored account stays. A refusal here and a blocked script look the
-      // same from inside this method, and that value is what a returning
-      // viewer's silent page-load request is gated on: `resume` is where a
-      // refusal is the answer to the question it asks, and where it is dropped.
-      this.#announce(false)
-      throw error
-    }
+    this.#discard()
+    return Promise.reject(new SignInError(EXPIRED))
   }
 
   /** Opens the popup in the caller's own task: no await before the request. */
@@ -661,6 +717,10 @@ export class GoogleTokenProvider implements AccessTokenProvider {
     const lifetimeSec = Number(response.expires_in ?? 3600)
     this.#token = response.access_token
     this.#expiresAtMs = this.#now() + (Number.isFinite(lifetimeSec) ? lifetimeSec : 0) * 1000
+
+    // Written here rather than at sign-in, so what the tab holds is always a
+    // token this app is actually using and the moment it stops being one.
+    rememberToken(this.#session, { token: this.#token, expiresAtMs: this.#expiresAtMs })
 
     const settle = this.#settle
     this.#settle = undefined

@@ -1,4 +1,4 @@
-import { SignInError, SignOutError, UNAVAILABLE, YouTubeApiError } from '../library'
+import { EXPIRED, SignInError, SignOutError, UNAVAILABLE, YouTubeApiError } from '../library'
 
 /**
  * What the screen says when the programmes cannot be fetched.
@@ -65,6 +65,7 @@ const REFUSED_SCOPE =
   'Google did not grant access to your subscriptions. Signing in again asks for it once more.'
 const NO_SIGN_IN =
   "Google's sign-in could not be loaded. An extension or a network filter may be blocking accounts.google.com."
+const SESSION_OVER = 'This sign-in has run its hour. Sign in again to carry on watching.'
 
 export function signInMessage(error: unknown): string {
   if (!(error instanceof SignInError)) return NO_SIGN_IN
@@ -78,6 +79,8 @@ export function signInMessage(error: unknown): string {
       return POPUP_BLOCKED
     case 'access_denied':
       return REFUSED_SCOPE
+    case EXPIRED:
+      return SESSION_OVER
     case UNAVAILABLE:
       return NO_SIGN_IN
     default:

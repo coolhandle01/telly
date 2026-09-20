@@ -141,19 +141,16 @@ does not have to fetch it all from YouTube a second time. It is kept for up to
 24 hours. After that telly stops using it. The copy stays on your device until
 telly replaces it, you sign out, or you clear this site&rsquo;s data.</li>
 <li><strong>Your sign-in.</strong> Google gives telly a pass that lets it read
-your subscriptions for about an hour. telly holds that pass in the page only,
-and closing the tab ends it. It is not saved anywhere on your device. When the
-hour runs out, telly asks Google for another one. If Google does not issue one,
-telly returns to its signed-out state and you sign in again.</li>
+your subscriptions for about an hour. telly keeps that pass in this tab&rsquo;s
+own storage, so that reloading the page does not sign you out. It is sent to
+nobody, and it goes when you close the tab. When the hour is up the pass stops
+working, telly returns to its signed-out state, and you sign in again.</li>
 <li><strong>Which account signed in here.</strong> telly records in your
-browser an identifier Google gives it for your account, so that returning to
-the page can ask Google for a new pass without putting a sign-in screen in
-front of you. Google will not issue one silently unless it is told which
-account to issue it for, and this is how telly tells it. The identifier is
+browser an identifier Google gives it for your account, so that signing in
+again does not ask you to pick your account out of a list. The identifier is
 Google&rsquo;s own, it is different for every app, and it is not your name, your
 email address or a password. telly reads it from the sign-in itself and never
-asks YouTube for it. It is removed when you sign out, and when Google answers
-that telly&rsquo;s permission no longer stands.</li>
+asks YouTube for it. It is removed when you sign out.</li>
 </ul>
 <p>telly puts nothing else on your device. Your browser keeps its own copy of
 the page, as it does for any site.</p>

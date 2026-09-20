@@ -6,6 +6,7 @@ import {
   GoogleTokenProvider,
   GRANT_KEY,
   NO_LOGIN_HINT,
+  TOKEN_KEY,
   loadGoogleIdentityServices,
   YOUTUBE_READONLY_SCOPE,
   type GoogleIdentityServices,
@@ -99,6 +100,13 @@ const granted = (expiresIn = 3600): TokenResponse => ({
 })
 
 describe('GoogleTokenProvider', () => {
+  // The token now crosses a reload in the tab's own storage, so a test that
+  // signs in leaves one behind. Each test starts on a tab that holds nothing.
+  afterEach(() => {
+    sessionStorage.clear()
+    localStorage.clear()
+  })
+
   it('asks for consent on sign-in, with the read-only scope', async () => {
     const { load, prompts, configs } = fakeGis(() => granted())
     const provider = new GoogleTokenProvider('client-1', { loadGis: load })
@@ -153,7 +161,13 @@ describe('GoogleTokenProvider', () => {
     expect(prompts).toEqual(['consent'])
   })
 
-  it('renews silently once the token is near its end', async () => {
+  // Read out of the GIS client Google ships: the silent branch of
+  // `requestAccessToken` is reached only when the script has turned on an
+  // experiment it never turns on, so `prompt: 'none'` falls through to the
+  // popup branch like every other prompt. A popup wants a gesture behind it,
+  // and an hour quietly running out has none. So the hour ending ends the
+  // session, and the next token comes from a click.
+  it('ends the session when the token reaches its end, asking Google nothing', async () => {
     let clock = 0
     const { load, prompts } = fakeGis(() => granted(3600))
     const provider = new GoogleTokenProvider('client-1', { loadGis: load, now: () => clock })
@@ -161,16 +175,16 @@ describe('GoogleTokenProvider', () => {
     await provider.signIn()
     clock += 3_600_000 // an hour on
 
-    await expect(provider.getAccessToken()).resolves.toBe('tok-abc')
-    // 'none' displays nothing: renew if the grant still stands, fail if not.
-    expect(prompts).toEqual(['consent', 'none'])
+    await expect(provider.getAccessToken()).rejects.toThrow(/expired/)
+    expect(prompts).toEqual(['consent'])
+    expect(provider.isSignedIn).toBe(false)
   })
 
   it('opens one popup even when two callers ask at once', async () => {
     const { load, prompts } = fakeGis(() => granted())
     const provider = new GoogleTokenProvider('client-1', { loadGis: load })
 
-    await Promise.all([provider.getAccessToken(), provider.getAccessToken()])
+    await Promise.all([provider.signIn(), provider.signIn()])
 
     expect(prompts).toHaveLength(1)
   })
@@ -219,18 +233,20 @@ describe('GoogleTokenProvider', () => {
     expect(prompts).toEqual(refuseTheLoad ? ['consent'] : ['consent', 'consent'])
   })
 
-  it('never writes the token anywhere it could outlive the page', async () => {
+  // The token is what crosses a reload, because nothing else can: a page load
+  // has no gesture to open a popup with. It crosses in the tab's own storage,
+  // so it goes when the tab goes, and it is written nowhere that outlasts it.
+  it('keeps the token in the tab, and nowhere longer-lived than the tab', async () => {
+    const session = fakeStorage()
     const { load } = fakeGis(() => granted())
-    const provider = new GoogleTokenProvider('client-1', { loadGis: load })
+    const provider = new GoogleTokenProvider('client-1', { loadGis: load, session })
 
     await provider.signIn()
 
-    const stored = [
-      ...Object.values(localStorage),
-      ...Object.values(sessionStorage),
-      document.cookie,
-    ].join(' ')
-    expect(stored).not.toContain('tok-abc')
+    expect(session.getItem(TOKEN_KEY)).toContain('tok-abc')
+
+    const longerLived = [...Object.values(localStorage), document.cookie].join(' ')
+    expect(longerLived).not.toContain('tok-abc')
   })
 
   describe('the account identifier', () => {
@@ -270,29 +286,54 @@ describe('GoogleTokenProvider', () => {
     it('says why it stayed signed out', async () => {
       const said: string[] = []
       const diagnose = (event: string, detail?: string) => said.push(detail ? `${event}: ${detail}` : event)
+      const { load } = fakeGis(() => granted())
+      // An account already stored keeps `identify` from running and saying so.
+      const known = () => fakeStorage({ [ACCOUNT_KEY]: 'sub-alice' })
 
+      // A tab that was holding nothing.
       await new GoogleTokenProvider('client-1', {
-        loadGis: fakeGis(() => granted()).load,
-        storage: fakeStorage(),
+        loadGis: load,
+        storage: known(),
+        session: fakeStorage(),
         diagnose,
       }).resume()
 
+      // A tab whose token went past its hour while it was away.
+      let clock = 0
+      const stale = fakeStorage()
       await new GoogleTokenProvider('client-1', {
-        loadGis: fakeGis(() => 'silent').load,
-        storage: fakeStorage({ [ACCOUNT_KEY]: 'sub-alice' }),
+        loadGis: load,
+        storage: known(),
+        session: stale,
+        now: () => clock,
+      }).signIn()
+      clock += 3_600_000
+      await new GoogleTokenProvider('client-1', {
+        loadGis: load,
+        storage: known(),
+        session: stale,
+        now: () => clock,
         diagnose,
       }).resume()
 
+      // A tab whose token still has its hour to run.
+      const good = fakeStorage()
       await new GoogleTokenProvider('client-1', {
-        loadGis: fakeGis(() => granted()).load,
-        storage: fakeStorage({ [ACCOUNT_KEY]: 'sub-alice' }),
+        loadGis: load,
+        storage: known(),
+        session: good,
+      }).signIn()
+      await new GoogleTokenProvider('client-1', {
+        loadGis: load,
+        storage: known(),
+        session: good,
         diagnose,
       }).resume()
 
       expect(said).toEqual([
-        'resume: no account stored, so no silent request was sent',
-        'resume: refused: popup_closed, not from Google',
-        'resume: took a token',
+        'resume: this tab held no token, so it starts at the button',
+        'resume: the held token was past its hour',
+        'resume: took up the token this tab held',
       ])
     })
 
@@ -301,28 +342,51 @@ describe('GoogleTokenProvider', () => {
       const provider = new GoogleTokenProvider('client-1', {
         loadGis: load,
         storage: fakeStorage(),
+        session: fakeStorage(),
       })
 
       await expect(provider.resume()).resolves.toBe(false)
       expect(load).not.toHaveBeenCalled()
     })
 
-    it('takes a token silently where a grant was made before', async () => {
-      const { load, prompts, hints } = fakeGis(() => granted())
-      const provider = new GoogleTokenProvider('client-1', {
+    // The reload this class exists to survive. A second provider reading the
+    // same tab storage is what a refresh is.
+    it('takes up the token this tab was holding before the reload', async () => {
+      const session = fakeStorage()
+      const { load, prompts } = fakeGis(() => granted())
+
+      await new GoogleTokenProvider('client-1', { loadGis: load, session }).signIn()
+
+      const reloaded = new GoogleTokenProvider('client-1', { loadGis: load, session })
+
+      await expect(reloaded.resume()).resolves.toBe(true)
+      expect(reloaded.isSignedIn).toBe(true)
+      // Google was asked nothing. The popup a page load cannot open was never
+      // needed, which is the whole of the fix.
+      expect(prompts).toEqual(['consent'])
+    })
+
+    it('drops a token whose hour ran out while the tab was away', async () => {
+      let clock = 0
+      const session = fakeStorage()
+      const { load } = fakeGis(() => granted(3600))
+
+      await new GoogleTokenProvider('client-1', {
         loadGis: load,
-        storage: fakeStorage({ [ACCOUNT_KEY]: 'sub-alice' }),
+        session,
+        now: () => clock,
+      }).signIn()
+
+      clock += 3_600_000
+      const reloaded = new GoogleTokenProvider('client-1', {
+        loadGis: load,
+        session,
+        now: () => clock,
       })
 
-      await expect(provider.resume()).resolves.toBe(true)
-      // 'none' is the value GIS documents as displaying no authentication or
-      // consent screen. The empty string asks on the app's first request, so
-      // it would put a screen in front of a viewer who only reloaded.
-      expect(prompts).toEqual(['none'])
-      // A request that may show nothing cannot ask which account it is for,
-      // so without the hint there is nothing for it to resolve.
-      expect(hints).toEqual(['sub-alice'])
-      expect(provider.isSignedIn).toBe(true)
+      await expect(reloaded.resume()).resolves.toBe(false)
+      expect(reloaded.isSignedIn).toBe(false)
+      expect(session.getItem(TOKEN_KEY)).toBeNull()
     })
 
     it('learns the account from the ID token when somebody signs in', async () => {
@@ -345,15 +409,6 @@ describe('GoogleTokenProvider', () => {
 
       // The television is on. The next load has no hint, so it starts at the
       // sign-in button rather than resuming, which is where it started anyway.
-      expect(storage.getItem(ACCOUNT_KEY)).toBeNull()
-    })
-
-    it('forgets the account when Google answers that the grant is gone', async () => {
-      const storage = fakeStorage({ [ACCOUNT_KEY]: 'sub-alice' })
-      const { load } = fakeGis(() => ({ error: 'access_denied' }))
-      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage })
-
-      await expect(provider.resume()).resolves.toBe(false)
       expect(storage.getItem(ACCOUNT_KEY)).toBeNull()
     })
 
@@ -382,23 +437,6 @@ describe('GoogleTokenProvider', () => {
       await expect(provider.resume()).resolves.toBe(false)
 
       expect(storage.getItem(ACCOUNT_KEY)).toBe('sub-alice')
-    })
-
-    // The flag is what gates the request, so clearing it on a failure Google
-    // did not send stopped every later load from even asking.
-    it('still asks on the next load after one the browser refused', async () => {
-      const storage = fakeStorage({ [ACCOUNT_KEY]: 'sub-alice' })
-      let refuse = true
-      const { load, prompts } = fakeGis(() => (refuse ? 'silent' : granted()))
-      await expect(
-        new GoogleTokenProvider('client-1', { loadGis: load, storage }).resume(),
-      ).resolves.toBe(false)
-
-      refuse = false
-      const next = new GoogleTokenProvider('client-1', { loadGis: load, storage })
-
-      await expect(next.resume()).resolves.toBe(true)
-      expect(prompts).toEqual(['none', 'none'])
     })
 
     // Found by running the built app behind a proxy that broke the script
@@ -449,7 +487,7 @@ describe('GoogleTokenProvider', () => {
   })
 
   describe('an expired token', () => {
-    it('is renewed rather than handed out', async () => {
+    it('is not handed out, and is not quietly replaced either', async () => {
       let clock = 0
       let issued = 0
       const { load } = fakeGis(() => ({ access_token: `tok-${++issued}`, expires_in: 3600 }))
@@ -457,39 +495,42 @@ describe('GoogleTokenProvider', () => {
         loadGis: load,
         now: () => clock,
         storage: fakeStorage(),
+        session: fakeStorage(),
       })
 
-      await expect(provider.getAccessToken()).resolves.toBe('tok-1')
+      await expect(provider.signIn()).resolves.toBe('tok-1')
       clock += 3600 * 1000
-      await expect(provider.getAccessToken()).resolves.toBe('tok-2')
+      await expect(provider.getAccessToken()).rejects.toThrow(/expired/)
     })
 
-    it('leaves the session signed out when the renewal is refused', async () => {
+    it('puts the screen back to signed out, and the token beyond reach', async () => {
       let clock = 0
-      let issued = 0
       const storage = fakeStorage()
+      const session = fakeStorage()
       const { load } = fakeGis(
-        () => (issued++ === 0 ? { access_token: 'tok-1', expires_in: 3600 } : 'silent'),
+        () => ({ access_token: 'tok-1', expires_in: 3600 }),
         idToken('sub-alice'),
       )
       const provider = new GoogleTokenProvider('client-1', {
         loadGis: load,
         now: () => clock,
         storage,
+        session,
       })
       const seen: boolean[] = []
-      await provider.getAccessToken()
+      await provider.signIn()
       provider.subscribe((signedIn) => seen.push(signedIn))
 
       clock += 3600 * 1000
-      await expect(provider.getAccessToken()).rejects.toThrow(/sign-in failed/i)
+      await expect(provider.getAccessToken()).rejects.toThrow(/expired/)
 
       expect(seen).toEqual([false])
       expect(provider.isSignedIn).toBe(false)
-      // The grant flag survives. A refusal and a blocked script are the same
-      // rejection here, and `resume` is where a refusal answers the question
-      // the flag asks.
-      expect(storage.getItem(ACCOUNT_KEY)).toBe('sub-alice')
+      // A spent token is no longer worth carrying over a reload.
+      expect(session.getItem(TOKEN_KEY)).toBeNull()
+      // The account stays: it is the hint that spares the viewer picking the
+      // account out of a list again on the sign-in that follows.
+      await vi.waitFor(() => expect(storage.getItem(ACCOUNT_KEY)).toBe('sub-alice'))
     })
   })
 

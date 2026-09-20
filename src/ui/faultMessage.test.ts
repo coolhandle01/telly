@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { QuotaExceededError, SignInError, SignOutError, UNAVAILABLE, YouTubeApiError } from '../library'
+import { EXPIRED, QuotaExceededError, SignInError, SignOutError, UNAVAILABLE, YouTubeApiError } from '../library'
 import { faultMessage, signInMessage, signOutMessage } from './faultMessage'
 
 /*
@@ -145,6 +145,15 @@ describe('signInMessage', () => {
     const message = signInMessage(new SignInError('popup_failed_to_open'))
 
     expect(message).toMatch(/allow pop-ups/i)
+  })
+
+  // An hour is up rather than anything going wrong, so the sentence asks for
+  // the one thing that fixes it and blames neither Google nor the browser.
+  it('tells a viewer whose hour ran out to sign in again', () => {
+    const message = signInMessage(new SignInError(EXPIRED))
+
+    expect(message).toMatch(/sign in again/i)
+    expect(message).not.toMatch(/pop-ups|could not be loaded/i)
   })
 
   it('separates a refused scope from a blocked window', () => {

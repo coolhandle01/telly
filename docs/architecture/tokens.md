@@ -14,15 +14,25 @@ is no refresh token to leak.
 |---|---|
 | Flow | GIS `initTokenClient`, the implicit token flow |
 | Scope | `https://www.googleapis.com/auth/youtube.readonly`, and nothing else |
-| Lifetime | ~1 hour, renewed silently while consent stands |
+| Lifetime | ~1 hour. Nothing renews it: the next one comes from a click |
 | Client secret | none exists |
 | Refresh token | none issued |
-| Kept in storage | one flag, `telly.google.granted`. Never the token |
+| Kept in storage | the account identifier, and the token for the life of the tab |
 
-The token **lives in memory for its hour and nowhere else**. It is never written
-to storage, never logged, and never put in a URL. It is asked for again when it
-expires, one minute early (`EXPIRY_MARGIN_MS`) so a request never goes out
-holding a token that dies in flight.
+The token **is held in `sessionStorage` for the life of the tab**, and that is
+what carries a signed-in session across a reload. It is never logged and never
+put in a URL.
+
+It has to be the token that crosses the reload, because nothing else can. The
+one way to obtain a token is `requestAccessToken`, which opens a popup window,
+and a popup wants a user gesture behind it that a page load does not have. The
+silent branch inside GIS is gated on an experiment the shipped script never
+turns on, so `prompt: 'none'` falls through to the popup branch like any other
+prompt and is refused with `popup_failed_to_open`.
+
+The token is let go one minute early (`EXPIRY_MARGIN_MS`) so a request never
+goes out holding a token that dies in flight. At that point the session ends
+and the viewer signs in again with one click.
 
 The **client ID is inlined into the bundle**, which is correct and by design:
 it is a public identifier. The control that actually matters is the OAuth
@@ -115,9 +125,9 @@ about the grant, and a script that never arrived is no answer at all.
 
 | Moment | Method | What GIS is asked for | What `subscribe` is told |
 |---|---|---|---|
-| Page load, grant already made here | `resume()` | `requestAccessToken({ prompt: '' })`, silent | `true` on a token. A refusal says nothing: `#discard` speaks only for a token it dropped, and there is none yet |
+| Page load, this tab held a token | `resume()` | nothing is asked of Google | `true` where the held token has time left, `false` where it does not |
 | The button | `signIn()` | `requestAccessToken({ prompt: 'consent' })`, popup | `true` on a token. A refusal says nothing, and the click's own rejected promise carries it |
-| The hour runs out | `getAccessToken()` | `requestAccessToken({ prompt: '' })`, silent | `true` on a renewal, `false` on a refusal |
+| The hour runs out | `getAccessToken()` | nothing is asked of Google | `false`: the token goes and the sign-in button comes back |
 | The way out | `signOut()` | `oauth2.revoke(token, done)` | `false`, from `#discard` dropping the token |
 
 ### The grant flag

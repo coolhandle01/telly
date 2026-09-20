@@ -71,7 +71,7 @@ const JITTER_SPREAD = 0.5
  * Repeats.
  *
  * A station with seven suppliers and nineteen hours to fill runs out, and what
- * it did about that was show things again: an afternoon repeat of last
+ * it did about that was show things again — an afternoon repeat of last
  * night's documentary was not a failure of the schedule, it was the schedule.
  * So a programme may go out twice in a day, a long way apart, and only once
  * nothing new will fit.
@@ -97,7 +97,7 @@ interface Candidate {
 /**
  * The packer: a pool and the shape of a day in, one broadcast day out.
  *
- * Pure and deterministic: no clock, no `Math.random`, no I/O. The same pool
+ * Pure and deterministic — no clock, no `Math.random`, no I/O. The same pool
  * and the same options give the same schedule every time, which is what lets
  * the tuner treat the day as a fact rather than a decision.
  */
@@ -262,7 +262,7 @@ export function plan(pool: Pool, options: PlanOptions): Schedule {
     fillTo(endSec, daypart.id, nextName)
   }
 
-  // The end of the day is the hardest junction there is, and on the two days
+  // The end of the day is the hardest junction there is — and on the two days
   // a year the clocks move, it is not where the arithmetic says it is.
   if (cursor > daySeconds) truncateTo(daySeconds)
   fillTo(daySeconds, last.id, CONTINUITY_CLOSE)
@@ -329,7 +329,7 @@ function junctionCloseness(endSec: number): number {
 }
 
 /**
- * A deterministic 0..1 draw per (seed, video): mulberry32 over an FNV-1a hash
+ * A deterministic 0..1 draw per (seed, video) — mulberry32 over an FNV-1a hash
  * of the id, so a candidate's jitter never depends on how many draws happened
  * before it. Changing the seed reshuffles the whole day; changing nothing
  * changes nothing.

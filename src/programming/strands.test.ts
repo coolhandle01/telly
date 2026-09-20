@@ -52,7 +52,7 @@ describe('strandsFor', () => {
   })
 
   // Four strands should be four nights, not two on Tuesday and none on
-  // Thursday, which is what hashing a channel id to a weekday gives you.
+  // Thursday — which is what hashing a channel id to a weekday gives you.
   it('deals them round the week rather than hashing them to it', () => {
     const four_ = ['UC1', 'UC2', 'UC3', 'UC4'].map((channelId) => sub({ channelId }))
     const nights = [...strandsFor(one, four_).values()].map((strand) => strand.weekday)

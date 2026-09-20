@@ -36,7 +36,7 @@ export interface Subscription {
 /**
  * How often it turns up.
  *
- * `daily` is a strip: the same thing at the same time every weekday, which is
+ * `daily` is a strip — the same thing at the same time every weekday, which is
  * what a schedule does with a supply it can rely on. `weekly` is a strand: one
  * night, one slot, and it is an event. `occasional` fills in.
  */
@@ -65,7 +65,7 @@ export const SHORT_MAX_SEC = 65
  *
  * These are the slots and not the running times: a half-hour slot has never
  * held thirty minutes of programme, and an hour holds about fifty. So the
- * boundaries sit where a scheduler would put them: a thirty-four minute
+ * boundaries sit where a scheduler would put them — a thirty-four minute
  * programme is a half-hour, and a seventy-minute one has stopped being an hour
  * and become a feature.
  */
@@ -78,7 +78,7 @@ const FORMAT_BOUNDS: readonly (readonly [Format, number])[] = [
 
 /** Above this many days between uploads it is not a strip. */
 const DAILY_MAX_DAYS = 2.5
-/** Above this it is not a weekly strand either: it turns up when it turns up. */
+/** Above this it is not a weekly strand either — it turns up when it turns up. */
 const WEEKLY_MAX_DAYS = 10
 
 /** Uploads a channel needs before its habits are a pattern rather than a coincidence. */

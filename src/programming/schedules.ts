@@ -57,8 +57,8 @@ export function planStation(
       A low floor on purpose.
 
       The packer's own floor exists to stop a classifier that has no opinion
-      filling the evening with noise. This one has opinions (what may go out
-      when is decided outright, before anything is scored) so what is left is
+      filling the evening with noise. This one has opinions — what may go out
+      when is decided outright, before anything is scored — so what is left is
       a preference order, and a station with a thin night would still rather
       repeat its travel programme than show the card for ninety minutes.
     */

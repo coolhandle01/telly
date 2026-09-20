@@ -2,7 +2,7 @@
  * What the picture controls do.
  *
  * Where V and H are oscillators that either lock or do not, these three are
- * continuous adjustments with no right answer the set can find for itself,
+ * continuous adjustments with no right answer the set can find for itself —
  * which is why they were on the front of the cabinet and the hold controls
  * were behind the flap. Mid-travel is "as transmitted", and every other
  * setting is a preference, or a mistake, rather than a fault.
@@ -22,7 +22,7 @@ export { CENTRE }
  */
 export const STATION = 0.07
 
-/** Beam turned right down. Not quite black: a CRT still glows. */
+/** Beam turned right down. Not quite black — a CRT still glows. */
 const MIN_GAIN = 0.12
 /** Beam turned right up: the blacks go this far towards white. */
 const MAX_LIFT = 0.42
@@ -35,7 +35,7 @@ const MAX_SNOW = 0.85
  * How far past the edge of the band the noise swamps the picture entirely.
  *
  * Three times the colour's, so the ordering holds: chroma first, picture much
- * later. And short in absolute terms, because that is how a tuner behaves: a
+ * later. And short in absolute terms, because that is how a tuner behaves — a
  * station holds over a band and then goes, rather than fading away across the
  * rest of the dial. Spread over the whole travel instead, a preset set a fifth
  * of a turn out comes up as a faintly speckled picture, when what it actually
@@ -68,7 +68,7 @@ export interface Picture {
  * How far off station the tuner is: 0 anywhere it holds, 1 at the far stop.
  *
  * `stationAt` is where this preset's carrier actually sits. A preset was tuned
- * once, by hand, by whoever installed the set, and the ones nobody watched
+ * once, by hand, by whoever installed the set — and the ones nobody watched
  * were tuned carelessly, so finding them again means turning the knob.
  */
 export const offStation = (tuning: number, stationAt: number = CENTRE): number =>
@@ -111,7 +111,7 @@ export function picture(
  * Not the same thing as a station transmitting a test card, which is what this
  * used to show: a card means somebody is on the air with nothing to broadcast.
  * An empty preset means there is no carrier at all, and a set given no carrier
- * shows the noise that was always underneath one: full snow, no colour in it,
+ * shows the noise that was always underneath one — full snow, no colour in it,
  * and no adjustment on the front of the cabinet that can bring a picture out.
  */
 export const NO_SIGNAL: Picture = { gain: 1, lift: 0, saturation: 0, snow: 1 }

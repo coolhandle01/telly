@@ -8,7 +8,7 @@ updates:
     open-pull-requests-limit: 5
     # Dependabot infers the commit style from recent history, and this
     # repository's history is narrative, so left alone it writes `Bump x from
-    # 1 to 2`, which the conventional commits check rejects. Naming the
+    # 1 to 2` — which the conventional commits check rejects. Naming the
     # prefixes means its pull requests arrive mergeable instead of needing a
     # title edited by hand every week.
     commit-message:
@@ -24,7 +24,7 @@ updates:
     # `bin` at all. That is an afternoon with the release notes, not a line in
     # a grouped pull request titled "dev-dependencies".
     #
-    # `@types/node`, because it describes the runtime, and which runtime is in
+    # `@types/node`, because it describes the runtime — and which runtime is in
     # `.nvmrc` and `engines`, neither of which Dependabot reads. Types from a
     # newer line than you run typecheck clean and then crash.
     ignore:

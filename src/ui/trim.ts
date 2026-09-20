@@ -2,7 +2,7 @@
  * The arithmetic every trimmer on the set shares.
  *
  * All five run 0..1 with mid-travel as the setting the picture was made for,
- * and three of them (both holds and the tuner) lock over a *band* either
+ * and three of them — both holds and the tuner — lock over a *band* either
  * side of it rather than at a point. That band is not a nicety: a control
  * that only worked at one exact value could not be found by hand, which is
  * the only way anyone ever set one.
@@ -15,7 +15,7 @@ export const clamp01 = (value: number): number => Math.min(1, Math.max(0, value)
 
 /**
  * Binary fractions do not land on round numbers. Without this, a control
- * parked exactly on the edge of its band reports a drift of 1.3e-16, which
+ * parked exactly on the edge of its band reports a drift of 1.3e-16 — which
  * is zero to any eye and to any physical circuit, but is emphatically not
  * zero to `=== 0`, so the set would say it had lost a lock it plainly had.
  */

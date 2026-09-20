@@ -11,7 +11,7 @@ function spec(overrides: Partial<TestCardSpec> = {}): TestCardSpec {
     now: NOW,
     channelName: 'CHANNEL ONE',
     resumesAt: RESUMES,
-    // Named, not inherited from the date. These are geometry tests:whether
+    // Named, not inherited from the date. These are geometry tests — whether
     // the ninth of September draws the electronic card is the rotation's
     // business and is tested where the rotation is. Leaving it to the date
     // made them fail the moment the card started turning over at six rather
@@ -66,7 +66,7 @@ function assertMirrorSymmetric(model: TestCardModel, shapes: Shape[]): void {
   expect(reflected).toEqual(present)
 }
 
-describe('buildTestCard:the card frame', () => {
+describe('buildTestCard — the card frame', () => {
   it('defaults to a 4:3 card and reports its geometric centre', () => {
     const model = buildTestCard(spec())
 
@@ -98,7 +98,7 @@ describe('buildTestCard:the card frame', () => {
   })
 })
 
-describe('buildTestCard:castellations', () => {
+describe('buildTestCard — castellations', () => {
   it('runs the requested number of blocks along each of the four edges', () => {
     const model = buildTestCard(spec({ castellationsAcross: 17, castellationsDown: 13 }))
 
@@ -125,7 +125,7 @@ describe('buildTestCard:castellations', () => {
   })
 })
 
-describe('buildTestCard:colour bars', () => {
+describe('buildTestCard — colour bars', () => {
   it('lays the eight bars in EBU order, brightest to darkest', () => {
     const model = buildTestCard(spec())
     const fills = shapesOfRole(model, 'colour-bar').map((bar) => (bar.kind === 'rect' ? bar.fill : ''))
@@ -157,7 +157,7 @@ describe('buildTestCard:colour bars', () => {
   })
 })
 
-describe('buildTestCard:greyscale step wedge', () => {
+describe('buildTestCard — greyscale step wedge', () => {
   it('steps monotonically from black to white across the requested number of steps', () => {
     const model = buildTestCard(spec({ greyscaleSteps: 6 }))
     const steps = shapesOfRole(model, 'greyscale-step').filter((step) => step.kind === 'rect')
@@ -181,7 +181,7 @@ describe('buildTestCard:greyscale step wedge', () => {
   })
 })
 
-describe('buildTestCard:frequency gratings', () => {
+describe('buildTestCard — frequency gratings', () => {
   it('mirrors the frequency run about the vertical axis, high outside to low inside', () => {
     const model = buildTestCard(spec({ gratingFrequencies: [1.5, 3.5] }))
     const frames = shapesOfRole(model, 'grating-frame')
@@ -210,7 +210,7 @@ describe('buildTestCard:frequency gratings', () => {
   })
 })
 
-describe('buildTestCard:corner resolution wedges', () => {
+describe('buildTestCard — corner resolution wedges', () => {
   it('puts one wedge in each corner of the picture area', () => {
     const model = buildTestCard(spec())
     const frames = shapesOfRole(model, 'resolution-wedge-frame').filter((f) => f.kind === 'rect')
@@ -245,7 +245,7 @@ describe('buildTestCard:corner resolution wedges', () => {
   })
 })
 
-describe('buildTestCard:convergence', () => {
+describe('buildTestCard — convergence', () => {
   it('centres both convergence circles on the card centre', () => {
     const model = buildTestCard(spec({ width: 640, height: 480 }))
     const circles = shapesOfRole(model, 'convergence-circle', 'convergence-inner-circle').filter(
@@ -279,7 +279,7 @@ const textOf = (model: TestCardModel, role: Parameters<typeof shapesOfRole>[1]):
   return shape?.kind === 'text' ? shape.text : ''
 }
 
-describe('buildTestCard:caption box and clock', () => {
+describe('buildTestCard — caption box and clock', () => {
   it('captions the injected channel name', () => {
     expect(textOf(buildTestCard(spec({ channelName: 'CHANNEL TWO' })), 'caption-channel')).toBe(
       'CHANNEL TWO',
@@ -337,7 +337,7 @@ describe('buildTestCard:caption box and clock', () => {
   })
 })
 
-describe('buildTestCard:the interlude variant', () => {
+describe('buildTestCard — the interlude variant', () => {
   const interlude = (): TestCardModel => buildTestCard(spec({ variant: 'interlude' }))
 
   it('drops the test signals a short gap does not need', () => {
@@ -375,7 +375,7 @@ describe('buildTestCard:the interlude variant', () => {
   })
 })
 
-describe('buildTestCard:invariants', () => {
+describe('buildTestCard — invariants', () => {
   it('keeps every shape inside the bounds of the card', () => {
     const model = buildTestCard(spec())
 

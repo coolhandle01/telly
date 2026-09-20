@@ -10,7 +10,7 @@ describe('bandDrift', () => {
     // Regression, and a subtle one: 0.5 + 0.07 is 0.07000000000000006 away
     // from 0.5, so the naive comparison falls straight through the band and
     // reports a drift of 1.3e-16. That is zero to any eye and to any real
-    // circuit, but not to `=== 0`, so a set with its tuner parked exactly on
+    // circuit, but not to `=== 0` — so a set with its tuner parked exactly on
     // the mark would insist it had lost the station.
     for (const band of [0.05, 0.07, 0.09, 0.11, 0.23]) {
       expect(bandDrift(CENTRE + band, band), `+${band}`).toBe(0)

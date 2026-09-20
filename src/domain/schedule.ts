@@ -13,7 +13,7 @@ export interface Programme {
   videoStartSec: number
   /**
    * Shown earlier the same day. A station with a handful of suppliers and
-   * nineteen hours to fill repeats, and says so: the listings printed (R)
+   * nineteen hours to fill repeats, and says so — the listings printed (R)
    * against it, and so does this.
    */
   repeat?: boolean
@@ -32,7 +32,7 @@ export interface Filler {
   variant: 'closedown' | 'interlude' | 'ident'
 }
 
-/** A caption between programmes: now and next, or a continuity announcement. */
+/** A caption between programmes — now and next, or a continuity announcement. */
 export interface Continuity {
   kind: 'continuity'
   message: string
@@ -49,7 +49,7 @@ export interface ScheduleItem {
 }
 
 export interface Schedule {
-  /** The instant this broadcast day began: local 06.00. */
+  /** The instant this broadcast day began — local 06.00. */
   startsAt: Date
   /** Contiguous and gapless, covering exactly one day. */
   items: readonly ScheduleItem[]

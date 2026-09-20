@@ -2,7 +2,7 @@ import type { Channel, Pool, Video } from '../domain'
 
 /**
  * A deterministic stand-in for a real subscription feed, so the scheduler can
- * be tested (and the whole app run) with no network, no credentials and no
+ * be tested — and the whole app run — with no network, no credentials and no
  * quota. Same seed, same pool, forever.
  *
  * Shaped like a subscription list rather than like a test: a few dozen
@@ -44,7 +44,7 @@ interface ChannelSpec {
  * documentary a week and a channel that posts nothing but forty-second clips.
  */
 const CHANNEL_SPECS: readonly ChannelSpec[] = [
-  // News and current affairs: the spine of the daytime schedule.
+  // News and current affairs — the spine of the daytime schedule.
   { id: 'UC-news-1', title: 'Newsdesk Daily', topics: ['Politics', 'Society'], categoryId: '25', lengthMin: [8, 22], uploadsPerWeek: 14 },
   { id: 'UC-news-2', title: 'The World Tonight', topics: ['Politics', 'News'], categoryId: '25', lengthMin: [12, 28], uploadsPerWeek: 7 },
   { id: 'UC-news-3', title: 'Westminster Week', topics: ['Politics'], categoryId: '25', lengthMin: [26, 44], uploadsPerWeek: 1 },
@@ -82,7 +82,7 @@ const CHANNEL_SPECS: readonly ChannelSpec[] = [
   { id: 'UC-gam-2', title: 'Speedrun Hour', topics: ['Video_game_culture', 'Action_game'], categoryId: '20', lengthMin: [50, 95], uploadsPerWeek: 2 },
   { id: 'UC-gam-3', title: 'Cartridge Club', topics: ['Video_game_culture'], categoryId: '20', lengthMin: [13, 24], uploadsPerWeek: 4 },
 
-  // Lifestyle, food, motoring: the afternoon and the tabloid evening.
+  // Lifestyle, food, motoring — the afternoon and the tabloid evening.
   { id: 'UC-life-1', title: 'Front Room Makeover', topics: ['Lifestyle_(sociology)'], categoryId: '26', lengthMin: [18, 32], uploadsPerWeek: 3 },
   { id: 'UC-life-2', title: 'Thirty Day Fit', topics: ['Physical_fitness', 'Health'], categoryId: '26', lengthMin: [12, 25], uploadsPerWeek: 4 },
   { id: 'UC-food-1', title: 'Kitchen Table Cookery', topics: ['Food'], categoryId: '26', lengthMin: [10, 20], uploadsPerWeek: 4 },

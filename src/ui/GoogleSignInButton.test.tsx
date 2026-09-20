@@ -5,7 +5,7 @@ import { GoogleSignInButton } from './GoogleSignInButton'
 /**
  * These are brand-compliance tests as much as UI tests. Each one pins a rule
  * from Google's sign-in branding guidelines that a well-meaning edit would
- * otherwise quietly break, and breaking one costs a rejected verification
+ * otherwise quietly break — and breaking one costs a rejected verification
  * submission weeks later, far from the commit that did it.
  */
 describe('GoogleSignInButton', () => {
@@ -56,7 +56,7 @@ describe('GoogleSignInButton', () => {
       p.getAttribute('fill'),
     )
 
-    // Recolouring the G (to match a cabinet, say) is exactly the kind of
+    // Recolouring the G — to match a cabinet, say — is exactly the kind of
     // sympathetic change brand review rejects.
     expect(fills).toEqual(['#EA4335', '#4285F4', '#FBBC05', '#34A853'])
   })

@@ -411,7 +411,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
   #ready: Promise<void> | undefined
   // The token client is built once but every flight has its own settlers, so
   // the callback has to reach the *current* one rather than close over the
-  // first, otherwise a second sign-in never settles at all.
+  // first — otherwise a second sign-in never settles at all.
   #settle: { resolve: (token: string) => void; reject: (error: Error) => void } | undefined
   readonly #listeners = new Set<(signedIn: boolean) => void>()
 
@@ -590,8 +590,8 @@ export class GoogleTokenProvider implements AccessTokenProvider {
    * Fetch the Google script and build the token client, ahead of any click.
    *
    * This is the whole reason sign-in works at all. A popup must be traceable
-   * to a user gesture, and that gesture does not survive a network round-trip,
-   * so if the script is fetched *inside* the click handler, the browser has
+   * to a user gesture, and that gesture does not survive a network round-trip
+   * — so if the script is fetched *inside* the click handler, the browser has
    * already ended the activating task by the time the popup is asked for and
    * refuses it with `popup_failed_to_open`. Call this on mount; by the time
    * anyone clicks, `signIn` has nothing left to wait for.

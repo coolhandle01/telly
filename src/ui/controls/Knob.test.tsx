@@ -6,7 +6,7 @@ import { Knob } from './Knob'
 
 /**
  * The knob is a controlled input, so every test drives it through a holder
- * that feeds the new value straight back, the same way the set does. Reading
+ * that feeds the new value straight back — the same way the set does. Reading
  * `aria-valuenow` afterwards therefore proves two things at once: the right
  * number came out, and the dial redrew to it.
  */
@@ -261,7 +261,7 @@ describe('Knob', () => {
       const capture = vi.fn()
       const release = vi.fn()
       // jsdom implements no pointer capture at all, so the calls are recorded
-      // rather than obeyed: what matters is that the component makes them.
+      // rather than obeyed — what matters is that the component makes them.
       Object.assign(dial, { setPointerCapture: capture, releasePointerCapture: release })
 
       await drag(user, dial, 100, 70)

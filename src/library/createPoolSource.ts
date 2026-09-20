@@ -15,7 +15,7 @@ import { YouTubePoolSource } from './youTubePoolSource'
  * the channel runs on fixture programmes rather than showing a sign-in wall.
  *
  * `import.meta.env.VITE_*` is inlined into the bundle at build time and is
- * therefore **public**, readable by anyone who views source. Only the OAuth
+ * therefore **public** — readable by anyone who views source. Only the OAuth
  * *client ID* may live here, which is fine: it is a public identifier by
  * design. A client secret or API key must never be given a `VITE_` name; an
  * access token is never configured at all, it is fetched at runtime and kept in

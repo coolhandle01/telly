@@ -42,7 +42,7 @@ function Motif({ motif, number }: { motif: IdentMotif; number: number }) {
       /*
         A wireframe sphere. The limb and the equator hold still and the
         meridians sweep across them, which is what a turning globe looks like
-        from outside it: turning the whole drawing instead would take the
+        from outside it — turning the whole drawing instead would take the
         sphere edge-on twice a revolution and leave nothing on the screen.
       */
       return (

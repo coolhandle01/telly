@@ -207,7 +207,7 @@ describe('ControlPanel', () => {
     it('draws only the controls that work as controls', () => {
     mount()
 
-      // Six drawn presets, five drawn tuning buttons, three lamps, and not
+      // Six drawn presets, five drawn tuning buttons, three lamps — and not
       // one of them a button anybody can reach.
       expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Power'])
       expect(screen.queryByRole('button', { name: '1' })).toBeNull()
@@ -277,7 +277,7 @@ describe('ControlPanel', () => {
         expect(trimmer).not.toHaveAttribute('tabindex')
         expect(trimmer.querySelectorAll('button, input, [role], [tabindex]')).toHaveLength(0)
       }
-      // One slider on the fascia (the volume knob) and no others.
+      // One slider on the fascia — the volume knob — and no others.
       expect(screen.getAllByRole('slider')).toHaveLength(1)
       expect(screen.queryByRole('button', { name: 'V' })).toBeNull()
     })
@@ -362,7 +362,7 @@ describe('ControlPanel', () => {
     const { user } = mount()
 
     // Down the fascia as it is laid out: presets at the top, then power, then
-    // the knob. A radio group is a single tab stop: focus lands on the one
+    // the knob. A radio group is a single tab stop — focus lands on the one
     // that is in, and the arrow keys move within it.
     await user.tab()
     expect(screen.getByRole('radio', { name: '1' })).toHaveFocus()

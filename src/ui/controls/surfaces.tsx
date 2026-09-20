@@ -20,8 +20,8 @@ export type WoodTone = keyof typeof TONES
 
 /*
   The brightest band sits left of centre, not in the middle: the light in this
-  room comes from the upper left, and every highlight on the set (knob, keys,
-  bezel, legs) is lit from the same place. Nothing gives a render away faster
+  room comes from the upper left, and every highlight on the set — knob, keys,
+  bezel, legs — is lit from the same place. Nothing gives a render away faster
   than two surfaces lit from two directions.
 */
 const STOP_AT = [0, 0.18, 0.38, 0.72, 1]
@@ -60,7 +60,7 @@ export interface WoodSurfaceProps {
  * along one axis for the grain, a slower turbulence under it for the figure,
  * and a fine one over the top for the pores. It fills whatever box it is
  * given, and because it carries no `viewBox` the grain stays the same size in
- * pixels however big that box is: veneer does not scale with the cabinet.
+ * pixels however big that box is — veneer does not scale with the cabinet.
  */
 export function WoodSurface({ className, grain, shade, seed, tone = 'face' }: WoodSurfaceProps) {
   const { id, url } = useSurfaceIds()
@@ -177,8 +177,8 @@ export function WoodSurface({ className, grain, shade, seed, tone = 'face' }: Wo
 /**
  * Linishing frequencies, in CSS pixels. The belt leaves a far finer and far
  * straighter mark than a saw leaves in timber: a striation every pixel or so,
- * running unbroken for several hundred. That ratio (roughly 200:1, against
- * the veneer's 16:1) is most of what separates satin metal from brushed wood
+ * running unbroken for several hundred. That ratio — roughly 200:1, against
+ * the veneer's 16:1 — is most of what separates satin metal from brushed wood
  * at a glance.
  */
 const LINISH_ALONG = 0.0045
@@ -189,7 +189,7 @@ const BELT_ACROSS = 0.05
 
 /**
  * Aluminium, as a fascia plate photographs under room light: a narrow spread
- * of warm greys. Chrome is the temptation here and it is always wrong:
+ * of warm greys. Chrome is the temptation here and it is always wrong —
  * chrome is a mirror, so it reflects the room and runs near-white to
  * near-black; linished aluminium scatters, so it never leaves the middle.
  */
@@ -210,7 +210,7 @@ export interface MetalSurfaceProps {
  * A linished silver plate, drawn the same way the veneer is: turbulence
  * stretched hard along one axis, over a shallow gradient for the sheen. It
  * carries no `viewBox`, so the striations stay the same size in pixels
- * whatever the plate is asked to fill: linishing does not scale with the
+ * whatever the plate is asked to fill — linishing does not scale with the
  * panel any more than veneer does.
  */
 export function MetalSurface({ className, grain, shade, seed }: MetalSurfaceProps) {

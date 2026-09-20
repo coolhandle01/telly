@@ -242,7 +242,7 @@ describe('plan, when nothing is eligible', () => {
 
 /*
   A station with a handful of suppliers and nineteen hours to fill runs out,
-  and what it did about that was show things again: the afternoon repeat of
+  and what it did about that was show things again — the afternoon repeat of
   last night's documentary was the schedule, not a failure of it.
 */
 describe('plan, repeats', () => {
@@ -307,7 +307,7 @@ describe('plan, repeats', () => {
   })
 
   // Two uploads of one channel with one name are one programme, whatever
-  // their ids say, which is how the same clip came round twice in an hour.
+  // their ids say — which is how the same clip came round twice in an hour.
   it('treats two uploads of a channel with the same name as one programme', () => {
     const videos = [
       { ...video({ id: 'a', durationSec }), title: 'The Same Thing' },

@@ -1,7 +1,7 @@
 import type { Channel, DaypartId, Pool, Video } from '../domain'
 
 /**
- * How well a video suits each daypart, 0..1. Absent means "not here": the map
+ * How well a video suits each daypart, 0..1. Absent means "not here" — the map
  * is deliberately partial so a caller cannot mistake a missing judgement for a
  * confident zero.
  */
@@ -28,7 +28,7 @@ export const NEWS_DAYPARTS: readonly DaypartId[] = ['lunchtime-news', 'early-eve
  */
 export function isEligible(video: Video): boolean {
   // A duration of zero is not a short, it is a video that has no duration to
-  // schedule against, most often a live stream that has finished and whose
+  // schedule against — most often a live stream that has finished and whose
   // recording YouTube has not published yet. Play one of those and the viewer
   // gets YouTube's own "this live event has ended" card, inside the iframe,
   // with no error event to tell us about it.
@@ -109,7 +109,7 @@ function median(values: readonly number[]): number {
 
 /**
  * Heuristics only, cheapest signal first: duration, then category, then title
- * keywords, then what the channel habitually does. Pure: the pool is read once
+ * keywords, then what the channel habitually does. Pure — the pool is read once
  * at construction and never again.
  */
 export class HeuristicClassifier implements Classifier {
@@ -139,7 +139,7 @@ export class HeuristicClassifier implements Classifier {
       // Duration is the hard signal. A keyword or a channel habit can lift a
       // programme up the running order; neither can put a thirty-second short
       // in the two-hour late-night slot because the word "live" is in its
-      // title, which is exactly what used to happen, and what a short doing
+      // title — which is exactly what used to happen, and what a short doing
       // an impression of a film looks like from the sofa.
       const fit = bandFit(video.durationSec, band)
       if (fit === 0) continue
@@ -182,7 +182,7 @@ function observeHabits(pool: Pool): ReadonlyMap<string, number> {
 
 /**
  * The escape hatch that makes heuristics liveable. A pinned channel goes where
- * it is pinned and nowhere else: total, by construction, so misfiling is
+ * it is pinned and nowhere else — total, by construction, so misfiling is
  * always one line of config away from being fixed for good.
  *
  * Eligibility still wins: pinning cannot schedule a live or unembeddable video,

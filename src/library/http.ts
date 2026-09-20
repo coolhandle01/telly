@@ -1,7 +1,7 @@
 /**
  * The transport seam. Everything that talks to YouTube takes one of these, so a
  * test can hand it canned payloads and no test can ever reach a real network.
- * The real `globalThis.fetch` satisfies it as-is: nothing here is a wrapper you
+ * The real `globalThis.fetch` satisfies it as-is — nothing here is a wrapper you
  * have to remember to use.
  */
 export interface HttpResponseLike {

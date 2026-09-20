@@ -134,7 +134,7 @@ function assertSymmetric(shapes: Shape[], reflect: (shape: Shape) => Shape): voi
   expect(reflected).toEqual(present)
 }
 
-describe('crosshatchGrid:the arithmetic of the grid', () => {
+describe('crosshatchGrid — the arithmetic of the grid', () => {
   it('squares a square picture exactly', () => {
     const grid = crosshatchGrid(picture(600, 600), 12)
 
@@ -164,7 +164,7 @@ describe('crosshatchGrid:the arithmetic of the grid', () => {
     })
   })
 
-  it('keeps a cell square to within half a cell:all the rounding can cost', () => {
+  it('keeps a cell square to within half a cell — all the rounding can cost', () => {
     const aspects: Array<[number, number]> = [
       [1000, 744],
       [1024, 768],
@@ -203,7 +203,7 @@ describe('crosshatchGrid:the arithmetic of the grid', () => {
   })
 })
 
-describe('buildCrosshatchCard:the card frame', () => {
+describe('buildCrosshatchCard — the card frame', () => {
   it('defaults to a 4:3 card and reports its geometric centre', () => {
     const model = card()
 
@@ -239,7 +239,7 @@ describe('buildCrosshatchCard:the card frame', () => {
     expect(shape).toMatchObject({ ...model.picture, fill: '#000000' })
   })
 
-  it('wears no castellations, no bars and no wedges:the grid is the card', () => {
+  it('wears no castellations, no bars and no wedges — the grid is the card', () => {
     const model = card()
 
     expect(
@@ -257,7 +257,7 @@ describe('buildCrosshatchCard:the card frame', () => {
   })
 })
 
-describe('buildCrosshatchCard:the grid', () => {
+describe('buildCrosshatchCard — the grid', () => {
   it('draws one more line than there are cells, in each direction', () => {
     const model = card()
     const grid = crosshatchGrid(model.picture, CROSSHATCH_COLUMNS)
@@ -322,7 +322,7 @@ describe('buildCrosshatchCard:the grid', () => {
   })
 })
 
-describe('buildCrosshatchCard:the intersection dots', () => {
+describe('buildCrosshatchCard — the intersection dots', () => {
   it('puts a dot on every crossing of two lines, and nowhere else', () => {
     const model = card()
     const inner = <T,>(values: T[]): T[] => values.slice(1, -1)
@@ -349,7 +349,7 @@ describe('buildCrosshatchCard:the intersection dots', () => {
   })
 })
 
-describe('buildCrosshatchCard:the geometry circle', () => {
+describe('buildCrosshatchCard — the geometry circle', () => {
   it('centres one circle on the centre of the card', () => {
     const model = card({ width: 800, height: 600 })
     const [circle, ...rest] = circlesOf(model, 'convergence-circle')
@@ -379,7 +379,7 @@ describe('buildCrosshatchCard:the geometry circle', () => {
   })
 })
 
-describe('buildCrosshatchCard:regularity', () => {
+describe('buildCrosshatchCard — regularity', () => {
   it('mirrors the grid, the dots and the circle about the vertical axis', () => {
     const model = card()
     const reflect = (shape: Shape): Shape => mirrorX(shape, model.width)
@@ -389,7 +389,7 @@ describe('buildCrosshatchCard:regularity', () => {
     assertSymmetric(circlesOf(model, 'convergence-circle'), reflect)
   })
 
-  it('mirrors them about the horizontal axis too:a stretched picture shows up', () => {
+  it('mirrors them about the horizontal axis too — a stretched picture shows up', () => {
     const model = card()
     const reflect = (shape: Shape): Shape => mirrorY(shape, model.height)
 
@@ -399,7 +399,7 @@ describe('buildCrosshatchCard:regularity', () => {
   })
 })
 
-describe('buildCrosshatchCard:caption box and clock', () => {
+describe('buildCrosshatchCard — caption box and clock', () => {
   it('captions the injected channel, date and resume time, not the ambient ones', () => {
     const model = card()
 
@@ -455,7 +455,7 @@ describe('buildCrosshatchCard:caption box and clock', () => {
   })
 })
 
-describe('buildCrosshatchCard:the interlude variant', () => {
+describe('buildCrosshatchCard — the interlude variant', () => {
   const interlude = (): TestCardModel => card({ variant: 'interlude' })
 
   it('halves the grid: the same card, at half the density', () => {
@@ -510,7 +510,7 @@ describe('buildCrosshatchCard:the interlude variant', () => {
   })
 })
 
-describe('buildCrosshatchCard:invariants', () => {
+describe('buildCrosshatchCard — invariants', () => {
   it('keeps every shape inside the bounds of the card', () => {
     const model = card()
 

@@ -23,7 +23,7 @@ body {
   overflow: clip;
   display: grid;
   /* The set takes the space above; anything that is not the television sits
-     under it. Stretching rather than centring the columns matters: the
+     under it. Stretching rather than centring the columns matters — the
      cabinet sizes itself from its own max-width, and `justify-items: center`
      would shrink it to its content instead. */
   grid-template-rows: 1fr auto;
@@ -39,7 +39,7 @@ body {
   wrong shape for a rule like this: it is right until the next child is added,
   and then it is silently wrong. Both corners are out of the flow, and
   `width: 100%` on one of them stretches an invisible box across the whole page
-  that swallows every click underneath it, which is how the second corner
+  that swallows every click underneath it — which is how the second corner
   broke the first one's buttons the moment it was added.
 
   `safe` on the centring matters too: on a short window the set is taller than
@@ -77,7 +77,7 @@ body {
 
 /*
   The corner of the room: signing in, and the paper. Out of the flow, so the
-  set keeps every pixel of height it can get: an ordinary row under the
+  set keeps every pixel of height it can get — an ordinary row under the
   cabinet cost about fifty of them, and fifty pixels of cabinet is a bigger
   picture.
 */
@@ -163,7 +163,7 @@ body {
   from the page itself.
 
   Positioned on purpose. `.set__stage` is `position: relative`, and a
-  positioned sibling paints above the in-flow content of a later one, so the
+  positioned sibling paints above the in-flow content of a later one — so the
   room's floor, which bleeds a viewport downward out of the stage, was painting
   straight over this row. The element was there, the right size, in the right
   place, topmost to hit-testing, and completely invisible.
@@ -230,11 +230,11 @@ body {
 
 .testcard {
   display: block;
-  /* Fills whatever it is given: the cabinet well decides the size, not the
+  /* Fills whatever it is given — the cabinet well decides the size, not the
      viewport. preserveAspectRatio keeps the card square-on and centres it, so
      any leftover is black around the picture, exactly as a real set. */
   /* Absolute so the percentages resolve against the screen box rather than
-     wandering up to the viewport: a plain height:100% here overflowed and
+     wandering up to the viewport — a plain height:100% here overflowed and
      the card lost its caption off the bottom. */
   position: absolute;
   inset: 0;
@@ -258,7 +258,7 @@ body {
 
 /*
   Frame and line. Both are the same fault at two speeds: an oscillator running
-  at the wrong rate, so the picture starts each frame (or each line) a little
+  at the wrong rate, so the picture starts each frame — or each line — a little
   before or after it should, and walks.
 */
 .screen__raster,
@@ -285,7 +285,7 @@ body {
 }
 /*
   The lit edge goes *next to* the picture, not at the far end of the bar. It is
-  the boundary of the frame that has just left, so it has to travel with it:
+  the boundary of the frame that has just left, so it has to travel with it —
   put the banding at the outer end and it spends the whole roll off-screen,
   which is a black gap rather than a rolling picture.
 */
@@ -315,7 +315,7 @@ body {
 }
 
 /*
-  Tearing. Each line starts at the wrong moment, so the picture shears, and
+  Tearing. Each line starts at the wrong moment, so the picture shears — and
   because the error accumulates, it also slips sideways. Skew plus slip is the
   cheap approximation of a diagonal tear, and it reads correctly at speed.
 */
@@ -334,8 +334,8 @@ body {
 
 /*
   A rolling picture is genuinely nauseating, and a viewer who has asked for
-  less movement has asked not to be given one. The fault is still *shown*
-  (offset picture, blanking bar across the screen, shear held at its angle);
+  less movement has asked not to be given one. The fault is still *shown* —
+  offset picture, blanking bar across the screen, shear held at its angle —
   it simply stands still, which is a set caught mid-roll rather than one that
   is holding.
 */
@@ -378,7 +378,7 @@ body {
 }
 
 /*
-  Snow. Baked from feTurbulence into a data URI, the same generator the
+  Snow. Baked from feTurbulence into a data URI — the same generator the
   cabinet's grain uses, resolved once rather than run every frame, because a
   full-screen turbulence filter animating at 20fps is a fan coming on.
   Jumped between positions on a stepped animation, which is what makes a
@@ -394,7 +394,7 @@ body {
   /*
     Composited normally, not screened. A screen blend can only lighten, so
     snow laid that way greys the picture up uniformly and leaves it perfectly
-    readable underneath, a veil rather than static. Straight alpha lets the
+    readable underneath — a veil rather than static. Straight alpha lets the
     dark speckles through too, and at the far end of the tuner the noise
     genuinely swamps the signal, which is the point of coming off station.
   */
@@ -416,7 +416,7 @@ body {
 
 /*
   Snow is flicker, and flicker is the thing reduced motion exists to stop. The
-  fault is still shown (the noise lies over the picture); it simply does not
+  fault is still shown — the noise lies over the picture — it simply does not
   jump.
 */
 @media (prefers-reduced-motion: reduce) {
@@ -458,9 +458,9 @@ body {
 }
 
 /*
-  Switching off: the scan collapses vertically first (the picture squeezes to
+  Switching off: the scan collapses vertically first — the picture squeezes to
   a bright horizontal line, because the vertical deflection fails before the
-  horizontal does), then that line shortens to a point. Brightness rises as it
+  horizontal does — then that line shortens to a point. Brightness rises as it
   goes, since the same beam current is landing on a shrinking area.
 */
 [data-phase='collapsing'] .screen__tube {

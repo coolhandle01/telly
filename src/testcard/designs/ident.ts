@@ -19,7 +19,7 @@ import type { CircleShape, LineShape, RectShape, Shape, TestCardModel, TestCardS
  * plate straight across the middle.
  *
  * The least technical card of the set. Nobody lined a set up against this one
- * (it went out between programmes to look smart) so it carries no line-up
+ * — it went out between programmes to look smart — so it carries no line-up
  * signals at all, only the marks that say *which* channel you are watching,
  * inside the same castellated border as the rest of the rotation.
  *
@@ -146,7 +146,7 @@ function rings(centre: { x: number; y: number }, radius: number): CircleShape[] 
 /**
  * The star: equally spaced segments pointing out of the wheel. The right-hand
  * half is computed and the left-hand half is its exact reflection, so the
- * star's symmetry (colours included) is a property of the construction
+ * star's symmetry — colours included — is a property of the construction
  * rather than of two hand-written halves that can drift apart.
  */
 function star(centre: { x: number; y: number }, radius: number): LineShape[] {
@@ -183,7 +183,7 @@ function star(centre: { x: number; y: number }, radius: number): LineShape[] {
 /**
  * The name, set as large as its plate will take, straight across the middle of
  * the wheel. A long channel name shrinks to fit rather than running off the
- * plate, the same bargain the caption box strikes.
+ * plate — the same bargain the caption box strikes.
  */
 function nameplate(
   picture: Picture,

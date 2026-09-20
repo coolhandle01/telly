@@ -9,8 +9,8 @@ import { createFakeSound } from './test/fakeAudio'
 
 describe('App', () => {
   it('runs on the fixture pool in development, with no fuss about it', () => {
-    // A fresh clone has no `.env.local` (it is deliberately not in the
-    // repository) so there is nothing to sign in to and no button. In a dev
+    // A fresh clone has no `.env.local` — it is deliberately not in the
+    // repository — so there is nothing to sign in to and no button. In a dev
     // build that is not a fault, it is the documented way to work on the set
     // without credentials, and the viewer should see television.
     render(<App />)

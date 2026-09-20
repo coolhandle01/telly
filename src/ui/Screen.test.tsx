@@ -4,13 +4,13 @@ import { Screen } from './Screen'
 import { LOCK, deflection } from './deflection'
 import { CENTRE, picture } from './picture'
 
-const glass = () => screen.getByRole('region', { name: 'CHANNEL ONE, television' })
+const glass = () => screen.getByRole('region', { name: 'CHANNEL ONE — television' })
 const raster = () => glass().querySelector('.screen__raster') as HTMLElement
 const line = () => glass().querySelector('.screen__line') as HTMLElement
 
 const mount = (vertical = LOCK, horizontal = LOCK) =>
   render(
-    <Screen label="CHANNEL ONE, television" deflection={deflection(vertical, horizontal)}>
+    <Screen label="CHANNEL ONE — television" deflection={deflection(vertical, horizontal)}>
       <p>on air</p>
     </Screen>,
   )
@@ -32,7 +32,7 @@ describe('Screen', () => {
   it('holds it still with no deflection given at all', () => {
     // The common case: nothing in the app has an opinion about the
     // oscillators, and a set with no opinion holds.
-    render(<Screen label="CHANNEL ONE, television">{null}</Screen>)
+    render(<Screen label="CHANNEL ONE — television">{null}</Screen>)
 
     expect(glass()).toHaveAttribute('data-hold', 'locked')
   })
@@ -47,7 +47,7 @@ describe('Screen', () => {
   it('rolls faster the further the trimmer is turned out', () => {
     const period = (vertical: number) => {
       const view = render(
-        <Screen label="CHANNEL ONE, television" deflection={deflection(vertical, LOCK)}>
+        <Screen label="CHANNEL ONE — television" deflection={deflection(vertical, LOCK)}>
           <p>on air</p>
         </Screen>,
       )
@@ -65,7 +65,7 @@ describe('Screen', () => {
   it('carries the direction the oscillator is out in', () => {
     const direction = (vertical: number) => {
       const view = render(
-        <Screen label="CHANNEL ONE, television" deflection={deflection(vertical, LOCK)}>
+        <Screen label="CHANNEL ONE — television" deflection={deflection(vertical, LOCK)}>
           <p>on air</p>
         </Screen>,
       )
@@ -90,8 +90,8 @@ describe('Screen', () => {
   })
 
   it('keeps the two faults on separate layers', () => {
-    // One element cannot be collapsing, rolling and tearing at once (they are
-    // three transforms) so losing both locks must not cost either effect.
+    // One element cannot be collapsing, rolling and tearing at once — they are
+    // three transforms — so losing both locks must not cost either effect.
     mount(1, 1)
 
     expect(raster()).toHaveAttribute('data-rolling', 'true')
@@ -101,7 +101,7 @@ describe('Screen', () => {
   describe('the picture controls', () => {
     const shown = (brightness = CENTRE, colour = CENTRE, tuning = CENTRE) => {
       const view = render(
-        <Screen label="CHANNEL ONE, television" picture={picture(brightness, colour, tuning)}>
+        <Screen label="CHANNEL ONE — television" picture={picture(brightness, colour, tuning)}>
           <p>on air</p>
         </Screen>,
       )

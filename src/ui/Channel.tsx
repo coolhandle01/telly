@@ -39,7 +39,7 @@ export interface ChannelProps {
   /** The element the player draws into. Omit and the picture is a blank frame. */
   playerHost?: HTMLElement
   sound?: Sound
-  /** Must be stable across renders: it feeds a memo that must not churn. */
+  /** Must be stable across renders — it feeds a memo that must not churn. */
   planOptions?: Partial<PlanOptions>
   /**
    * The viewer's Google session. Present only when a client ID is configured;
@@ -56,7 +56,7 @@ export interface ChannelProps {
    * When one is handed over the screen shows the fault card and nothing else:
    * this is the station announcing it cannot provide a service, and it is not
    * a programme, so it does not take its turn between them. The viewer cannot
-   * act on it and is not asked to: it exists to tell whoever deployed this
+   * act on it and is not asked to — it exists to tell whoever deployed this
    * that they have deployed it wrong.
    */
   fault?: { code: string; detail: readonly string[] }
@@ -85,7 +85,7 @@ const PRESET_WORDS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX']
  * Behind a running picture: what the bars are made of.
  *
  * Not pure black. An unlit CRT phosphor is a very dark grey, and the glass in
- * front of it still catches the room, so a letterbox bar on a real set shows
+ * front of it still catches the room — so a letterbox bar on a real set shows
  * the sheen and the shadow mask rather than reading as a hole cut in the
  * screen. Pure black gives the glass nothing to act on: every layer of it
  * darkens, and you cannot darken black.
@@ -262,7 +262,7 @@ export function Channel({
   )
 
   // The pool is fetched once the set is switched on, or once someone picks up
-  // the paper, never at import time, so the app costs nothing until someone
+  // the paper — never at import time, so the app costs nothing until someone
   // actually wants television. The listings matter with the set *off*: that is
   // when you look at them, to decide whether to switch it on.
   useEffect(() => {
@@ -278,7 +278,7 @@ export function Channel({
 
           Planning five broadcast days is a couple of hundred milliseconds of
           arithmetic in a render, and a source that resolves without touching
-          the network resolves in a microtask, so without this the click that
+          the network resolves in a microtask — so without this the click that
           opened the listings, the pool arriving, and all five days being
           planned land in one task, and the browser paints none of it until the
           end. The page is there the whole time and nobody can see it.
@@ -292,7 +292,7 @@ export function Channel({
           )
         })
       })
-      // No pool is not a crash: the card is the honest screen for having
+      // No pool is not a crash — the card is the honest screen for having
       // nothing to broadcast. But it must not be the *silent* screen: an
       // unexplained card is indistinguishable from a broken app. What is said
       // is the station's own words; the Error carries the endpoint, the status
@@ -444,7 +444,7 @@ export function Channel({
   // An empty preset is snow, and it is snow whatever the picture controls are
   // set to: there is no carrier for them to work on. A fault card is the set
   // talking to whoever deployed it, so it is not buried under noise. And a set
-  // that is off shows nothing at all, not even the tuner's own snow, which is
+  // that is off shows nothing at all — not even the tuner's own snow, which is
   // made by a beam that is no longer lit.
   const noSignal = !fault && !carrier
   const shown = !lit
@@ -462,7 +462,7 @@ export function Channel({
     <main className="set">
       {/*
         Everything that is not the television, in the corner of the room where
-        it belongs: the set had no button for signing in to anything and no
+        it belongs — the set had no button for signing in to anything and no
         on-screen guide, so neither of these is on it. Out of the flow
         entirely, which is the point: they cost the set no height at all, and
         the set is the thing you came for.
@@ -513,7 +513,7 @@ export function Channel({
         Gone while the paper is up, which the corner opposite is not. The
         listings put their own close button in this exact spot, and two
         controls stacked on top of each other reads as a mistake even when the
-        one behind is dimmed by the scrim; everything else back there merely
+        one behind is dimmed by the scrim — everything else back there merely
         looks like the page you came from.
       */}
       {sourceUrl && !showGuide ? (
@@ -572,14 +572,14 @@ export function Channel({
       }
     >
       <Screen
-        label={`${onScreenName}, television`}
+        label={`${onScreenName} — television`}
         phase={phase}
         deflection={deflection(trim.vertical, trim.horizontal)}
         picture={shown}
         overlay={
           /*
-            Both displays can be up at once (a set that had two generators did
-            not make them take turns) and neither belongs to the signal, so
+            Both displays can be up at once — a set that had two generators did
+            not make them take turns — and neither belongs to the signal, so
             they read over snow as well as over a picture.
           */
           lit ? (
@@ -613,7 +613,7 @@ export function Channel({
         ) : noSignal ? (
           /*
             Nothing. The snow over this is the whole of what an empty preset
-            shows: there is no station behind it to put a card up.
+            shows — there is no station behind it to put a card up.
           */
           null
         ) : !onAir ? (
@@ -633,13 +633,13 @@ export function Channel({
               The card is the default state of the channel, not its error
               state: it sits underneath every programme and the picture is
               revealed over it only once the player reports one. A programme
-              that fails in a way nobody predicted (no error event, a silent
-              iframe, a blocked script) therefore leaves a card up rather
+              that fails in a way nobody predicted — no error event, a silent
+              iframe, a blocked script — therefore leaves a card up rather
               than a blank screen, because nothing had to go right for the
               card to be there.
             */}
             {hasPicture ? (
-              // Once there is a picture, what sits behind it is black, so a
+              // Once there is a picture, what sits behind it is black — so a
               // 16:9 programme in a 4:3 set gets proper black bars rather than
               // a test card peering out round the edges.
               <div style={blackStyle} aria-hidden="true" />

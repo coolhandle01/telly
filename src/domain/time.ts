@@ -40,7 +40,7 @@ export function broadcastDayStart(now: Date): Date {
  * Usually `SECONDS_PER_DAY`, and twice a year not. The UK clocks go forward at
  * 01.00 on a Sunday in March and back at 02.00 on a Sunday in October, and
  * both of those fall *inside* a broadcast day that began at 06.00 the previous
- * morning, so that day is 23 hours long in spring and 25 in autumn.
+ * morning — so that day is 23 hours long in spring and 25 in autumn.
  *
  * Assuming 86,400 either way is the classic version of this bug: in March the
  * schedule's last hour never plays, and in October the set runs an hour past

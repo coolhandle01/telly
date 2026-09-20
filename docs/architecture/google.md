@@ -80,7 +80,7 @@ flowchart TB
 
 A **404 playlist is skipped, not fatal.** Any subscription list that has been
 around a while contains channels that have been deleted or gone private, and
-that should cost you those channels, not the other two hundred. This was a real
+that should cost you those channels — not the other two hundred. This was a real
 bug: one dead playlist took the whole load down.
 
 A **401, 403 or 429** is about our credentials or our allowance, so it will fail
@@ -104,8 +104,8 @@ here: the endpoint, the status and Google's own wording stay in the `Error`. See
 
 ## Caching
 
-`CachedPoolSource` persists to IndexedDB with a **day-long TTL** (the same
-life as a broadcast day) and degrades to calling straight through when there is
+`CachedPoolSource` persists to IndexedDB with a **day-long TTL** — the same
+life as a broadcast day — and degrades to calling straight through when there is
 no usable store, so a private window still gets television.
 
 What is stored is subscription metadata: titles, durations, IDs. No token ever
@@ -139,28 +139,28 @@ itself, and the constraints are not the ones you would guess.
 personalised "Sign in as …" / "Continue as …" forms. Localisation is the only
 permitted deviation.
 
-A wording like "Use my subscriptions" is more honest about what happens (telly
+A wording like "Use my subscriptions" is more honest about what happens — telly
 does not authenticate anyone, it asks an already-signed-in user to authorise a
-read scope) but it is not on the list. Whether the closed set binds an
+read scope — but it is not on the list. Whether the closed set binds an
 authorisation-only button is genuinely unclear. Assume it does: brand review
 looks at the UI that triggers consent, and a rejection on wording costs a
 multi-week round trip.
 
 **None of the app's self-imposed constraints are a problem.** Google ships the
 four-colour G as **inline SVG**, not an image file, and its own CSS declares
-`font-family: 'Google Sans', arial, sans-serif`, so a build with no image
+`font-family: 'Google Sans', arial, sans-serif` — so a build with no image
 assets and no web fonts is Google's own published behaviour, not a compromise
 against it. What fails review is wording, logo treatment and prominence.
 
 `src/ui/GoogleSignInButton.tsx` therefore draws the mark by hand, and its tests
-are compliance tests rather than UI tests; each pins a rule a sympathetic edit
+are compliance tests rather than UI tests — each pins a rule a sympathetic edit
 would quietly break, far from the submission it would fail:
 
 - permitted wording as the accessible name;
 - the mark `aria-hidden`, so the label alone names the button;
 - `viewBox="0 0 48 48"` with equal width and height, which makes distorting the
   logo structurally impossible rather than merely discouraged;
-- the four brand colours pinned exactly: recolouring the G to match a teak
+- the four brand colours pinned exactly — recolouring the G to match a teak
   cabinet is precisely the sympathetic change brand review rejects.
 
 Two further rules apply if the theme ever changes: on `filled_blue` and
@@ -182,8 +182,8 @@ while a page-load resume is still in flight ([tokens.md](tokens.md)).
 ## Verification
 
 `youtube.readonly` is a **sensitive** scope, not a **restricted** one, so the
-third-party security assessment (CASA), which is triggered only by restricted
-scopes, does not apply. For a television on one person's sofa, staying in
+third-party security assessment (CASA) — which is triggered only by restricted
+scopes — does not apply. For a television on one person's sofa, staying in
 Testing costs one extra sign-in a week, which is cheaper than verification.
 
 If that ever stops being true: the homepage and privacy policy must live on a
@@ -197,5 +197,5 @@ One trap worth recording because it fails **silently**: never set
 `window.opener` in the consent popup, the callback never arrives, and sign-in
 hangs with no console error. `same-origin-allow-popups` is the value that works;
 doing nothing at all is also safe, since the default is `unsafe-none`. Never set
-`Cross-Origin-Embedder-Policy: require-corp` either; cross-origin isolation
+`Cross-Origin-Embedder-Policy: require-corp` either — cross-origin isolation
 blocks `accounts.google.com/gsi/client` outright.

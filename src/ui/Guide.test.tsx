@@ -132,7 +132,7 @@ describe('Guide', () => {
 
   /*
     The listings are worked out from a pool that has to be fetched, so there is
-    a moment (and on a slow connection a long one) where there is nothing to
+    a moment — and on a slow connection a long one — where there is nothing to
     print. A page that renders nothing at all in that moment is indistinguishable
     from a button that does not work.
   */

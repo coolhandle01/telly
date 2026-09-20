@@ -3,7 +3,7 @@ import { IndexedDbPoolStore, openPoolStore } from './indexedDbPoolStore'
 import type { StoredPool } from './poolStore'
 
 /**
- * jsdom has no IndexedDB at all, so the transport is faked here: just enough
+ * jsdom has no IndexedDB at all, so the transport is faked here — just enough
  * of the real shape (upgrade, transactions, request callbacks fired later) to
  * exercise our own wrapper. The store under test is never stubbed.
  */

@@ -28,7 +28,7 @@ describe('Cabinet', () => {
 
   it('stands on the two legs you could actually see', () => {
     // The set is drawn as a flat elevation. Head-on, the back pair stand
-    // directly behind the front pair: four in a row at the same size is a
+    // directly behind the front pair — four in a row at the same size is a
     // child's drawing of a horse.
     const { container } = render(<Cabinet controls={fascia}>{screenish}</Cabinet>)
 

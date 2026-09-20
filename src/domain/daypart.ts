@@ -30,7 +30,7 @@ export interface Daypart {
   endMin: number
   /**
    * A junction starts on time, always. A programme that would run into one is
-   * cut short instead: "we're going over to the news now". Everything else
+   * cut short instead — "we're going over to the news now". Everything else
    * may overrun and push the schedule along.
    */
   junction: boolean

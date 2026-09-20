@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react'
  * A CRT does not switch instantly in either direction. Switched off, the
  * deflection circuits die faster than the beam does: the raster collapses to a
  * line, then to a spot, which lingers on stored EHT and fading phosphor.
- * Switched on, the reverse: the line blooms outward as the scan comes up.
+ * Switched on, the reverse — the line blooms outward as the scan comes up.
  *
  * So the set has four states, not two, and the picture must stay mounted
  * through the collapse or there would be nothing left to collapse.

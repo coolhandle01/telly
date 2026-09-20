@@ -1,4 +1,4 @@
-# telly: a television channel built from your own YouTube subscriptions.
+# telly — a television channel built from your own YouTube subscriptions.
 # https://github.com/coolhandle01/telly
 
 User-agent: *

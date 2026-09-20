@@ -1,10 +1,10 @@
 # The cabinet
 
 A Philips-style teak console colour set, roughly 1975. Drawn entirely in SVG
-filters: no image assets, no photographs, no sprites.
+filters — no image assets, no photographs, no sprites.
 
 > **Provenance.** Most of this was reasoned from written descriptions and
-> search summaries: the egress proxy blocks vintage-set reference sites, so
+> search summaries — the egress proxy blocks vintage-set reference sites, so
 > very little of it started from a photograph. A real reference beats every
 > inference below, and has already won once: see the mains switch.
 >
@@ -37,7 +37,7 @@ edge-grain where the veneer turns the corner. Both are `inset` box-shadows on
 **Contact shadow, then ambient.** A single wide shadow reads as a sticker. The
 set gets a tight dark one where it meets the floor and a soft wide one beyond.
 
-**Furniture is read at its joints**, and a joint has four parts, all lit from
+**Furniture is read at its joints**, and a joint has four parts — all lit from
 the upper left, like everything else on the set:
 
 1. the cut edge itself, hard and dark where the two faces meet;
@@ -63,7 +63,7 @@ whole rule, and it applies at every joint rather than only at the obvious one.
 
 The tube opening was the worst of them: a flat dark ring with no light on it
 anywhere, which is a sticker rather than a hole cut through a panel. The legs
-were the subtlest: a leg screws to a rail up inside the carcass, so it comes
+were the subtlest — a leg screws to a rail up inside the carcass, so it comes
 out of *shadow* rather than starting in daylight, and without that they read as
 two shapes that happen to touch the bottom edge rather than as part of the same
 object. That shadow has to fade sideways as well as down; a straight vertical
@@ -71,7 +71,7 @@ gradient gave it hard edges and the leg looked bolted to a little black
 bracket.
 
 **A board on a board shows four edges too.** The control column is its own
-board laid on the front of the carcass, which the references bear out, the
+board laid on the front of the carcass — which the references bear out, the
 Marconiphone's slotted grille plainly being a separate insert. It had a lit
 left and a dark right and nothing top or bottom, which reads as a stripe of
 veneer painted on the front rather than a piece of wood lying on another.
@@ -89,7 +89,7 @@ picture looking as though it is about to fall out of the bottom of the set.
 Here the apron runs about 1.5× the top rail.
 
 Deepening it makes the cabinet taller for a given width, which the height cap
-has to know about: `max-width: min(72rem, calc(137vh - 19rem))`, where the
+has to know about — `max-width: min(72rem, calc(137vh - 19rem))`, where the
 19rem is everything that is not carcass and still has to fit under it: legs,
 page padding, and the row of things that are not the television.
 
@@ -102,8 +102,8 @@ windows start scrolling with nothing in the diff to explain it.
 
 Five references: a British console in light teak with bi-fold doors, a Philips
 in walnut on a stand, a Marconiphone 4714 brochure page, a "spectra" console on
-a chrome pedestal, and one stock render (which is synthetic (flat teal screen,
-mushy knob) and useful only for the palette of the room around the set).
+a chrome pedestal, and one stock render (which is synthetic — flat teal screen,
+mushy knob — and useful only for the palette of the room around the set).
 
 **The speaker grille is slatted or slotted, never perforated.** Four of the
 four real sets: horizontal wooden louvres on the teak console, a vertically
@@ -119,11 +119,11 @@ narrow strip beside or within it, which is the arrangement here.
 anodised aluminium on the Philips, chromium on the Marconiphone ("the control
 knobs are chromium plated", says the brochure). It was a linished silver plate
 at 17% of the cabinet width; it is 11% now, which reads as a panel let into the
-cabinet rather than as a second cabinet. Still silver: a Philips would be
+cabinet rather than as a second cabinet. Still silver — a Philips would be
 **gold anodised**, and that change is outstanding.
 
-**Knobs come in a vertical row of several small equal ones** (four on the
-Philips, about six on the Marconiphone) rather than one large one. A single
+**Knobs come in a vertical row of several small equal ones** — four on the
+Philips, about six on the Marconiphone — rather than one large one. A single
 big volume knob is a radiogram's arrangement.
 
 **Legends are tiny or absent.** At photograph resolution most of these fascias
@@ -139,7 +139,7 @@ grid, as here, is within the range rather than canonical.
 ring round the tube; the other two are black with generous corner radii.
 
 **Legs.** Four tapered legs in a row at the same size is a child's drawing of a
-horse: it says "this object has four legs" rather than showing what is there.
+horse — it says "this object has four legs" rather than showing what is there.
 The set is drawn as a flat elevation and nothing else in it has perspective, so
 head-on the back pair stand directly behind the front pair and cannot be seen.
 Two, set in from the corners rather than balanced on them, because a console leg
@@ -153,7 +153,7 @@ Tapered legs are period, but they are one option of several.
 
 **Teak veneer.** `feTurbulence` stretched hard along one axis, plus a slower
 turbulence beneath for the figure and a fine one over the top for the pores.
-Frequencies are in CSS pixels: roughly one veneer line every 6px, running
+Frequencies are in CSS pixels — roughly one veneer line every 6px, running
 unbroken for about 100px.
 
 The critical step is the **gamma transfer** after the turbulence. Turbulence at a
@@ -164,8 +164,8 @@ entirely different material.
 The surface carries **no `viewBox`**, so the grain stays the same size in pixels
 however large the cabinet gets. Veneer does not scale with the furniture.
 
-Different faces get different seeds (boards cut from different parts of the log)
-and the control column uses a darker palette because it is the far end of the
+Different faces get different seeds — boards cut from different parts of the log
+— and the control column uses a darker palette because it is the far end of the
 same board, in its own shadow.
 
 **Linished aluminium.** The same turbulence with the gamma transfer *omitted*.
@@ -175,7 +175,7 @@ plate.
 **Bakelite keys.** `feSpecularLighting` over a blurred alpha: the blur stands in
 for the moulding's curvature and the light is allowed to find it. Pressing the
 key lowers `surfaceScale` and `elevation`, so the highlight **slides down the
-crown** rather than merely dimming: the light does not travel with the button.
+crown** rather than merely dimming — the light does not travel with the button.
 
 ## The fascia, and what a real one does
 
@@ -188,13 +188,13 @@ rooms:
   one commit, on the argument that POWER was a later hi-fi import and that
   British service literature calls the thing a mains switch. Reference
   photographs of period sets show POWER, so POWER it is. The other marking the
-  same references show is a pair (an empty circle and a filled one, for the
-  two positions of the switch) which would also be correct here. It is not
+  same references show is a pair — an empty circle and a filled one, for the
+  two positions of the switch — which would also be correct here. It is not
   used because every other legend on this plate is a stamped word, and a lone
   symbol would be the odd one out.
 
   Worth keeping from that detour is which symbol **not** to reach for. IEC 417
-  was published in **1973**, so the marks did exist by 1975, but the one
+  was published in **1973**, so the marks did exist by 1975 — but the one
   everybody now reads as "power" is **5009**, and 5009 means *stand-by*: a
   low-power state that explicitly does **not** disconnect. On a set with a hard
   mains switch and no standby to return from, it marks the key with the one
@@ -211,7 +211,7 @@ rooms:
 - **V, H, B, C, T are trimmers, not buttons.** Vertical hold, horizontal hold,
   brightness, contrast, tuning.
 - **Legends are not set in a code font.** They were stamped or silk-screened in a
-  condensed grotesque (Helvetica, Univers, DIN) in caps, small, widely
+  condensed grotesque — Helvetica, Univers, DIN — in caps, small, widely
   tracked, so they read at arm's length across a lit room without drawing
   attention. `type.ts` uses a system stack, so the set draws instantly and works
   offline.
@@ -220,7 +220,7 @@ rooms:
 - **A printed scale does not know where the knob is pointing.** The ticks round
   the volume dial are silk-screened onto the plate the spindle comes through,
   so every mark is the same ink at the same weight. Lighting the marks the
-  pointer has swept past is a *meter's* behaviour (an illuminated bargraph)
+  pointer has swept past is a *meter's* behaviour — an illuminated bargraph —
   and this is a fascia.
 
 ## The lamps
@@ -235,7 +235,7 @@ nothing and expected you to learn it.
 | **green** | A source. Lit once the set has somewhere to get programmes from. |
 
 The amber is the only one dark in normal service, which is what a warning lamp
-is for, and it carries the one thing you cannot tell by looking at the screen.
+is for — and it carries the one thing you cannot tell by looking at the screen.
 A test card at 3am is closedown. A test card at 8pm with the amber lit is a
 programme that would not play.
 
@@ -250,7 +250,7 @@ programme that would not play.
 The cabinet stops obeying its own aspect ratio below a certain width, because
 the fascia's controls are sized in rem and stop shrinking. Past that point the
 cabinet's height is pinned by its fascia, and capping the *width* does nothing
-at all, which is why shrinking it further never fixed anything.
+at all — which is why shrinking it further never fixed anything.
 
 The fascia now answers to the cabinet rather than the window, through a
 container query on `.tv-cabinet`, with two tighter tiers below 58rem and 46rem:
@@ -260,12 +260,12 @@ three of eight before.
 
 The two that still scroll are short-and-wide (900x640) and short phones, and
 they stay that way on purpose. **At small sizes you cannot have both a
-correctly-proportioned cabinet and 24x24 touch targets**: something has to
+correctly-proportioned cabinet and 24x24 touch targets** — something has to
 give, and a few pixels of scroll is recoverable where a target nobody can hit
 is not.
 
 ## Not yet built
 
-An aerial on top of the set, and the Saturday-paper TV guide page (newsprint,
-ruled columns, dense small type) for the listing that currently sits behind a
+An aerial on top of the set, and the Saturday-paper TV guide page — newsprint,
+ruled columns, dense small type — for the listing that currently sits behind a
 plain button.

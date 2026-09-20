@@ -12,7 +12,7 @@ is no refresh token to leak.
 
 | | |
 |---|---|
-| Flow | GIS `initTokenClient`, the implicit token flow |
+| Flow | GIS `initTokenClient` — the implicit token flow |
 | Scope | `https://www.googleapis.com/auth/youtube.readonly`, and nothing else |
 | Lifetime | ~1 hour. Nothing renews it: the next one comes from a click |
 | Client secret | none exists |
@@ -53,9 +53,9 @@ GIS reports `popup_failed_to_open`. The sign-in button appears to do nothing.
 
 So the provider is split in two:
 
-- **`prepare()`**: called on mount. Fetches the GIS script and builds the token
+- **`prepare()`** — called on mount. Fetches the GIS script and builds the token
   client. Idempotent, memoised on `#ready`.
-- **`signIn()`**: called *straight from the click*, with no `await` in front of
+- **`signIn()`** — called *straight from the click*, with no `await` in front of
   it. When the client is already built, `#requestSynchronously` opens the popup
   inside the click's own task, which is the only way a browser will allow it.
 
@@ -230,13 +230,13 @@ The fix is a `#settle` field that the callback reads at call time:
 
 `loadGoogleIdentityServices` rejects on `script.onerror` and on a script that
 loads but exposes no `oauth2` client. A blocked script that never settles is a
-screen that never explains itself, and, because jsdom never fetches an external
+screen that never explains itself — and, because jsdom never fetches an external
 resource, that failure mode is completely invisible to the test suite. See
 [testing.md](testing.md).
 
 ## Consent lapses
 
-While the app is unverified, Google expires consent roughly weekly, so expect
+While the app is unverified, Google expires consent roughly weekly — so expect
 to sign in again about once a week. That is a property of the Testing
 publishing status, not a bug. [google.md](google.md) covers what verification
 would change.

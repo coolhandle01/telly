@@ -4,8 +4,8 @@ import type { PoolStore, StoredPool } from './poolStore'
 
 /**
  * A cache over any other source. The pool changes about as often as your
- * subscriptions upload, so it is refetched once a day (at closedown, when
- * nothing is on air anyway) and served from storage in between.
+ * subscriptions upload, so it is refetched once a day — at closedown, when
+ * nothing is on air anyway — and served from storage in between.
  *
  * Storage is best-effort by design: a browser that cannot give us a database
  * (private window, storage blocked, a corrupt object store) gets television

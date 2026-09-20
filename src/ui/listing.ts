@@ -7,7 +7,7 @@ import { DEFAULT_DAYPARTS, type Daypart, type DaypartId, type Schedule, type Sch
  * item the packer laid down, including the twenty-second continuity captions
  * between programmes; a listing is what a paper printed, and no paper ever
  * printed "18.42 Caption". So runs of everything that is not a programme
- * collapse into one line, which is exactly what "6.00 Closedown" is, a
+ * collapse into one line — which is exactly what "6.00 Closedown" is, a
  * four-and-a-half-hour run of test card given one line and no apology.
  *
  * A stripped daypart collapses its programmes too. Nobody printed two hundred
@@ -58,7 +58,7 @@ export function listing(
     const strip = stripped.get(item.daypart)?.stripped === true
 
     // Programmes are always their own line, even two of the same name back to
-    // back: they are separate programmes and the times say so. Everything
+    // back — they are separate programmes and the times say so. Everything
     // else joins the run it belongs to, but never across a daypart boundary,
     // because the listing is grouped by daypart and a line cannot sit in two.
     if (

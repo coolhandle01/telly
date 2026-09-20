@@ -1,6 +1,6 @@
 /**
- * Courier New advances 0.6em for every glyph (the whole point of a monospaced
- * face) so a caption's width is arithmetic rather than guesswork, and the card
+ * Courier New advances 0.6em for every glyph — the whole point of a monospaced
+ * face — so a caption's width is arithmetic rather than guesswork, and the card
  * can size its own text without measuring anything in a DOM.
  */
 const MONO_ADVANCE = 0.6

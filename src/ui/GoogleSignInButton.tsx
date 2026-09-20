@@ -7,9 +7,9 @@
  * keep it off the cabinet where the anachronism does no harm.
  *
  * The wording is not a free choice. Google's sign-in branding guidelines
- * permit a closed set of labels ("Sign in with Google", "Sign up with
+ * permit a closed set of labels — "Sign in with Google", "Sign up with
  * Google", "Continue with Google", "Sign in" on the icon-only variant, plus
- * the personalised "… as <name>" forms) with localisation the only permitted
+ * the personalised "… as <name>" forms — with localisation the only permitted
  * deviation. The button this replaced said "Use my subscriptions", which is
  * honest about what happens and is not on that list. Brand review looks at the
  * UI that triggers consent, so if this app is ever submitted for verification
@@ -17,7 +17,7 @@
  *
  * Drawn rather than fetched, which costs nothing here: Google ships the
  * four-colour G as inline SVG, not as an image file, and declares
- * `font-family: 'Google Sans', arial, sans-serif`, so a build with no image
+ * `font-family: 'Google Sans', arial, sans-serif` — so a build with no image
  * assets and no web fonts is exactly Google's own behaviour, not a compromise
  * against it. What fails review is wording, logo treatment and prominence.
  *
@@ -30,7 +30,7 @@
 export interface GoogleSignInButtonProps {
   /**
    * Called straight from the click. Do not `await` anything before opening
-   * the consent popup: the user gesture does not survive a round trip.
+   * the consent popup — the user gesture does not survive a round trip.
    */
   onClick: () => void
 }

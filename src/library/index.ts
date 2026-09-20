@@ -4,7 +4,7 @@
  *
  * Everything is behind `PoolSource`, so the app above is handed one object and
  * never learns whether it is talking to a fixture, the YouTube API, or a cache
- * over either: `createPoolSource` decides, and defaults to the fixture.
+ * over either — `createPoolSource` decides, and defaults to the fixture.
  */
 export { CachedPoolSource, DEFAULT_POOL_KEY, DEFAULT_POOL_TTL_MS } from './cachedPoolSource'
 export type { CachedPoolSourceOptions } from './cachedPoolSource'

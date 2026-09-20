@@ -127,7 +127,7 @@ describe('GoogleTokenProvider', () => {
 
     const pending = provider.signIn()
 
-    // Asked for before this test ever yields: no await stands between the
+    // Asked for before this test ever yields — no await stands between the
     // click and the popup.
     expect(prompts).toEqual(['consent'])
     await expect(pending).resolves.toBe('tok-abc')

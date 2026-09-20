@@ -14,7 +14,7 @@ const DEFAULT_HOLD_MS = 2000
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
 
 /**
- * `VOL` and a row of bars burnt over the picture. Presentational only:
+ * `VOL` and a row of bars burnt over the picture. Presentational only —
  * whoever renders it has already decided it should be seen.
  */
 export function VolumeOverlay({ volume, segments = DEFAULT_SEGMENTS }: VolumeOverlayProps) {
@@ -40,7 +40,7 @@ export function VolumeOverlay({ volume, segments = DEFAULT_SEGMENTS }: VolumeOve
 }
 
 /**
- * True for `holdMs` after `value` changes, then false again: the timer that
+ * True for `holdMs` after `value` changes, then false again — the timer that
  * decides when a display is on screen at all.
  *
  * Deliberately false on the first render: arriving at a volume is not the same

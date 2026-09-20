@@ -11,7 +11,7 @@ export const MIN = 0
 export const MAX = 1
 export const DEFAULT_STEP = 0.05
 
-/** PageUp/PageDown move this many arrow-steps at once: a coarse grab. */
+/** PageUp/PageDown move this many arrow-steps at once — a coarse grab. */
 const PAGE_STEPS = 5
 
 export interface RotaryOptions {

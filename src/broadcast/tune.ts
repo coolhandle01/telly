@@ -1,5 +1,5 @@
 /**
- * The tuner. Wall-clock time in, what-is-on-air out, and nothing else: no
+ * The tuner. Wall-clock time in, what-is-on-air out — and nothing else: no
  * `Date.now()`, no clock, no I/O. The whole app hangs off this one function,
  * because it is what makes the channel a channel: you never *start* a
  * programme, you join one already in progress.
@@ -67,7 +67,7 @@ export function tune(schedule: Schedule, now: Date): OnAir | undefined {
   return index === -1 ? undefined : onAirFor(schedule, schedule.items[index], sec)
 }
 
-/** As `tune`, plus the item that follows, absent at the end of the day. */
+/** As `tune`, plus the item that follows — absent at the end of the day. */
 export function nowAndNext(schedule: Schedule, now: Date): NowAndNext | undefined {
   const sec = secondsIntoDay(now, schedule.startsAt)
   const index = indexAt(schedule.items, sec)

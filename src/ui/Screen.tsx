@@ -17,7 +17,7 @@ export interface ScreenProps {
    *
    * Not part of what is being received, so it goes in above the snow. The
    * numbers are made inside the cabinet and mixed in after the tuner, which is
-   * why you can always read the volume: a set that hid its own display
+   * why you can always read the volume — a set that hid its own display
    * whenever there was nothing to watch would hide it exactly when you were
    * most likely to be turning something.
    */
@@ -27,7 +27,7 @@ export interface ScreenProps {
 
 /**
  * The glass. A 4:3 surface with black behind it, and whatever is on air drawn
- * over that: a card, a picture, a caption.
+ * over that — a card, a picture, a caption.
  *
  * It belongs to the television, not to any one thing shown on it, which is
  * why it is here and not inside the card.
@@ -35,7 +35,7 @@ export interface ScreenProps {
  * Three nested layers, because they are three different circuits and each may
  * be doing something at once: the tube carries the power phases, the raster
  * carries the frame oscillator, and the line layer carries the line
- * oscillator. Stacking them keeps each one's transform its own: a single
+ * oscillator. Stacking them keeps each one's transform its own — a single
  * element cannot be collapsing, rolling and tearing at the same time.
  *
  * The set's own on-screen display sits outside all three, in `overlay`. It is
@@ -79,7 +79,7 @@ export function Screen({
       aria-label={label}
     >
       {/*
-        Everything the beam draws lives in the tube, including the snow, which
+        Everything the beam draws lives in the tube — including the snow, which
         is drawn by the same beam as the picture and so dies with it. Hung
         outside, it stayed at full size while the raster collapsed underneath
         it and then vanished, which is what an overlay does and not what a
@@ -104,7 +104,7 @@ export function Screen({
         <span className="screen__snow" data-snowing={picture?.snow ? 'true' : 'false'} aria-hidden="true" />
         {/*
           The set talking about itself, over the top of whatever it is
-          receiving, or not receiving. Inside the tube, so it dies with the
+          receiving — or not receiving. Inside the tube, so it dies with the
           picture when the power goes; above the snow, because the tuner has
           nothing to do with it.
         */}

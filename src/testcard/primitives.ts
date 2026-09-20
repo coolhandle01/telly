@@ -1,5 +1,5 @@
 /**
- * The drawing vocabulary every card design is built from: castellations,
+ * The drawing vocabulary every card design is built from — castellations,
  * colour bars, a greyscale wedge, gratings, resolution wedges, a convergence
  * target, the caption and the clock.
  *
@@ -338,8 +338,8 @@ export function captionBox(picture: Picture, centre: { x: number; y: number }, s
     { id: 'caption-message', role: 'caption-message', text: serviceMessage(spec), scale: 0.22 },
   ]
 
-  // Captions vary in length (a fault message runs to forty-odd characters
-  // where a resume time is twenty) so each line is shrunk to fit the box
+  // Captions vary in length — a fault message runs to forty-odd characters
+  // where a resume time is twenty — so each line is shrunk to fit the box
   // rather than allowed to spill out of it.
   const letterSpacing = height * 0.03
   const maxTextWidth = width * CAPTION_TEXT_FRACTION

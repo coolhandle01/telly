@@ -5,7 +5,7 @@ import type { PoolSource } from './poolSource'
 /**
  * The default source, and the reason the app runs at all before anyone signs
  * in: a deterministic pool with no credentials, no network and no quota. Same
- * seed, same schedule, forever, which is also what makes the planner testable.
+ * seed, same schedule, forever — which is also what makes the planner testable.
  *
  * It wraps the same fixture the tests use on purpose. The fixture is the app's
  * demo mode as well as its test data, so there is only one of it.

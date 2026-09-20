@@ -122,7 +122,7 @@ describe('Channel', () => {
     await switchOn(view.user)
     await waitFor(() => expect(player.loads).toHaveLength(1))
 
-    // Player loaded and still loading: the card is what is on screen.
+    // Player loaded and still loading — the card is what is on screen.
     expect(screen.getByRole('timer')).toBeInTheDocument()
     // Whatever is on, the card is captioned with its name.
     expect(screen.getByRole('status').textContent ?? '').toMatch(/\S/)
@@ -167,7 +167,7 @@ describe('Channel', () => {
     const stopsOnceOn = player.stops
 
     expect(screen.getByRole('timer')).toBeInTheDocument()
-    // The card being up must not tear the player down: it is still trying.
+    // The card being up must not tear the player down — it is still trying.
     expect(player.stops).toBe(stopsOnceOn)
     expect(player.loads).toHaveLength(1)
   })
@@ -211,7 +211,7 @@ describe('Channel', () => {
     await waitFor(() => expect(screen.getByRole('timer')).toBeInTheDocument())
   })
 
-  // A card with no explanation is indistinguishable from a broken app, which
+  // A card with no explanation is indistinguishable from a broken app — which
   // is exactly how this failed the first time it met a real account.
   it('says why there is nothing on, rather than just showing a card', async () => {
     const failing: PoolSource = {
@@ -470,7 +470,7 @@ describe('Channel', () => {
       The set's own display is generated in the cabinet, not received, so the
       tuner has nothing to do with it. On a preset with no station the snow is
       fully opaque, and an overlay drawn under it is present, correctly sized,
-      and completely invisible, which is a thing jsdom cannot tell from one
+      and completely invisible — which is a thing jsdom cannot tell from one
       that works, so this asserts where the node sits rather than that it is
       there at all.
     */
@@ -552,7 +552,7 @@ describe('Channel', () => {
 
   /*
     Five of the six presets have nothing on them. That is not the same thing as
-    a station with nothing to broadcast (which is what a test card is for) and
+    a station with nothing to broadcast — which is what a test card is for — and
     a 1975 set did not confuse the two: no carrier meant snow and hiss.
   */
   describe('an empty preset', () => {
@@ -640,7 +640,7 @@ describe('Channel', () => {
   /*
     Each preset had its own tuning slug behind the flap, set once by whoever
     installed the set. The ones nobody watched were set carelessly, so finding
-    them again means turning the knob, which is the difference between a
+    them again means turning the knob — which is the difference between a
     station nobody has tuned in and a key with nothing behind it at all.
   */
   describe('a preset that was never set properly', () => {
@@ -715,7 +715,7 @@ describe('Channel', () => {
       await switchOn(view.user)
       await tuneTo(view.user, 2)
 
-      expect(screen.getByRole('region', { name: /channel two, television/i })).toBeInTheDocument()
+      expect(screen.getByRole('region', { name: /channel two — television/i })).toBeInTheDocument()
     })
 
     // Preset one is the one whoever mounted the set gave a name to.
@@ -723,7 +723,7 @@ describe('Channel', () => {
       const { view } = setUp()
       await switchOn(view.user)
 
-      expect(screen.getByRole('region', { name: new RegExp(`${CHANNEL}, television`, 'i') }))
+      expect(screen.getByRole('region', { name: new RegExp(`${CHANNEL} — television`, 'i') }))
         .toBeInTheDocument()
     })
   })
@@ -774,7 +774,7 @@ describe('Channel', () => {
       The one assertion here that is about the pages rather than the markup.
 
       jsdom does not follow links, so an href pointing at nothing renders
-      exactly like one that works, and it did, for a while: `privacy/` asks
+      exactly like one that works — and it did, for a while: `privacy/` asks
       the server for a directory, the dev server has no index for it, and the
       request falls through to the single-page fallback, which answers with
       the television at an address that is not the television. Naming the file

@@ -7,7 +7,7 @@ import type { Station } from './stations'
  * A strand: one supplier, one night, one slot, every week.
  *
  * A channel that puts out an hour once a week is not a source of filler, it is
- * a series, and a series belongs on the same night at the same time, because
+ * a series — and a series belongs on the same night at the same time, because
  * that is the only way anyone finds it twice. Give it a night and the schedule
  * stops being a shuffle and starts being a week.
  *

@@ -9,7 +9,7 @@ import { SECONDS_PER_DAY, broadcastDayLength, broadcastDayStart, secondsIntoDay 
 /**
  * The two days a year the arithmetic is wrong.
  *
- * This file runs under `TZ=Europe/London` (`npm run test:dst`) because the
+ * This file runs under `TZ=Europe/London` — `npm run test:dst` — because the
  * rest of the suite runs wherever the machine is, and CI is UTC, where British
  * Summer Time does not exist and none of this can happen. That is exactly why
  * none of it was caught.

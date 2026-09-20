@@ -15,8 +15,8 @@ closedown, overruns and the test card for nothing, and it makes a whole
 broadcast day provable in a millisecond with no network, no browser and no real
 clock.
 
-Everything else (sign-in, the Data API, IndexedDB, the iframe player, WebAudio)
-is I/O bolted to the edges.
+Everything else — sign-in, the Data API, IndexedDB, the iframe player, WebAudio
+— is I/O bolted to the edges.
 
 ## The documents
 
@@ -40,7 +40,7 @@ src/
   domain/      the shared vocabulary: time, dayparts, videos, schedule, on-air
   schedule/    the classifier interface and the packer
   programming/ the five stations: genre, profiles, the draft, what goes where
-  broadcast/   tune(): wall clock in, what-is-on-air out
+  broadcast/   tune() — wall clock in, what-is-on-air out
   player/      the YouTube IFrame API, behind a seam
   library/     subscriptions -> uploads -> videos; cached in IndexedDB under
                whose they are, plus sign-in and the Session seam over it
@@ -73,7 +73,7 @@ the alternative.
 | Stations pick in turn rather than bidding, so each gets its first choice | [stations.md](stations.md) |
 | The watershed is read off the API, in both directions | [stations.md](stations.md) |
 | The test card is the base signal, revealed *under* the picture, not an error state | [player.md](player.md) |
-| A picture is confirmed positively: waiting for an error waits for ever | [player.md](player.md) |
+| A picture is confirmed positively — waiting for an error waits for ever | [player.md](player.md) |
 | A preset with no station shows snow and hiss; a card means somebody is transmitting | [components.md](components.md) |
 | The sound follows what is on the screen, never what is in the schedule | [components.md](components.md) |
 | An error, and a stop, both tear the player down | [player.md](player.md) |

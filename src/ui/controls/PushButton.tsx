@@ -47,7 +47,7 @@ const CSS = `
 .tv-push__legend { position: relative; }
 /*
   The key is a slim rectangle because that is what it was. Rather than draw a
-  taller one, the target reaches a little past the moulding top and bottom,
+  taller one, the target reaches a little past the moulding top and bottom —
   short of the gap to its neighbours, so no two targets overlap.
 */
 .tv-push::after {
@@ -58,7 +58,7 @@ const CSS = `
 /*
   Pressed: the key sits down into its collar, so the body of the shadow goes
   with it and only a short one is left. The highlight moves too, but that is
-  the filter's job below: the light does not travel with the button.
+  the filter's job below — the light does not travel with the button.
 */
 .tv-push:active, .tv-push--in {
   transform: translateY(0.13rem);
@@ -74,8 +74,8 @@ const CSS = `
 `
 
 /**
- * A chunky cream-bakelite push button. A real `<button>` underneath (the
- * semantics are the browser's, the moulding is ours) and `pressed` latches
+ * A chunky cream-bakelite push button. A real `<button>` underneath — the
+ * semantics are the browser's, the moulding is ours — and `pressed` latches
  * it visibly down, because on a set of this age you can see which one is in.
  */
 export function PushButton({ children, onClick, pressed }: PushButtonProps) {

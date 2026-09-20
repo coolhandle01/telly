@@ -9,14 +9,14 @@ fades.
 The mechanism is worth knowing because it dictates the *order* of the animation:
 
 1. **The deflection circuits die faster than the beam does.** The vertical
-   oscillator fails first, so the scan collapses vertically: a full-width,
+   oscillator fails first, so the scan collapses vertically — a full-width,
    one-line-high bar.
 2. **Then the horizontal goes**, and the line shortens to a point.
 3. **The spot lingers** on stored EHT charge and fading phosphor, long after the
    signal is gone.
 
 **Brightness rises as it collapses**, because the same beam current is landing
-on a shrinking area. Getting that backwards (fading out as it shrinks) is what
+on a shrinking area. Getting that backwards — fading out as it shrinks — is what
 makes most software imitations look wrong: they read as a fade, not a discharge.
 
 Switching on is the same sequence run backwards and quicker, as the scan comes
@@ -27,7 +27,7 @@ up.
 `src/ui/useCrtPower.ts` and the `crt-*` keyframes in `src/index.css`.
 
 Four states, not two: `off`, `warming`, `on`, `collapsing`. The picture stays
-mounted through the collapse: there would be nothing left to collapse
+mounted through the collapse — there would be nothing left to collapse
 otherwise.
 
 | | |
@@ -52,7 +52,7 @@ left is raw beam rather than a picture.
 
 The spot is a separate element (`.screen__spot`), a radial gradient that fades
 up as the raster reaches its last 40% and fades out after it. It is separate
-because it outlives the raster: that is the whole point of it.
+because it outlives the raster — that is the whole point of it.
 
 ## Hold, and losing it
 
@@ -62,12 +62,12 @@ in the signal to be pulled into step with them; set correctly, the picture
 stands still. Set wrongly, the oscillator free-runs at the wrong rate and the
 picture walks.
 
-Two controls, one idea, at two speeds, which is why `src/ui/deflection.ts` is
+Two controls, one idea, at two speeds — which is why `src/ui/deflection.ts` is
 one function:
 
 - **Frame oscillator (V).** Runs fast and the next frame is taken early, so the
   picture is carried *up* the screen; runs slow and it falls *down*. What
-  sweeps through is the gap between frames: the blanking bar, black, with the
+  sweeps through is the gap between frames — the blanking bar, black, with the
   lit edge of the frame that has just left at its leading edge.
 - **Line oscillator (H).** Each line starts a little early or late, and the
   error accumulates down the picture: it shears, and because the accumulation
@@ -81,7 +81,7 @@ which is how anyone ever did it. `PULL_IN` is 0.09 either side of mid-travel.
 Speed is **geometric rather than linear** in the control's travel, because
 these are frequencies. A linear ramp spends nearly all its travel in an
 unwatchable blur; on a geometric one the slow creep just off lock gets as much
-of the control as the fast end does, again, so the thing can be found by hand.
+of the control as the fast end does — again, so the thing can be found by hand.
 
 ## The picture controls
 
@@ -92,7 +92,7 @@ the flap: these are preferences, those are faults.
 
 **Brightness is a black-level control, not a gain.** This is the detail that
 makes it read correctly. Turned down, the beam is biased off and the shadows
-crush into black. Turned *up*, the blacks stop being black: the whole picture
+crush into black. Turned *up*, the blacks stop being black — the whole picture
 lifts towards white and the contrast falls with it, so it goes milky. Making
 "up" simply mean brighter is the obvious implementation and it is not the
 fault: a brighter picture is not what a mis-set brightness control looks like.
@@ -105,14 +105,14 @@ Nothing subtle.
 
 **Tuning loses the colour long before it loses the picture.** The chroma
 subcarrier sits at the top of the channel and is the first thing to go, so a
-slightly mistuned set is perfectly watchable in black and white, and the
+slightly mistuned set is perfectly watchable in black and white — and the
 colour control has nothing left to turn up, because there is no subcarrier to
 decode. Push further and the snow rises until the signal is swamped. That
 ordering is what makes it read as *tuning* rather than as a broken saturation
 slider, and it costs one line.
 
 T is the tuner rather than a tone control, for two reasons. A PAL set has no
-tint control (that was NTSC's problem and the source of the joke) and an
+tint control — that was NTSC's problem and the source of the joke — and an
 audio tone control could not reach YouTube's sound, which is inside a
 cross-origin iframe this app cannot touch. A fine-tuner is period-correct, it
 is the natural partner to the six preset buttons above it, and it is visible.
@@ -122,7 +122,7 @@ is the natural partner to the six preset buttons above it, and it is visible.
 Two attempts, both instructive.
 
 `mix-blend-mode: screen` can only lighten, so the noise greyed the picture up
-uniformly and left it perfectly readable underneath: a veil, not static.
+uniformly and left it perfectly readable underneath — a veil, not static.
 Straight alpha compositing lets the dark speckles through too.
 
 Then the noise itself: `feTurbulence` clusters around mid-grey, which reads as
@@ -130,8 +130,8 @@ Then the noise itself: `feTurbulence` clusters around mid-grey, which reads as
 the scale, and the alpha is forced opaque so the layer's own opacity does all
 the mixing. That is the difference between grain and static.
 
-The tile is baked into a data URI rather than filtered live (a full-screen
-turbulence animating at 20fps is a fan coming on) and jumped between
+The tile is baked into a data URI rather than filtered live — a full-screen
+turbulence animating at 20fps is a fan coming on — and jumped between
 positions on a stepped animation, which is what makes a static tile move.
 
 ### Snow is drawn by the beam
@@ -149,8 +149,8 @@ because the phase rules were already written as descendants of the tube.
 ### A preset with nothing on it
 
 Coming off station is not the same thing as having no station. The tuner can
-always be brought back, and there is a carrier behind the noise the whole time,
-which is why the colour goes first and the picture last.
+always be brought back, and there is a carrier behind the noise the whole time
+— which is why the colour goes first and the picture last.
 
 An empty preset has no carrier at all. Full snow, no colour in it, and nothing
 on the front of the cabinet that changes either: brightness, colour and the
@@ -162,15 +162,15 @@ than a call to `picture()`, and it is the difference between *mistuned* and
 
 **On the screen, not on the video and not on the card.** `Screen.tsx` owns the
 glass, so a card, a picture and a caption all get the same vignette and the same
-collapse: they are all behind the same piece of glass. Applying it to the video
+collapse — they are all behind the same piece of glass. Applying it to the video
 would mean the card was somehow in front of the tube.
 
 ## Reduced motion
 
 A rolling picture is genuinely nauseating, and a viewer who has asked for less
 movement has asked not to be handed one. Under `prefers-reduced-motion: reduce`
-the fault is still *shown* (the picture sits offset, the blanking bar lies
-across the screen, the shear holds its angle); it simply stands still. A set
+the fault is still *shown* — the picture sits offset, the blanking bar lies
+across the screen, the shear holds its angle — it simply stands still. A set
 caught mid-roll rather than one that is holding, which reads correctly and
 moves nothing.
 
@@ -185,14 +185,14 @@ intermediate phase at all. Reaching the same place by *skipping* the animation
 leaves a window where the set can be caught mid-collapse; deriving it means that
 window does not exist.
 
-The hook also starts settled at whatever the set was doing when it mounted:
+The hook also starts settled at whatever the set was doing when it mounted —
 nobody watched it get there, so there is nothing to animate.
 
 ## What was deliberately not built
 
 - **Scanlines.** At the sizes this renders, they alias into moiré and look like
   a dirty screen rather than a tube.
-- **Rolling as an ambient effect.** Fun once, unwatchable twice, so the roll
+- **Rolling as an ambient effect.** Fun once, unwatchable twice — so the roll
   exists only where a viewer has *asked* for it by turning the trimmer, and the
   set holds until they do. A fault you chose is a toy; a fault you did not is a
   broken television.

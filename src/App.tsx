@@ -37,7 +37,7 @@ export interface AppProps {
 
 /**
  * A build that reached a viewer without a client ID cannot show anyone their
- * own television, and no viewer can do anything about it: the ID is baked in
+ * own television, and no viewer can do anything about it — the ID is baked in
  * at build time, so its absence is a deployment that went out wrong.
  *
  * In development it is not a fault at all: it is how the app is meant to run
@@ -91,7 +91,7 @@ export function App({
 
   // Fetch Google's script now, not when the button is clicked: a popup must
   // be traceable to a user gesture, and that gesture does not survive the
-  // round-trip. Failure is ignored here: sign-in reports it properly.
+  // round-trip. Failure is ignored here — sign-in reports it properly.
   useEffect(() => {
     void tokens?.prepare().catch(() => undefined)
   }, [tokens])

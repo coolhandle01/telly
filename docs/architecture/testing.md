@@ -37,13 +37,13 @@ npm run build        # typecheck, then vite build
 
 **The type gate must be `tsc -b`.** Vite strips types without checking them, so
 the build is not a type gate. And the root `tsconfig.json` here is
-*solution-style* (it contains only references) so plain `tsc --noEmit` reads
+*solution-style* — it contains only references — so plain `tsc --noEmit` reads
 no files and exits 0. That is a gate that **fails open**: green, and checking
 nothing. Add `--force` when you want to be certain an incremental build has not
 skipped the work.
 
 `erasableSyntaxOnly` is on, which bans TypeScript syntax that has runtime
-meaning, parameter properties in particular. Write the field and the assignment.
+meaning — parameter properties in particular. Write the field and the assignment.
 
 ## The seams
 
@@ -53,8 +53,8 @@ IndexedDB, so without these seams the behaviour could not be tested at all.
 
 | Interface | Real | Fake |
 |---|---|---|
-| `Clock` | `SystemClock` | `FakeClock`: drive a whole day by hand |
-| `Player` | `YouTubeIframePlayer` | `FakePlayer`: records calls, pushes faults |
+| `Clock` | `SystemClock` | `FakeClock` — drive a whole day by hand |
+| `Player` | `YouTubeIframePlayer` | `FakePlayer` — records calls, pushes faults |
 | `Sound` | `WebAudioSound` | a stub asserting tone/hiss/stop |
 | `PoolSource` | `YouTubePoolSource` | `FixturePoolSource`: seeded, deterministic |
 | `PoolStore` | `IndexedDbPoolStore` | `inMemoryStore()`: a Map, and a write counter |
@@ -86,11 +86,11 @@ into a wooden console without a single component test changing.
 It does not say anyone would notice it being wrong. Two things follow:
 
 - **Mutation by hand.** Every mutation pass done on this codebase has found real
-  gaps: assertions that would pass with the logic inverted.
+  gaps — assertions that would pass with the logic inverted.
 - **Read the coverage report carefully.** The text reporter hides files at 100%,
   which is fine until you assume a file is covered because it is absent.
 
-`coverage.include` is set explicitly rather than `all: true`. Vitest 5 removed
+`coverage.include` is set explicitly rather than `all: true` — Vitest 5 removed
 that flag, and an explicit `include` *is* the all-files behaviour. Without one, an
 unimported module scores 100% by being invisible.
 
@@ -101,8 +101,8 @@ npm run mutate                                     # everything, slowly
 MUTATION_TESTS="src/broadcast" npx stryker run --mutate "src/broadcast/tune.ts"
 ```
 
-Stryker breaks the code on purpose (flips a comparison, drops a term, empties
-a return) and a mutant that no test notices is an assertion you do not have.
+Stryker breaks the code on purpose — flips a comparison, drops a term, empties
+a return — and a mutant that no test notices is an assertion you do not have.
 `tune.ts`, the function the whole app rests on, scores **100%**: 45 mutants
 killed, 3 timed out (a mutated binary search that never terminates counts as
 caught), none survived.
@@ -114,7 +114,7 @@ afternoon.
 integration reads its coverage back through `ctx.state.getFiles()`, a Vitest
 internal that changed in Vitest 5. It comes back empty, so Stryker concludes no
 test covers any mutant, runs nothing, and reports **everything as survived**.
-`tune.ts` scored 2% that way, and the same mutants, applied by hand, were
+`tune.ts` scored 2% that way — and the same mutants, applied by hand, were
 killed by the suite immediately. A mutation score that low on well-tested code
 is a broken harness, not a bad suite: check one survivor by hand before
 believing any of it.
@@ -122,7 +122,7 @@ believing any of it.
 **The test scope comes from `$MUTATION_TESTS`.** The command runner re-runs the
 whole suite for every mutant, and the whole suite is 20 seconds. Two concurrent
 runs of it on four cores exceeded every sane timeout and *every* mutant "timed
-out", which scores as killed and tells you nothing. The command interpolates
+out" — which scores as killed and tells you nothing. The command interpolates
 the variable through the shell, so a run can be narrowed to the tests that
 could plausibly kill the mutants, and each attempt takes about three seconds.
 Narrow the scope too far and a real killer is excluded, and you get a false
@@ -134,7 +134,7 @@ test file twice and lints instrumented code.
 
 ## UTC is not a timezone anyone lives in
 
-CI runs in UTC, where the clocks never change, so no test running there can
+CI runs in UTC, where the clocks never change — so no test running there can
 see a British Summer Time bug, and for a long while none did. Three were
 waiting: a broadcast day assumed to be 86,400 seconds when twice a year it is
 23 or 25 hours, a test-card rotation counting UTC days from a local midnight
@@ -143,7 +143,7 @@ counting wall-clock times from the day's anchor instead of reading them off
 real instants.
 
 `npm run test:dst` runs `src/**/*.dst.test.ts` under `TZ=Europe/London`, with
-its own Vitest config: merging configs was the wrong tool, since the base
+its own Vitest config — merging configs was the wrong tool, since the base
 config's `exclude` exists to keep these files *out* of the ordinary run and
 `mergeConfig` concatenates rather than replaces, which excluded the only files
 the config included.
@@ -156,8 +156,8 @@ no suite, because it reports green.
 
 This is the important section.
 
-jsdom has **no layout**, **no media**, **no navigation**, and (the one that
-actually bites) it **never fetches an external resource, so it never fires
+jsdom has **no layout**, **no media**, **no navigation**, and — the one that
+actually bites — it **never fetches an external resource, so it never fires
 `error`**. A promise waiting on an `onload` that will never come is
 indistinguishable from one that is merely pending.
 

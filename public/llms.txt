@@ -40,7 +40,7 @@ the afternoon, and a fifth never closes down at all.
 
 The television itself is drawn, not photographed: the teak cabinet, the
 bakelite keys and the aluminium fascia are SVG filters, so there are no image
-assets. The controls work: volume, six channel presets, and five trimmers
+assets. The controls work — volume, six channel presets, and five trimmers
 behind the flap. V and H are the frame and line oscillators, and turning either
 off its lock rolls or tears the picture. B is black level, C is saturation, and
 T is the tuner, which loses the colour before it loses the picture. Two presets

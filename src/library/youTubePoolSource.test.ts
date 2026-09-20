@@ -222,7 +222,7 @@ describe('YouTubePoolSource', () => {
 
     // Found by a real account: one channel you are still subscribed to gets
     // deleted or goes private, its uploads playlist 404s, and the whole load
-    // dies, taking two hundred healthy channels with it.
+    // dies — taking two hundred healthy channels with it.
     it('skips a playlist that has gone, and keeps the rest', async () => {
       const channelIds = ['UC1', 'UC2', 'UC3']
       const { fetch, callsTo } = fakeYouTube({
@@ -648,7 +648,7 @@ describe('YouTubePoolSource', () => {
 
     it('calls a stream that has not finished live, whatever the snippet says', async () => {
       // The window this closes: a stream ends, the snippet drops back to
-      // `none`, and the recording is not published yet, so it still plays as
+      // `none`, and the recording is not published yet — so it still plays as
       // "this live event has ended", inside the iframe, with no error event to
       // tell anyone about it. Streaming details without an end time means the
       // stream is not over.

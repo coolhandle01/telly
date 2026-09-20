@@ -6,7 +6,7 @@
  * Two sounds, because a set with nothing to show made two different noises. A
  * station transmitting the card sent the line-up tone with it. A preset with no
  * station on it sent nothing at all, and what you heard was the noise that was
- * always underneath, the same noise the snow is made of, which is why the two
+ * always underneath — the same noise the snow is made of, which is why the two
  * always arrived together.
  */
 export interface Sound {
@@ -16,7 +16,7 @@ export interface Sound {
    * The same rule as Google's popup, and for the same reason: a browser will
    * only start audio for a page the viewer has interacted with, and closedown
    * arrives hours after anyone last touched anything. Switching the set on is
-   * the gesture, so that is when the context has to be opened: by the time
+   * the gesture, so that is when the context has to be opened — by the time
    * the tone is wanted there is nothing left to ask permission with.
    */
   prepare(): void
@@ -46,7 +46,7 @@ export const MAX_TONE_GAIN = 0.06
 
 /**
  * Quieter still. A tone is one frequency and hiss is all of them at once, so
- * matching them by number would not match them by ear: broadband noise at the
+ * matching them by number would not match them by ear — broadband noise at the
  * tone's level is a hairdryer.
  */
 export const MAX_HISS_GAIN = 0.022

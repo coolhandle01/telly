@@ -26,7 +26,7 @@ import type {
  * purpose. A Siemens star on the centre for resolving power, concentric
  * circles for geometry, gratings of rising frequency across and down for
  * horizontal and vertical resolution, and a greyscale wedge for the transfer
- * characteristic. No colour anywhere: a monoscope that needed a colour set to
+ * characteristic. No colour anywhere — a monoscope that needed a colour set to
  * read would not be a monoscope.
  *
  * Pure: a spec of plain values in, a plain-data model out.
@@ -40,7 +40,7 @@ const TAU = Math.PI * 2
  *
  * Half of it is odd (`N % 4 === 2`) for a second reason: reflection in the
  * vertical axis maps wedge `i` onto wedge `N / 2 - 1 - i`, and only when
- * `N / 2` is odd do those two share a parity, that is, the same ink. At
+ * `N / 2` is odd do those two share a parity — that is, the same ink. At
  * `N = 24` the star would be symmetric in geometry but not in colour.
  */
 export const STAR_WEDGES = 22
@@ -76,7 +76,7 @@ export interface StarWedge {
  * turn, alternating dark and light.
  *
  * The star is the one piece of real geometry on the card, so it is arithmetic
- * in its own function rather than a loop buried in a builder: the wedges can
+ * in its own function rather than a loop buried in a builder — the wedges can
  * then be proved equal, gapless and alternating without drawing anything.
  */
 export function siemensStarWedges(count: number): StarWedge[] {
@@ -99,7 +99,7 @@ export function siemensStarWedges(count: number): StarWedge[] {
 /**
  * The star itself: one stroke per wedge, laid along the wedge's bisector and
  * weighted so that neighbouring wedges meet at the rim. Inside that the strokes
- * overprint, which is the point of the thing: the radius at which the wedges
+ * overprint, which is the point of the thing — the radius at which the wedges
  * stop resolving is the measurement.
  */
 function siemensStar(centre: { x: number; y: number }, radius: number): LineShape[] {

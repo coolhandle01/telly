@@ -42,7 +42,7 @@ const QUOTA_REASONS = new Set(['quotaExceeded', 'dailyLimitExceeded', 'rateLimit
 export interface YouTubePoolSourceOptions {
   /** Injected transport. Never read from a global, so tests cannot escape. */
   fetch: FetchLike
-  /** Injected token provider: see `AccessTokenProvider`. */
+  /** Injected token provider — see `AccessTokenProvider`. */
   tokens: AccessTokenProvider
   videosPerChannel?: number
   /** Override for tests and for a proxy deployment. */
@@ -274,7 +274,7 @@ export class YouTubePoolSource implements PoolSource {
   }
 
   /**
-   * Step 2: each channel's uploads playlist and what YouTube says it is
+   * Step 2 — each channel's uploads playlist and what YouTube says it is
    * about, batched 50 ids to a call.
    *
    * `topicDetails` and `statistics` ride along for nothing: a call costs one
@@ -356,7 +356,7 @@ export class YouTubePoolSource implements PoolSource {
     return [...videoIds]
   }
 
-  /** Step 4: durations, ratings, category and views, batched 50 ids to a call. */
+  /** Step 4 — durations, ratings, category and views, batched 50 ids to a call. */
   async #describeVideos(videoIds: readonly string[]): Promise<Video[]> {
     const videos: Video[] = []
 
@@ -434,7 +434,7 @@ async function toApiError(
     // A failure with an unreadable body is still a failure worth reporting.
   }
 
-  const message = `youtube ${endpoint} failed: ${response.status}${reason ? ` (${reason})` : ''}${detail ? `: ${detail}` : ''}`
+  const message = `youtube ${endpoint} failed: ${response.status}${reason ? ` (${reason})` : ''}${detail ? ` — ${detail}` : ''}`
   return reason && QUOTA_REASONS.has(reason)
     ? new QuotaExceededError(response.status, reason, message)
     : new YouTubeApiError(response.status, reason, message)

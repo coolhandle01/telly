@@ -64,4 +64,4 @@ with no detail and we will find another way.
 
 This is a hobby television set for one person's sofa. It holds nothing worth
 stealing and the worst case is someone reads your subscription list. Please
-calibrate accordingly, but if you find something, we would like to know.
+calibrate accordingly — but if you find something, we would like to know.

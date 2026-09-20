@@ -47,7 +47,7 @@ Keeping the anachronisms off the cabinet is what lets the fascia stay strict,
 and it is why the Google button's modern styling does not jar: it is not
 pretending to be part of the set.
 
-Both sit in the corner of the room (top left, absolutely positioned) rather
+Both sit in the corner of the room — top left, absolutely positioned — rather
 than in a row under the cabinet. That is a height decision. A row beneath the
 set costs about fifty pixels of page, and every pixel it takes comes out of the
 television. Out of the flow they cost none, which buys the height cap three rem
@@ -58,7 +58,7 @@ and the picture about five per cent at laptop sizes.
 of the flow and a stretched out-of-flow box is an invisible sheet across the
 whole page that swallows every click underneath it. Written as
 everything-but-the-corner it was right until the second corner was added, and
-then silently wrong: the source link blanketed the top of the page and the
+then silently wrong — the source link blanketed the top of the page and the
 Telly Guide button stopped responding. An exception list is the wrong shape for
 a rule like this, which is the same lesson the room's stacking context teaches
 further down.
@@ -66,7 +66,7 @@ further down.
 `SourceLink` holds the one image in the app that is not ours. Linking back to
 GitHub is what GitHub publishes its mark for, where the test cards and the
 station idents are original because the alternative would be copying somebody's
-work, so this is the case where copying is the point, and it is copied rather
+work — so this is the case where copying is the point, and it is copied rather
 than re-traced: the path is `icons/mark-github-16.svg` from primer/octicons
 v19.33.0, character for character. The 16px drawing is its own set of curves
 rather than a shrunk 24px one, so that is the file to take at this size. The
@@ -78,7 +78,7 @@ brand-compliance tests in UI-test clothing, because the edits that break a brand
 rule are sympathetic ones nobody flags in review.
 
 It stands down while the listings are up, which the opposite corner does
-not: the listings put their own close button in that exact spot, and two
+not — the listings put their own close button in that exact spot, and two
 controls stacked reads as a mistake even dimmed behind the scrim.
 
 `.set__footer` is a carpet rather than a row. A site
@@ -94,7 +94,7 @@ scrolled 12px by the trade in
 The two links name `privacy/index.html` and `terms/index.html`, not the
 directories holding them. A static host answers `/privacy/` with the index
 inside it; Vite's static middleware does not, so such a request falls through to
-the single-page fallback and the dev server answers with the television, at an
+the single-page fallback and the dev server answers with the television — at an
 address that is not the television, against which the relative hrefs then
 compound into `/privacy/terms/` and worse. Naming the file resolves on every
 server. The `public-directory-index` plugin in `vite.config.ts` closes the other
@@ -117,7 +117,7 @@ the player and the cabinet all exist at once. It holds:
 - the preset state, and `stationById` to turn it into a station;
 - `blackStyle` at `#07090b` rather than pure black, so the glass has something
   to act on;
-- `pictureStyle(hasPicture)`: the opacity gate that reveals the picture over
+- `pictureStyle(hasPicture)` — the opacity gate that reveals the picture over
   the card (see [player.md](player.md));
 - `useCrtPower(on)`: the tube's own idea of whether it is on.
 - the `session` prop, and the four pieces of state that follow it: `signedIn`,
@@ -207,7 +207,7 @@ different, which is the set lying about one of them.
 The volume knob drives `setLevel(0..1)` and each sound is scaled into its own
 ceiling: the hiss is quieter than the tone at the same setting, because
 broadband noise at one frequency's level is a hairdryer. A fault card is
-silent: nobody transmitted it. A click and a clunk go straight to the
+silent — nobody transmitted it. A click and a clunk go straight to the
 destination past the volume gain, because they are made in the room rather than
 sent by a transmitter, and turning the sound down does not stop a switch
 clicking.
@@ -483,13 +483,13 @@ The lift and snow overlays sit inside `.screen__tube`, so the collapse takes
 them down with the picture. Snow is the same beam drawing noise instead of a
 signal, not a sheet laid over the glass.
 
-The set's own display (`CH 3`, `VOL`) goes in the `overlay` slot, which sits
+The set's own display — `CH 3`, `VOL` — goes in the `overlay` slot, which sits
 inside the tube but above the snow and outside all three deflection layers.
 Those characters are made in the cabinet and mixed in after the tuner, so
 nothing the tuner does reaches them: a set that hid its volume display whenever
 there was no signal would hide it exactly when you were most likely to be
 turning something. Passed as `children` instead, the display lands inside
-`.screen__line` and a fully opaque snow layer paints straight over it: present,
+`.screen__line` and a fully opaque snow layer paints straight over it — present,
 correctly sized, and invisible, which jsdom cannot tell from working. The tests
 therefore assert where the node sits rather than that it exists.
 
@@ -566,8 +566,8 @@ is where the feet are, so the set stands on the carpet at every size without a
 measurement anywhere.
 
 It sits at `z-index: -1` inside a stage that `isolation: isolate` makes a
-stacking context. Lifting the siblings instead (`.set__stage > :not(.room) {
-position: relative; z-index: 1 }`) reaches absolutely positioned children too
+stacking context. Lifting the siblings instead — `.set__stage > :not(.room) {
+position: relative; z-index: 1 }` — reaches absolutely positioned children too
 and undoes them. A rule that says "everything except" eventually catches
 something that needed to be excepted.
 
@@ -575,7 +575,7 @@ something that needed to be excepted.
 positioned, and a positioned element paints above the in-flow content of a
 later sibling, so the room's floor would otherwise paint straight over the
 fault row. The element would be present, the right size, in the right place,
-and returned by `elementFromPoint` as topmost, and never drawn.
+and returned by `elementFromPoint` as topmost — and never drawn.
 
 Neither rule is visible to the test suite. jsdom has no paint, so a node that
 is present, correctly sized and completely invisible looks exactly like a node
@@ -593,14 +593,14 @@ printed one, and no television could have drawn one.
 
 `listing(schedule, dayparts)` turns a `Schedule` into a page. Programmes get a
 line each, runs of card and continuity collapse into one, and a daypart marked
-`stripped` collapses its programmes too: a paper printed `2.00 Clip Show`, not
+`stripped` collapses its programmes too — a paper printed `2.00 Clip Show`, not
 two hundred and forty clips. Repeats are printed `(R)`.
 
 ### Two rules that keep it quick
 
 **The pool arrives in a transition.** Planning five broadcast days is a couple
 of hundred milliseconds of arithmetic inside a render, and a source that
-resolves without touching the network resolves in a microtask, so without
+resolves without touching the network resolves in a microtask — so without
 `startTransition` around `setPool`, the click that opened the listings, the
 pool arriving and all five days being planned land in one task and the browser
 paints none of it until the end. The page is in the DOM the whole time and
@@ -611,7 +611,7 @@ anything on screen, against 243ms with the transition.
 column is settled for the whole broadcast day except which line is ringed, and
 the ring moves a few times an hour. Passing the set's own clock straight
 through re-reads five schedules and re-lays two hundred lines sixty times for
-each time the answer changes: 14ms of main thread a second on that same
+each time the answer changes — 14ms of main thread a second on that same
 throttled CPU, for nothing.
 
 ### An empty page still goes out
@@ -619,7 +619,7 @@ throttled CPU, for nothing.
 The page goes out as soon as it is asked for, whether or not there is anything
 to print on it. The listings are worked out from a pool that has to be fetched,
 and a page that renders nothing until that lands is indistinguishable from a
-button that does not work, so an empty one carries the masthead, the date, and
+button that does not work — so an empty one carries the masthead, the date, and
 the line a paper printed when the schedules had not arrived, or the reason the
 fetch failed where there is one.
 
@@ -633,8 +633,8 @@ width and no height to anything. The set is measured open and closed at six
 widths and is pixel-identical.
 
 **The scrim scrolls, and the sheet inside it is one piece of paper.** A
-newspaper has no fixed masthead with the columns sliding underneath it (you
-move the whole page) so nothing here scrolls on its own and no heading is
+newspaper has no fixed masthead with the columns sliding underneath it — you
+move the whole page — so nothing here scrolls on its own and no heading is
 sticky. The sheet is centred with `margin: auto` rather than by the scrim,
 because a centred item taller than its scroll container has its top clipped
 with no way to scroll back to it; auto margins centre and give way.
@@ -646,7 +646,7 @@ there. It stays inside the dialog element so a screen reader still sees it.
 
 **Every column carries the same rule and the same padding**, and only the
 colour of the rule changes. Putting the border and the padding on the adjacent
-sibling alone (the obvious way to keep a rule out of the first gutter) makes
+sibling alone — the obvious way to keep a rule out of the first gutter — makes
 the first column's content box wider than the rest by exactly that much. The
 grid tracks stay equal and the headings inside them do not, which shows as one
 bar being longer than its neighbours: 216px against 199px at 1440.
@@ -654,7 +654,7 @@ bar being longer than its neighbours: 216px against 199px at 1440.
 **The channel the set is tuned to is marked down the whole column**, not round
 its heading. An outer `box-shadow` ring paints two pixels on every side and
 contributes nothing to layout, so the ringed bar measures identically to its
-neighbours and looks four pixels bigger in both directions, and the space
+neighbours and looks four pixels bigger in both directions — and the space
 cannot be reserved on the others, because a transparent ring paints nothing.
 `getBoundingClientRect` reports all five as equal either way, so measuring the
 boxes will not find it. Anything marking one column has to sit inside the box
@@ -671,8 +671,8 @@ jsdom sees none of this. Both rules are checked in a browser.
 
 **The ink stays small; the target grows.** A slotted trimmer is the size of a
 screwdriver head, and drawing it bigger would be drawing a different control.
-So the trimmer row is wider than the trimmers in it (each cell clears the
-24×24 minimum with the drawing in the middle of it) and the power key, a slim
+So the trimmer row is wider than the trimmers in it — each cell clears the
+24×24 minimum with the drawing in the middle of it — and the power key, a slim
 rectangle because that is what it was, reaches past its own moulding with a
 pseudo-element. Both stop short of the gap to their neighbours, because two
 targets that overlap fail the spacing rule as surely as one that is too small.

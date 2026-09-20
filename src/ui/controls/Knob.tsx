@@ -119,8 +119,6 @@ const CSS = `
   letter-spacing: 0.18em;
   text-transform: uppercase;
   ${NO_SELECT}
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
   /* Engraved into the plate the spindle comes through, so it is cut dark
      with the burr under it catching the light — not printed on in cream. */
   color: #4a4640;

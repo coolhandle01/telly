@@ -506,39 +506,7 @@ const CSS = `
      past, not what you reach through. */
   .tv-fascia__tuners { order: 1; flex: 1 1 100%; width: auto; justify-content: center; gap: 0.55rem; }
   .tv-fascia__tuner { flex: 0 0 1.7rem; }
-  .tv-fascia__grille {
-  flex: 1 1 auto;
-  min-height: 2.5rem;
-  margin: 0.15rem 0.1rem;
-  border-radius: 0.06rem;
-  /*
-    Slotted, not punched. Every reference set has a slatted or slotted speaker
-    panel — horizontal wooden louvres, vertical fluting, or what the
-    Marconiphone brochure calls "a contrasting black slotted speaker grille".
-    A drilled panel of round holes reads as a wireless, or as a set fifteen
-    years older than this one.
-
-    Each period is one slot and one rib, and the rib is where the drawing is:
-    lit on its left face and shadowed on its right, because the light comes
-    from the upper left like everything else on this set. Without those two
-    faces it is a barcode.
-  */
-  background-color: #14161a;
-  background-image: repeating-linear-gradient(
-    90deg,
-    #0b0d0f 0 0.17rem,
-    #16191c 0.17rem 0.2rem,
-    rgba(255, 244, 224, 0.34) 0.2rem 0.225rem,
-    #4b4d50 0.225rem 0.265rem,
-    #26282b 0.265rem 0.3rem
-  );
-  box-shadow:
-    inset 0 0.07rem 0.16rem rgba(0, 0, 0, 0.75),
-    inset 0 -0.04rem 0.08rem rgba(255, 255, 255, 0.14),
-    0 0 0 0.04rem rgba(28, 18, 8, 0.6);
-}
-
-.tv-fascia__lamps { order: 2; margin-top: 0; }
+  .tv-fascia__lamps { order: 2; margin-top: 0; }
   .tv-fascia__lip { margin: 0.5rem -0.55rem 0; }
 }
 `

@@ -145,11 +145,15 @@ your subscriptions for about an hour. telly holds that pass in the page only,
 and closing the tab ends it. It is not saved anywhere on your device. When the
 hour runs out, telly asks Google for another one. If Google does not issue one,
 telly returns to its signed-out state and you sign in again.</li>
-<li><strong>A note that you signed in here.</strong> telly records in your
-browser that a Google permission screen was completed on this device, so that
-returning to the page does not have to ask you again. It is a yes or no, and
-says nothing about you or your account. It is removed when you sign out, and
-when Google answers that telly&rsquo;s permission no longer stands.</li>
+<li><strong>Which account signed in here.</strong> telly records in your
+browser an identifier Google gives it for your account, so that returning to
+the page can ask Google for a new pass without putting a sign-in screen in
+front of you. Google will not issue one silently unless it is told which
+account to issue it for, and this is how telly tells it. The identifier is
+Google&rsquo;s own, it is different for every app, and it is not your name, your
+email address or a password. telly reads it from the sign-in itself and never
+asks YouTube for it. It is removed when you sign out, and when Google answers
+that telly&rsquo;s permission no longer stands.</li>
 </ul>
 <p>telly puts nothing else on your device. Your browser keeps its own copy of
 the page, as it does for any site.</p>
@@ -158,10 +162,11 @@ the page, as it does for any site.</p>
 <p>telly does not encrypt the saved schedule, and asks you for nothing before
 reading it, so anyone who can use your device and open this site can see it. It
 holds the names of the channels you subscribe to and the titles of their recent
-uploads. It holds no password and no sign-in pass. The note that you signed in
-here can be read the same way: it says that a Google permission screen was
-completed in this browser, and nothing more. Signing out removes both, and so
-does clearing this site&rsquo;s data.</p>
+uploads. It holds no password and no sign-in pass. The account identifier can
+be read the same way. It cannot be used to sign in as you or to read anything
+of yours, and it is meaningless to any app but this one, but it does say that
+this Google account has used telly on this device. Signing out removes both,
+and so does clearing this site&rsquo;s data.</p>
 
 <h2>How to remove it</h2>
 <ul>

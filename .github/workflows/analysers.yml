@@ -57,7 +57,7 @@ jobs:
       - run: npx vite build
 
   commits:
-    name: commit messages
+    name: conventional commits
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:

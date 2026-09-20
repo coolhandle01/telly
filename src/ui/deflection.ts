@@ -19,7 +19,7 @@ export const LOCK = CENTRE
 
 /**
  * How far either side of lock still holds. An oscillator pulls in over a
- * *band*, not at a point — which is the whole reason a hold control can be
+ * *band*, not at a point, which is the whole reason a hold control can be
  * found by hand rather than only by instrument.
  */
 export const PULL_IN = 0.09

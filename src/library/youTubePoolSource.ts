@@ -9,18 +9,19 @@ import type { AccessTokenProvider } from './tokenProvider'
  * The real pool: your subscriptions, their uploads, and enough detail about each
  * video to schedule it.
  *
- * The call sequence and the quota it costs are the design (~220 units for ~200
- * subscriptions, against a 10,000/day allowance):
+ * The call sequence and the quota it costs are the design. A list call costs
+ * one unit whatever parts it asks for, so the cost is the number of calls:
  *
- * | call                | per       | units |
- * |---------------------|-----------|-------|
- * | `subscriptions.list`| 50 subs   | 1     |
- * | `channels.list`     | 50 ids    | 1     |
- * | `playlistItems.list`| 1 channel | 1     |
- * | `videos.list`       | 50 ids    | 1     |
+ * | call                 | per       | 200 subs, 20 videos each |
+ * |----------------------|-----------|--------------------------|
+ * | `channels.list` mine | the owner | 1                        |
+ * | `subscriptions.list` | 50 subs   | 4                        |
+ * | `channels.list`      | 50 ids    | 4                        |
+ * | `playlistItems.list` | 1 channel | 200                      |
+ * | `videos.list`        | 50 ids    | 80                       |
  *
- * The two `50`s are load-bearing: batching ids is the difference between ~220
- * units a day and blowing the quota before breakfast.
+ * ~290 units against a 10,000/day allowance, and the two `50`s are what hold
+ * it there: a `videos.list` per video would be 4,000 on its own.
  */
 
 const API_BASE = 'https://www.googleapis.com/youtube/v3'
@@ -41,7 +42,7 @@ const QUOTA_REASONS = new Set(['quotaExceeded', 'dailyLimitExceeded', 'rateLimit
 export interface YouTubePoolSourceOptions {
   /** Injected transport. Never read from a global, so tests cannot escape. */
   fetch: FetchLike
-  /** Injected token provider — see `AccessTokenProvider`. */
+  /** Injected token provider: see `AccessTokenProvider`. */
   tokens: AccessTokenProvider
   videosPerChannel?: number
   /** Override for tests and for a proxy deployment. */
@@ -144,13 +145,22 @@ export function batchIds(ids: readonly string[], size: number = MAX_IDS_PER_CALL
 /**
  * Whether an error condemns the whole load rather than one playlist.
  *
- * Anything about *us* — a rejected token, spent quota, a forbidden request —
- * will fail identically for every remaining channel, so carrying on would
- * burn two hundred more calls to learn the same thing. Anything about one
- * playlist is that playlist's problem alone.
+ * Anything about *us* (a rejected token, spent quota, too many requests a
+ * minute) will fail identically for every remaining channel, so carrying on
+ * would burn two hundred more calls to learn the same thing, and end with an
+ * empty pool that reads from the sofa as an empty subscription list. Anything
+ * about one playlist is that playlist's problem alone.
+ *
+ * 429 is in here by status as well as by reason: the per-minute limit is
+ * returned with `rateLimitExceeded` or `userRateLimitExceeded`, and a 429
+ * carrying neither is still the same wall.
  */
 function isFatal(error: unknown): boolean {
-  return error instanceof YouTubeApiError && (error.status === 401 || error.status === 403)
+  if (error instanceof QuotaExceededError) return true
+  return (
+    error instanceof YouTubeApiError &&
+    (error.status === 401 || error.status === 403 || error.status === 429)
+  )
 }
 
 export class YouTubePoolSource implements PoolSource {
@@ -158,12 +168,48 @@ export class YouTubePoolSource implements PoolSource {
   readonly #tokens: AccessTokenProvider
   readonly #videosPerChannel: number
   readonly #baseUrl: string
+  #owner: Promise<string> | undefined
 
   constructor(options: YouTubePoolSourceOptions) {
     this.#fetch = options.fetch
     this.#tokens = options.tokens
     this.#videosPerChannel = options.videosPerChannel ?? DEFAULT_VIDEOS_PER_CHANNEL
     this.#baseUrl = options.baseUrl ?? API_BASE
+  }
+
+  /**
+   * Whose subscriptions these are, as their own channel id.
+   *
+   * `mine=true` answers for whoever the token belongs to, so this is an
+   * identity the `youtube.readonly` scope already covers: no profile scope,
+   * no name, no address, nothing the app has not already been granted. It
+   * exists to key the cache: two accounts on one browser must not be able to
+   * read each other's pool.
+   *
+   * Held for the life of the source, which is the life of a signed-in
+   * session, so it costs its one unit once.
+   */
+  async ownerId(): Promise<string> {
+    this.#owner ??= this.#fetchOwnerId().catch((error: unknown) => {
+      this.#owner = undefined
+      throw error
+    })
+    return this.#owner
+  }
+
+  /**
+   * Forget who the token belonged to. The next load asks again, so the account
+   * that signs in after a sign-out is keyed as itself.
+   */
+  async forget(): Promise<void> {
+    this.#owner = undefined
+  }
+
+  async #fetchOwnerId(): Promise<string> {
+    const page = (await this.#get('channels', { part: 'id', mine: 'true' })) as ChannelListResponse
+    const id = page.items?.[0]?.id
+    if (!id) throw new YouTubeApiError(200, undefined, 'youtube channels returned no owner')
+    return id
   }
 
   async load(): Promise<Pool> {
@@ -209,7 +255,7 @@ export class YouTubePoolSource implements PoolSource {
     } while (pageToken)
   }
 
-  /** Step 1 — every subscribed channel, 50 a page, following `nextPageToken`. */
+  /** Step 1: every subscribed channel, 50 a page, following `nextPageToken`. */
   async #listSubscriptions(): Promise<Channel[]> {
     const channels: Channel[] = []
 
@@ -228,7 +274,7 @@ export class YouTubePoolSource implements PoolSource {
   }
 
   /**
-   * Step 2 — each channel's uploads playlist and what YouTube says it is
+   * Step 2: each channel's uploads playlist and what YouTube says it is
    * about, batched 50 ids to a call.
    *
    * `topicDetails` and `statistics` ride along for nothing: a call costs one
@@ -267,7 +313,7 @@ export class YouTubePoolSource implements PoolSource {
   }
 
   /**
-   * Step 3 — recent uploads per playlist. This is the expensive step, so it is
+   * Step 3: recent uploads per playlist. This is the expensive step, so it is
    * sequential to stay inside the per-minute rate limit rather than firing two
    * hundred requests at once.
    *
@@ -276,6 +322,8 @@ export class YouTubePoolSource implements PoolSource {
    */
   async #listRecentVideoIds(playlistIds: readonly string[]): Promise<string[]> {
     const videoIds = new Set<string>()
+    let firstFailure: unknown
+    let failures = 0
 
     for (const playlistId of playlistIds) {
       try {
@@ -294,21 +342,28 @@ export class YouTubePoolSource implements PoolSource {
         // an ordinary fact of a subscription list that has been around a
         // while. It must cost you that channel, not the other two hundred.
         if (isFatal(error)) throw error
+        failures += 1
+        firstFailure ??= error
         continue
       }
     }
 
+    // Every playlist failing is a failure of the load, whatever each
+    // individual answer said. An empty pool is shown as an empty subscription
+    // list, and this is the case where that would be untrue.
+    if (failures > 0 && failures === playlistIds.length) throw firstFailure
+
     return [...videoIds]
   }
 
-  /** Step 4 — durations, ratings, category and views, batched 50 ids to a call. */
+  /** Step 4: durations, ratings, category and views, batched 50 ids to a call. */
   async #describeVideos(videoIds: readonly string[]): Promise<Video[]> {
     const videos: Video[] = []
 
     for (const batch of batchIds(videoIds)) {
       for await (const page of this.#pages<VideoListResponse>('videos', {
-        // `liveStreamingDetails` is free — parts cost nothing extra within a
-        // call — and it is the only reliable way to tell a finished stream
+        // `liveStreamingDetails` is free (parts cost nothing extra within a
+        // call) and it is the only reliable way to tell a finished stream
         // from one still running.
         part: 'contentDetails,status,snippet,statistics,liveStreamingDetails',
         id: batch.join(','),
@@ -379,7 +434,7 @@ async function toApiError(
     // A failure with an unreadable body is still a failure worth reporting.
   }
 
-  const message = `youtube ${endpoint} failed: ${response.status}${reason ? ` (${reason})` : ''}${detail ? ` — ${detail}` : ''}`
+  const message = `youtube ${endpoint} failed: ${response.status}${reason ? ` (${reason})` : ''}${detail ? `: ${detail}` : ''}`
   return reason && QUOTA_REASONS.has(reason)
     ? new QuotaExceededError(response.status, reason, message)
     : new YouTubeApiError(response.status, reason, message)

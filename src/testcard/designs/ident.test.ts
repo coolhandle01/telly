@@ -132,7 +132,7 @@ const angleAt = (model: TestCardModel, x: number, y: number): number =>
 const distanceFromCentre = (model: TestCardModel, x: number, y: number): number =>
   Math.hypot(x - model.centre.x, y - model.centre.y)
 
-describe('buildIdentCard — the card frame', () => {
+describe('buildIdentCard:the card frame', () => {
   it('defaults to a 4:3 card and reports its geometric centre', () => {
     const model = card()
 
@@ -178,7 +178,7 @@ describe('buildIdentCard — the card frame', () => {
   })
 })
 
-describe('buildIdentCard — the colour rings', () => {
+describe('buildIdentCard:the colour rings', () => {
   it('runs the eight colours outward-in, brightest outermost', () => {
     expect(circles(card(), 'ring').map((ring) => ring.stroke)).toEqual(EBU_ORDER)
   })
@@ -258,7 +258,7 @@ describe('buildIdentCard — the colour rings', () => {
   })
 })
 
-describe('buildIdentCard — the star of segments around the wheel', () => {
+describe('buildIdentCard:the star of segments around the wheel', () => {
   it('radiates an even number of segments, every one pointing at the centre', () => {
     const model = card()
     const star = lines(model, 'star-segment')
@@ -307,7 +307,7 @@ describe('buildIdentCard — the star of segments around the wheel', () => {
       expect(far(segment)).toBeCloseTo(far(star[0]), 6)
       expect(near(segment)).toBeGreaterThan(outer.r + (outer.strokeWidth ?? 0) / 2)
       expect(far(segment)).toBeGreaterThan(near(segment))
-      // A hairline is no segment at all — but neither is a band so fat that
+      // A hairline is no segment at all, but neither is a band so fat that
       // the twelve of them close up into another ring.
       expect(segment.strokeWidth).toBeGreaterThan((far(segment) - near(segment)) / 2)
       expect(segment.strokeWidth).toBeLessThan((TWO_PI * near(segment)) / star.length)
@@ -329,7 +329,7 @@ describe('buildIdentCard — the star of segments around the wheel', () => {
   })
 })
 
-describe('buildIdentCard — the station mark', () => {
+describe('buildIdentCard:the station mark', () => {
   it('sets the channel name large, across the middle of the wheel', () => {
     const model = card({ channelName: 'CHANNEL TWO' })
     const name = textShape(model, 'ident-name')
@@ -393,7 +393,7 @@ describe('buildIdentCard — the station mark', () => {
   })
 })
 
-describe('buildIdentCard — caption box and clock', () => {
+describe('buildIdentCard:caption box and clock', () => {
   it('captions the injected channel name', () => {
     expect(textOf(card({ channelName: 'CHANNEL TWO' }), 'caption-channel')).toBe('CHANNEL TWO')
   })
@@ -449,7 +449,7 @@ describe('buildIdentCard — caption box and clock', () => {
   })
 })
 
-describe('buildIdentCard — the interlude variant', () => {
+describe('buildIdentCard:the interlude variant', () => {
   const interlude = (): TestCardModel => card({ variant: 'interlude' })
 
   it('takes the star away, leaving the calmer wheel', () => {
@@ -476,7 +476,7 @@ describe('buildIdentCard — the interlude variant', () => {
   })
 })
 
-describe('buildIdentCard — invariants', () => {
+describe('buildIdentCard:invariants', () => {
   it('keeps every shape inside the bounds of the card, in either variant', () => {
     for (const model of [card(), card({ variant: 'interlude' }), card({ width: 640, height: 480 })]) {
       model.shapes.forEach((shape) => {

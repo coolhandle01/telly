@@ -13,7 +13,7 @@ export type CardDesign = (spec: TestCardSpec) => TestCardModel
  * Every card the channel knows how to draw.
  *
  * The order is the rotation order, so adding one changes which card falls on
- * which day. That is fine — nobody has a right to Tuesday's card — but it is
+ * which day. That is fine (nobody has a right to Tuesday's card) but it is
  * why the rotation is derived from the date rather than stored anywhere.
  */
 export const CARD_DESIGNS: Record<CardDesignId, CardDesign> = {
@@ -54,7 +54,7 @@ export function designForDate(
   if (rotation.length === 0) return DESIGN_ROTATION[0]
   // The *broadcast* day's date, not the calendar day's. At two in the morning
   // you are still watching yesterday's television, and the card is part of
-  // that day — it should turn over at six with everything else, not at
+  // that day: it should turn over at six with everything else, not at
   // midnight in the middle of late night.
   const day = broadcastDayStart(now)
   // Every step below carries NaN through to `rotation[NaN]`, and
@@ -63,7 +63,7 @@ export function designForDate(
 
   // The civil date, counted as a civil date. Dividing a *local* midnight by
   // 86,400,000 counts UTC days: under BST local midnight is 23.00 UTC the day
-  // before, so the index lands on the previous day — consistently, which is
+  // before, so the index lands on the previous day, consistently, which is
   // why it looks fine, right up until the clocks change and the rotation
   // either repeats a card or skips one. `Date.UTC` of the local Y/M/D is an
   // exact multiple of a day whatever the zone.

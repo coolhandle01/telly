@@ -3,7 +3,7 @@ import { useState } from 'react'
 /**
  * Two sets on one page must not share filter ids: the second one's
  * `url(#…)` would resolve to the first one's filter and the pair would drift
- * out of step the moment one of them changed. A module counter is enough —
+ * out of step the moment one of them changed. A module counter is enough:
  * it is read once per mount and nothing about it has to survive a reload.
  */
 let sequence = 0

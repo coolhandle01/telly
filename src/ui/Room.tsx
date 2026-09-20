@@ -2,7 +2,7 @@
  * The room the set is in.
  *
  * A console television is furniture: it has legs and it stands on the floor,
- * so the scene it needs is a wall behind it, a skirting board, and carpet —
+ * so the scene it needs is a wall behind it, a skirting board, and carpet,
  * not a sideboard. (A set without legs would want one; `Cabinet` takes
  * `legs={false}` for that day.)
  *
@@ -12,7 +12,7 @@
  * coming off the tube. That is both what it looked like and what keeps the
  * wallpaper from competing with the set, which is the thing you came for.
  *
- * The floor line is the stage's own bottom edge, which is where the feet are —
+ * The floor line is the stage's own bottom edge, which is where the feet are,
  * so the set stands on the carpet at every window size without anyone
  * measuring anything.
  */
@@ -34,7 +34,7 @@ const CSS = `
 }
 
 /*
-  The paper. A hung wall of interlocking rings, staggered — the pattern a 1970
+  The paper. A hung wall of interlocking rings, staggered: the pattern a 1970
   sitting room had and nobody chose twice. Two rings to a tile, offset by half
   a step, which is what makes it read as hung paper rather than as a grid.
 */
@@ -64,7 +64,7 @@ const CSS = `
   bottom: 0;
   height: 1.35rem;
   /*
-    Painted, but down at floor level in a room lit from above — so it is the
+    Painted, but down at floor level in a room lit from above, so it is the
     dimmest paint in the house, not the brightest thing in the picture. Gloss
     cream at full value made a bright band across the frame that pulled the
     eye straight off the television.
@@ -84,7 +84,7 @@ const CSS = `
 
 /*
   Carpet. Dark, warm and short-pile, going darker towards the front of the
-  room where the light does not reach — which is also what stops the floor
+  room where the light does not reach, which is also what stops the floor
   reading as a wall lying down.
 */
 .room__floor {

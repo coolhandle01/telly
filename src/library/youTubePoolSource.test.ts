@@ -222,7 +222,7 @@ describe('YouTubePoolSource', () => {
 
     // Found by a real account: one channel you are still subscribed to gets
     // deleted or goes private, its uploads playlist 404s, and the whole load
-    // dies — taking two hundred healthy channels with it.
+    // dies, taking two hundred healthy channels with it.
     it('skips a playlist that has gone, and keeps the rest', async () => {
       const channelIds = ['UC1', 'UC2', 'UC3']
       const { fetch, callsTo } = fakeYouTube({
@@ -254,6 +254,41 @@ describe('YouTubePoolSource', () => {
       await expect(new YouTubePoolSource({ fetch, tokens }).load()).rejects.toBeInstanceOf(
         QuotaExceededError,
       )
+    })
+
+    // Found on a real account: the per-minute limit bites partway through two
+    // hundred playlists, every one after it answers the same way, and the load
+    // finishes with a pool the screen reads out as an empty subscription list.
+    // The subscriptions were fine. The rate limit was the thing to say.
+    it.each(['rateLimitExceeded', 'userRateLimitExceeded'])(
+      'abandons the whole load on a 429 %s rather than emptying the pool',
+      async (reason) => {
+        const { fetch, callsTo } = fakeYouTube({
+          subscriptions: () => subscriptionPage(['UC1', 'UC2', 'UC3']),
+          channels: (params) => channelsPage(params.get('id')!.split(',')),
+          playlistItems: () => apiError(429, reason),
+          videos: () => videosPage([]),
+        })
+
+        const load = new YouTubePoolSource({ fetch, tokens }).load()
+
+        await expect(load).rejects.toBeInstanceOf(QuotaExceededError)
+        await expect(load).rejects.toMatchObject({ status: 429, reason })
+        // It stopped at the wall instead of walking into it twice more.
+        expect(callsTo('playlistItems')).toHaveLength(1)
+      },
+    )
+
+    it('abandons the whole load on a 429 that names no reason at all', async () => {
+      const { fetch, callsTo } = fakeYouTube({
+        subscriptions: () => subscriptionPage(['UC1', 'UC2']),
+        channels: (params) => channelsPage(params.get('id')!.split(',')),
+        playlistItems: () => json({ error: { code: 429, message: 'too many requests' } }, 429),
+        videos: () => videosPage([]),
+      })
+
+      await expect(new YouTubePoolSource({ fetch, tokens }).load()).rejects.toMatchObject({ status: 429 })
+      expect(callsTo('playlistItems')).toHaveLength(1)
     })
 
     it('still fails when the token is rejected', async () => {
@@ -342,6 +377,115 @@ describe('YouTubePoolSource', () => {
 
       expect(callsTo('playlistItems').map((call) => call.params.get('playlistId'))).toEqual(['UU2'])
       expect(pool.videos.map((video) => video.id)).toEqual(['v1'])
+    })
+  })
+
+  describe('when every uploads playlist fails', () => {
+    it('fails the load with the first error it saw', async () => {
+      const { fetch } = fakeYouTube({
+        subscriptions: () => subscriptionPage(['UC1', 'UC2']),
+        channels: (params) => channelsPage(params.get('id')!.split(',')),
+        playlistItems: () => apiError(404, 'playlistNotFound'),
+        videos: () => videosPage([]),
+      })
+
+      const load = new YouTubePoolSource({ fetch, tokens }).load()
+
+      // Nothing came back from anywhere, which is a broken load. An empty pool
+      // is shown as an empty subscription list, and this viewer has two.
+      await expect(load).rejects.toBeInstanceOf(YouTubeApiError)
+      await expect(load).rejects.toMatchObject({ status: 404, reason: 'playlistNotFound' })
+    })
+
+    it('resolves on the one playlist that answered, whatever the other did', async () => {
+      const { fetch, callsTo } = fakeYouTube({
+        subscriptions: () => subscriptionPage(['UC1', 'UC2']),
+        channels: (params) => channelsPage(params.get('id')!.split(',')),
+        playlistItems: (params) =>
+          params.get('playlistId') === 'UU1'
+            ? apiError(404, 'playlistNotFound')
+            : playlistItemsPage(['UU2-v1']),
+        videos: (params) => videosPage(params.get('id')!.split(',').map((id) => ({ id }))),
+      })
+
+      const pool = await new YouTubePoolSource({ fetch, tokens }).load()
+
+      expect(callsTo('playlistItems')).toHaveLength(2)
+      expect(pool.videos.map((video) => video.id)).toEqual(['UU2-v1'])
+    })
+
+    it('resolves with nothing on when no channel has uploads enabled', async () => {
+      // No `playlistItems` handler: a request to one fails the test loudly, and
+      // a subscription list with no uploads playlists in it makes none.
+      const { fetch } = fakeYouTube({
+        subscriptions: () => subscriptionPage(['UC1']),
+        channels: () => json({ items: [{ id: 'UC1', contentDetails: { relatedPlaylists: {} } }] }),
+      })
+
+      const pool = await new YouTubePoolSource({ fetch, tokens }).load()
+
+      expect(pool.videos).toEqual([])
+      expect(pool.channels.size).toBe(1)
+    })
+  })
+
+  describe('whose subscriptions these are', () => {
+    const ownerPage = (id: string) => json({ items: [{ id, kind: 'youtube#channel' }] })
+
+    it('asks channels for the signed-in account own id', async () => {
+      const { fetch, callsTo } = fakeYouTube({ channels: () => ownerPage('UC-owner') })
+
+      const owner = await new YouTubePoolSource({ fetch, tokens }).ownerId()
+
+      expect(owner).toBe('UC-owner')
+      const [call] = callsTo('channels')
+      // `id` and `mine` are the whole request: an identity `youtube.readonly`
+      // already covers, with no name and no address anywhere in the answer.
+      expect(call.params.get('part')).toBe('id')
+      expect(call.params.get('mine')).toBe('true')
+    })
+
+    it('asks once for the life of the source, so it costs its one unit once', async () => {
+      const { fetch, callsTo } = fakeYouTube({ channels: () => ownerPage('UC-owner') })
+      const source = new YouTubePoolSource({ fetch, tokens })
+
+      await source.ownerId()
+      await source.ownerId()
+
+      expect(callsTo('channels')).toHaveLength(1)
+    })
+
+    it('asks again after a sign-out, so the next account is keyed as itself', async () => {
+      const { fetch, callsTo } = fakeYouTube({
+        channels: (_params, call) => ownerPage(call === 0 ? 'UC-alice' : 'UC-bob'),
+      })
+      const source = new YouTubePoolSource({ fetch, tokens })
+      expect(await source.ownerId()).toBe('UC-alice')
+
+      await source.forget()
+
+      expect(await source.ownerId()).toBe('UC-bob')
+      expect(callsTo('channels')).toHaveLength(2)
+    })
+
+    it('asks again after a failure rather than holding on to it', async () => {
+      const { fetch, callsTo } = fakeYouTube({
+        channels: (_params, call) => (call === 0 ? apiError(500, 'backendError') : ownerPage('UC-owner')),
+      })
+      const source = new YouTubePoolSource({ fetch, tokens })
+
+      await expect(source.ownerId()).rejects.toMatchObject({ status: 500 })
+
+      expect(await source.ownerId()).toBe('UC-owner')
+      expect(callsTo('channels')).toHaveLength(2)
+    })
+
+    it('rejects when the answer names no channel', async () => {
+      const { fetch } = fakeYouTube({ channels: () => json({ items: [] }) })
+
+      await expect(new YouTubePoolSource({ fetch, tokens }).ownerId()).rejects.toBeInstanceOf(
+        YouTubeApiError,
+      )
     })
   })
 
@@ -504,7 +648,7 @@ describe('YouTubePoolSource', () => {
 
     it('calls a stream that has not finished live, whatever the snippet says', async () => {
       // The window this closes: a stream ends, the snippet drops back to
-      // `none`, and the recording is not published yet — so it still plays as
+      // `none`, and the recording is not published yet, so it still plays as
       // "this live event has ended", inside the iframe, with no error event to
       // tell anyone about it. Streaming details without an end time means the
       // stream is not over.
@@ -607,7 +751,7 @@ describe('YouTubePoolSource', () => {
 
     // The termination test at :168 scripts a peer that volunteers a last page
     // with no token, so it measures the peer's good manners rather than a bound
-    // in #listSubscriptions — a sane value sat in the one field that controls
+    // in #listSubscriptions: a sane value sat in the one field that controls
     // that loop. A peer that keeps handing back the token it just issued is the
     // hostile one, and nothing in the code stops it. The fake caps itself so a
     // loop with no cap fails as an assertion here instead of hanging the run.

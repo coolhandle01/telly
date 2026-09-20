@@ -49,7 +49,7 @@ export interface YouTubePlayerOptions {
   events: {
     onReady?: (event: YouTubePlayerEvent) => void
     onError?: (event: YouTubeErrorEvent) => void
-    /** YT.PlayerState — how we learn a picture actually arrived. */
+    /** YT.PlayerState: how we learn a picture actually arrived. */
     onStateChange?: (event: YouTubeStateEvent) => void
   }
 }
@@ -78,7 +78,7 @@ declare global {
 }
 
 /**
- * The real loader. Nothing happens until it is *called* — importing this module
+ * The real loader. Nothing happens until it is *called*: importing this module
  * touches neither the network nor the document, which is what lets the app and
  * its suite run entirely offline.
  */
@@ -97,7 +97,7 @@ export function loadYouTubeIframeApi(): Promise<YouTubeApi> {
     const script = document.createElement('script')
     script.src = API_URL
     // Without this the promise simply never settles when the script is blocked
-    // — by an ad-blocker, a firewall, or YouTube being down — and the screen
+    // (by an ad-blocker, a firewall, or YouTube being down) and the screen
     // stays black with nothing reported. A rejection is a fault like any other.
     script.onerror = () => {
       script.remove()
@@ -127,7 +127,7 @@ const BUFFERING = 3
  * How long a programme may mount without producing a picture before we give up
  * on it. YouTube renders its own error page inside the iframe for some
  * failures and never fires `onError`, so waiting on an error event alone
- * leaves a blank screen for ever. Generous enough for a slow connection —
+ * leaves a blank screen for ever. Generous enough for a slow connection:
  * buffering counts as progress and stands the watchdog down.
  */
 const DEFAULT_START_TIMEOUT_MS = 8000
@@ -153,7 +153,7 @@ export class YouTubeIframePlayer implements Player {
   #ready = false
   /**
    * Which mount the callbacks belong to. A player that has been torn down
-   * still fires events — the API has no idea its frame is gone — and without
+   * still fires events (the API has no idea its frame is gone) and without
    * this they land on whatever player exists by the time they arrive.
    */
   #generation = 0
@@ -192,7 +192,7 @@ export class YouTubeIframePlayer implements Player {
     if (this.#handle) {
       // Still building: leave it alone. `#onReady` picks up whatever the
       // latest cue turns out to be, so a programme change during the mount is
-      // not lost — it simply arrives with the picture.
+      // not lost; it simply arrives with the picture.
       if (this.#ready) {
         this.#handle.loadVideoById({ videoId: cue.videoId, startSeconds: cue.offsetSec })
       }
@@ -203,7 +203,7 @@ export class YouTubeIframePlayer implements Player {
     this.#loading = true
     void this.#loadApi().then(
       (api) => this.#mount(api),
-      // The script never arrived — blocked, offline, or YouTube is down. That
+      // The script never arrived: blocked, offline, or YouTube is down. That
       // is a fault like any other: report it so the screen can apologise
       // instead of showing black for ever, and let go of the loading latch so
       // the next programme tries again.
@@ -219,7 +219,7 @@ export class YouTubeIframePlayer implements Player {
     this.#setPicture(false)
     if (this.#ready) this.#handle?.stopVideo()
     // And let it go. The surface above removes the host from the document when
-    // it unmounts, and moving an iframe in the DOM reloads it — which severs
+    // it unmounts, and moving an iframe in the DOM reloads it, which severs
     // the player object from the frame it thinks it is driving, so every later
     // loadVideoById is swallowed and the set never shows a picture again.
     // Rebuilding on the next load costs a fresh frame and is always correct.
@@ -266,14 +266,14 @@ export class YouTubeIframePlayer implements Player {
 
     // The surface can unmount while the API is still being fetched, and its
     // cleanup takes the host out of the document. A player built into a
-    // detached element can never show anyone a picture — it would sit there
-    // buffering audio nobody asked for — so abandon this mount and let the
+    // detached element can never show anyone a picture (it would sit there
+    // buffering audio nobody asked for) so abandon this mount and let the
     // next `load` build one somewhere real.
     if (!this.#host.isConnected) return
 
     // The API *replaces* the element it is given with an iframe, so it cannot
-    // be handed the host twice. Each mount gets a fresh target inside the host
-    // — which is also what makes rebuilding after a failure possible at all.
+    // be handed the host twice. Each mount gets a fresh target inside the host,
+    // which is also what makes rebuilding after a failure possible at all.
     const target = document.createElement('div')
     target.style.position = 'absolute'
     target.style.inset = '0'
@@ -285,7 +285,7 @@ export class YouTubeIframePlayer implements Player {
 
     const handle = new api.Player(target, {
       // The API *replaces* the host element with an iframe of its own, so
-      // styling the host achieves nothing — the size has to be passed in here.
+      // styling the host achieves nothing: the size has to be passed in here.
       // Without it you get YouTube's 640x390 default sitting in the corner of
       // the stage, which on a television reads as nothing showing at all.
       width: '100%',

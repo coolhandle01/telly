@@ -11,7 +11,7 @@ import type { CircleShape, LineShape, Shape, TestCardModel, TestCardSpec } from 
  * The crosshatch: white lines on black, a regular grid of squares over the
  * whole picture, a circle inscribed in it, and a dot at every crossing. The
  * card for lining up convergence and for seeing at a glance whether the
- * picture is stretched — which is why it carries nothing else.
+ * picture is stretched, which is why it carries nothing else.
  *
  * Pure: a spec of plain values in, a plain-data model out.
  */
@@ -42,8 +42,8 @@ export interface Grid {
  *
  * Two properties are wanted and only one of them can be exact on an arbitrary
  * picture: that the grid spans the picture exactly, and that a cell is square.
- * Spanning wins — a grid that stops short of the edge is visibly wrong, where a
- * cell a fraction of a per cent off square is not — so the row count is chosen
+ * Spanning wins (a grid that stops short of the edge is visibly wrong, where a
+ * cell a fraction of a per cent off square is not) so the row count is chosen
  * to make the cell as square as the picture allows and the cell height then
  * divides what is actually there. On a 4:3 picture at sixteen columns both come
  * out exact.
@@ -86,7 +86,7 @@ function gridLines(picture: Picture, grid: Grid): LineShape[] {
 }
 
 /**
- * A dot at every crossing — which means the interior ones. On the picture edge
+ * A dot at every crossing, which means the interior ones. On the picture edge
  * two lines meet but do not cross, and a dot there would be half off the
  * raster anyway.
  */

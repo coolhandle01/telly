@@ -3,7 +3,7 @@
  *
  * The awkward cases are the whole point: a minutes-only `PT2M` has no seconds
  * component, a live item reports the degenerate `P0D`, and `M` means *months*
- * before the `T` and *minutes* after it — which is where hand-rolled parsers
+ * before the `T` and *minutes* after it, which is where hand-rolled parsers
  * usually go wrong.
  */
 

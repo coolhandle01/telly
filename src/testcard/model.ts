@@ -1,4 +1,4 @@
-// A plain-data description of the card. No DOM, no SVG strings, no React —
+// A plain-data description of the card. No DOM, no SVG strings, no React:
 // just numbers and colours, so the whole of the card's geometry is provable in
 // a test that mounts nothing.
 
@@ -110,7 +110,7 @@ export interface TestCardSpec {
    */
   rotation?: readonly CardDesignId[]
   variant: TestCardVariant
-  /** The instant the card is drawn for. Injected — nothing calls `new Date()`. */
+  /** The instant the card is drawn for. Injected: nothing calls `new Date()`. */
   now: Date
   /** Channel name for the caption box. */
   channelName: string
@@ -141,7 +141,7 @@ export interface TestCardModel {
   variant: TestCardVariant
   width: number
   height: number
-  /** The geometric centre — what the convergence circle and crosshair sit on. */
+  /** The geometric centre: what the convergence circle and crosshair sit on. */
   centre: { x: number; y: number }
   /** The framed area inside the castellated border. */
   picture: { x: number; y: number; width: number; height: number }

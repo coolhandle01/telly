@@ -1,7 +1,7 @@
 import { startTransition, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { SystemClock, type Clock } from '../clock/clock'
 import { broadcastDayStart, type Pool } from '../domain'
-import { FixturePoolSource, type PoolSource } from '../library'
+import { FixturePoolSource, type PoolSource, type Session } from '../library'
 import { PlayerSurface, type Player, type PlayerFault } from '../player'
 import { opensAt, planStations, stationById, STATIONS, type Listings } from '../programming'
 import type { PlanOptions } from '../schedule/plan'
@@ -17,6 +17,7 @@ import { Room } from './Room'
 import { Screen } from './Screen'
 import { deflection } from './deflection'
 import { NO_SIGNAL, picture } from './picture'
+import { faultMessage, signInMessage, signOutMessage } from './faultMessage'
 import { CENTRE } from './trim'
 import {
   Cabinet,
@@ -38,22 +39,24 @@ export interface ChannelProps {
   /** The element the player draws into. Omit and the picture is a blank frame. */
   playerHost?: HTMLElement
   sound?: Sound
-  /** Must be stable across renders — it feeds a memo that must not churn. */
+  /** Must be stable across renders: it feeds a memo that must not churn. */
   planOptions?: Partial<PlanOptions>
   /**
-   * Sign in to YouTube. Present only when a client ID is configured; absent
-   * means the channel is running on the fixture pool and there is nothing to
-   * sign in to. Called straight from the click, because a consent popup that
-   * cannot be traced to a user gesture is blocked.
+   * The viewer's Google session. Present only when a client ID is configured;
+   * absent means the channel runs on the fixture pool and there is nothing to
+   * sign in to.
+   *
+   * Must be stable across renders: it feeds a subscription and a page-load
+   * effect, and a fresh object each paint would re-run both.
    */
-  signIn?: () => Promise<void>
+  session?: Session
   /**
    * A fault in the set itself, rather than in what is on.
    *
    * When one is handed over the screen shows the fault card and nothing else:
    * this is the station announcing it cannot provide a service, and it is not
    * a programme, so it does not take its turn between them. The viewer cannot
-   * act on it and is not asked to — it exists to tell whoever deployed this
+   * act on it and is not asked to: it exists to tell whoever deployed this
    * that they have deployed it wrong.
    */
   fault?: { code: string; detail: readonly string[] }
@@ -82,7 +85,7 @@ const PRESET_WORDS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX']
  * Behind a running picture: what the bars are made of.
  *
  * Not pure black. An unlit CRT phosphor is a very dark grey, and the glass in
- * front of it still catches the room — so a letterbox bar on a real set shows
+ * front of it still catches the room, so a letterbox bar on a real set shows
  * the sheen and the shadow mask rather than reading as a hole cut in the
  * screen. Pure black gives the glass nothing to act on: every layer of it
  * darkens, and you cannot darken black.
@@ -111,6 +114,14 @@ const INTERLUDE_MESSAGE = 'PROGRAMMES WILL CONTINUE SHORTLY'
 /** The caption over the card when a programme will not play. */
 const FAULT_MESSAGE = 'NORMAL SERVICE WILL BE RESUMED AS SOON AS POSSIBLE'
 
+/**
+ * What the paper says while the set is running on the demo pool.
+ *
+ * These programmes are real videos and they schedule like any others, so
+ * nothing on the screen would tell you whose they are. The listings say.
+ */
+const DEMO_POOL_NOTICE = 'Sample programmes. Sign in to see your own subscriptions.'
+
 export function Channel({
   channelName,
   clock = defaultClock,
@@ -119,7 +130,7 @@ export function Channel({
   playerHost,
   sound,
   planOptions,
-  signIn,
+  session,
   fault,
   sourceUrl,
 }: ChannelProps) {
@@ -157,7 +168,11 @@ export function Channel({
   const [showGuide, setShowGuide] = useState(false)
   const [hasPicture, setHasPicture] = useState(false)
   const [signedIn, setSignedIn] = useState(false)
-  const [signInError, setSignInError] = useState<string>()
+  // Nothing is offered in the corner until a grant this browser already made
+  // has had its chance. A button saying Sign in, replaced half a second later
+  // by one saying Sign out, is the set telling the viewer two different things.
+  const [resuming, setResuming] = useState(() => session !== undefined)
+  const [sessionError, setSessionError] = useState<string>()
   const [poolError, setPoolError] = useState<string>()
 
   // Frozen at mount, so an unstable prop object cannot churn the plan memo:
@@ -165,7 +180,75 @@ export function Channel({
   // re-trigger the tuner effect and spin for ever.
   const [planOptionsAtMount] = useState(() => planOptions)
 
-  const source = useMemo(() => poolSource ?? new FixturePoolSource(), [poolSource])
+  // The session outlives any click on it: the token's hour runs out on its own
+  // and the corner has to follow, or the set offers a way out of a session
+  // that ended without it.
+  useEffect(() => session?.subscribe(setSignedIn), [session])
+
+  // Google's token model takes a token at page load as well as from a gesture,
+  // and that is what carries a viewer across a refresh.
+  useEffect(() => {
+    if (!session) return
+    let live = true
+    session.resume().then(
+      (resumed) => {
+        if (!live) return
+        setSignedIn(resumed)
+        setResuming(false)
+      },
+      () => {
+        if (live) setResuming(false)
+      },
+    )
+    return () => {
+      live = false
+    }
+  }, [session])
+
+  const [signingOut, setSigningOut] = useState(false)
+
+  /*
+    Signing out is two things and the viewer is told if either fails.
+
+    The grant goes back to Google and the saved copy of the subscriptions goes
+    out of this browser. A sign-out that only did the first would leave a
+    day-old list of someone's subscriptions on a machine they have just
+    finished using, so a failure here is reported rather than swallowed.
+  */
+  const onSignOut = () => {
+    if (!session || signingOut) return
+    setSigningOut(true)
+    setSessionError(undefined)
+
+    session
+      .signOut()
+      // Which half failed decides what the viewer has left to do, so the
+      // sentence is chosen from the failure rather than assumed.
+      .catch((error: unknown) => {
+        setSessionError(signOutMessage(error))
+      })
+      .finally(() => {
+        setSigningOut(false)
+        setSignedIn(false)
+        // The previous session's programmes come off the screen with it.
+        setPool(undefined)
+        setPoolError(undefined)
+      })
+  }
+
+  const demoSource = useMemo(() => new FixturePoolSource(), [])
+  /*
+    Signed out with a service configured, the set runs on the demo pool.
+
+    The alternative is a request with no token behind it, which fails, and a
+    first-time viewer switching the set on is shown a failure rather than
+    television. The paper says whose programmes these are.
+  */
+  const onDemoPool = session !== undefined && !signedIn
+  const source = useMemo(
+    () => (onDemoPool ? demoSource : (poolSource ?? demoSource)),
+    [onDemoPool, poolSource, demoSource],
+  )
 
   /** Which broadcast day we are in. Changing it is what rolls the schedule. */
   const [dayStartMs, setDayStartMs] = useState(() => broadcastDayStart(clock.now()).getTime())
@@ -179,13 +262,12 @@ export function Channel({
   )
 
   // The pool is fetched once the set is switched on, or once someone picks up
-  // the paper — never at import time, so the app costs nothing until someone
+  // the paper, never at import time, so the app costs nothing until someone
   // actually wants television. The listings matter with the set *off*: that is
   // when you look at them, to decide whether to switch it on.
   useEffect(() => {
     if (!on && !showGuide) return
     let live = true
-    void signedIn
     source
       .load()
       .then((loaded) => {
@@ -196,7 +278,7 @@ export function Channel({
 
           Planning five broadcast days is a couple of hundred milliseconds of
           arithmetic in a render, and a source that resolves without touching
-          the network resolves in a microtask — so without this the click that
+          the network resolves in a microtask, so without this the click that
           opened the listings, the pool arriving, and all five days being
           planned land in one task, and the browser paints none of it until the
           end. The page is there the whole time and nobody can see it.
@@ -210,18 +292,20 @@ export function Channel({
           )
         })
       })
-      // No pool is not a crash — the card is the honest screen for having
+      // No pool is not a crash: the card is the honest screen for having
       // nothing to broadcast. But it must not be the *silent* screen: an
-      // unexplained card is indistinguishable from a broken app.
-      .catch((error: Error) => {
+      // unexplained card is indistinguishable from a broken app. What is said
+      // is the station's own words; the Error carries the endpoint, the status
+      // and Google's wording, and none of that belongs on a screen.
+      .catch((error: unknown) => {
         if (!live) return
         setPool(undefined)
-        setPoolError(error.message)
+        setPoolError(faultMessage(error))
       })
     return () => {
       live = false
     }
-  }, [on, showGuide, source, signedIn])
+  }, [on, showGuide, source])
 
   /*
     All five stations, planned together and in one go.
@@ -231,13 +315,21 @@ export function Channel({
     divided up before any one of them can be planned anyway. So they are done
     together, and the preset only decides which of the five is on the screen.
   */
-  const listings: Listings | undefined = useMemo(
-    () =>
-      pool
-        ? planStations(pool, { ...planOptionsAtMount, dayStart: new Date(dayStartMs) })
-        : undefined,
-    [pool, dayStartMs, planOptionsAtMount],
-  )
+  const listings: Listings | undefined = useMemo(() => {
+    if (!pool) return undefined
+    try {
+      return planStations(pool, { ...planOptionsAtMount, dayStart: new Date(dayStartMs) })
+    } catch {
+      // This runs in a render, so a throw here reaches the root boundary and
+      // the whole receiver goes to a fault card that never clears. A day that
+      // cannot be planned is one day; the set stays on and shows the card,
+      // and tomorrow is planned from tomorrow's pool.
+      return undefined
+    }
+  }, [pool, dayStartMs, planOptionsAtMount])
+
+  /** A pool arrived and no day could be built out of it. */
+  const unplannable = pool !== undefined && listings === undefined
 
   const station = stationById(channel)
   const schedule = station ? listings?.schedules.get(station.id) : undefined
@@ -262,7 +354,7 @@ export function Channel({
     What comes out of the speaker, at the set's own volume.
 
     The tone used to be a button on the screen, which a television has never
-    had — it came with the card and you turned it down with the volume knob
+    had. It came with the card and you turned it down with the volume knob
     like everything else. And it follows what is on the screen rather than what
     is in the schedule: two channels showing the same thing must sound the
     same, or the set is lying about one of them.
@@ -352,7 +444,7 @@ export function Channel({
   // An empty preset is snow, and it is snow whatever the picture controls are
   // set to: there is no carrier for them to work on. A fault card is the set
   // talking to whoever deployed it, so it is not buried under noise. And a set
-  // that is off shows nothing at all — not even the tuner's own snow, which is
+  // that is off shows nothing at all, not even the tuner's own snow, which is
   // made by a beam that is no longer lit.
   const noSignal = !fault && !carrier
   const shown = !lit
@@ -370,25 +462,41 @@ export function Channel({
     <main className="set">
       {/*
         Everything that is not the television, in the corner of the room where
-        it belongs — the set had no button for signing in to anything and no
+        it belongs: the set had no button for signing in to anything and no
         on-screen guide, so neither of these is on it. Out of the flow
         entirely, which is the point: they cost the set no height at all, and
         the set is the thing you came for.
       */}
       <div className="set__corner">
-        {signIn && !signedIn ? (
+        {!session || resuming ? null : signedIn ? (
+          /*
+            No Google mark on this one. Google's branding guidelines cover the
+            button that starts the consent flow; every other use of the marks
+            needs written permission, so the way out is the set's own control.
+          */
+          <button
+            type="button"
+            className="sign-out"
+            onClick={onSignOut}
+            disabled={signingOut}
+          >
+            {signingOut ? 'Signing out…' : 'Sign out'}
+          </button>
+        ) : (
           <GoogleSignInButton
             onClick={() => {
-              setSignInError(undefined)
+              setSessionError(undefined)
               // Straight from the click: an await here would lose the user
               // gesture and the consent popup would be blocked.
-              signIn().then(
+              session.signIn().then(
                 () => setSignedIn(true),
-                (error: Error) => setSignInError(error.message),
+                // The reason decides the sentence. Google's own wording is for
+                // whoever is holding the Error.
+                (error: unknown) => setSessionError(signInMessage(error)),
               )
             }}
           />
-        ) : null}
+        )}
         <button
           type="button"
           className="guide-toggle"
@@ -405,7 +513,7 @@ export function Channel({
         Gone while the paper is up, which the corner opposite is not. The
         listings put their own close button in this exact spot, and two
         controls stacked on top of each other reads as a mistake even when the
-        one behind is dimmed by the scrim — everything else back there merely
+        one behind is dimmed by the scrim; everything else back there merely
         looks like the page you came from.
       */}
       {sourceUrl && !showGuide ? (
@@ -428,7 +536,7 @@ export function Channel({
             day={new Date(dayStartMs)}
             now={clock.now()}
             tunedTo={station?.id}
-            notice={poolError}
+            notice={poolError ?? (onDemoPool ? DEMO_POOL_NOTICE : undefined)}
             onClose={() => setShowGuide(false)}
           />
         ) : null}
@@ -459,19 +567,19 @@ export function Channel({
             colour: trimmer('colour'),
             tuning: trimmer('tuning'),
           }}
-          faulted={Boolean(signInError ?? poolError)}
+          faulted={Boolean(sessionError ?? poolError)}
         />
       }
     >
       <Screen
-        label={`${onScreenName} — television`}
+        label={`${onScreenName}, television`}
         phase={phase}
         deflection={deflection(trim.vertical, trim.horizontal)}
         picture={shown}
         overlay={
           /*
-            Both displays can be up at once — a set that had two generators did
-            not make them take turns — and neither belongs to the signal, so
+            Both displays can be up at once (a set that had two generators did
+            not make them take turns) and neither belongs to the signal, so
             they read over snow as well as over a picture.
           */
           lit ? (
@@ -505,7 +613,7 @@ export function Channel({
         ) : noSignal ? (
           /*
             Nothing. The snow over this is the whole of what an empty preset
-            shows — there is no station behind it to put a card up.
+            shows: there is no station behind it to put a card up.
           */
           null
         ) : !onAir ? (
@@ -516,7 +624,7 @@ export function Channel({
               clock={clock}
               rotation={station?.cards}
               resumesAt={resumesAt}
-              message={poolError ? NO_PROGRAMMES_MESSAGE : undefined}
+              message={poolError !== undefined || unplannable ? NO_PROGRAMMES_MESSAGE : undefined}
             />
           </>
         ) : onAir.kind === 'programme' ? (
@@ -525,13 +633,13 @@ export function Channel({
               The card is the default state of the channel, not its error
               state: it sits underneath every programme and the picture is
               revealed over it only once the player reports one. A programme
-              that fails in a way nobody predicted — no error event, a silent
-              iframe, a blocked script — therefore leaves a card up rather
+              that fails in a way nobody predicted (no error event, a silent
+              iframe, a blocked script) therefore leaves a card up rather
               than a blank screen, because nothing had to go right for the
               card to be there.
             */}
             {hasPicture ? (
-              // Once there is a picture, what sits behind it is black — so a
+              // Once there is a picture, what sits behind it is black, so a
               // 16:9 programme in a 4:3 set gets proper black bars rather than
               // a test card peering out round the edges.
               <div style={blackStyle} aria-hidden="true" />
@@ -596,9 +704,9 @@ export function Channel({
         landmark whose contents are two links in the reading order anyway.
       */}
       <footer className="set__footer">
-        {signInError ?? poolError ? (
+        {sessionError ?? poolError ? (
           <span className="set__fault" role="alert">
-            {signInError ?? poolError}
+            {sessionError ?? poolError}
           </span>
         ) : null}
         <nav className="set__legal" aria-label="About this site">

@@ -2,7 +2,7 @@ import { useEffect, useRef, type CSSProperties } from 'react'
 import type { Player, PlayerFault, ProgrammeOnAir } from './player'
 
 export interface PlayerSurfaceProps {
-  /** What is on air. Already tuned — the offset arrives computed. */
+  /** What is on air. Already tuned: the offset arrives computed. */
   onAir: ProgrammeOnAir
   /** Injected, never constructed here: jsdom has no iframe API to construct. */
   player: Player
@@ -55,7 +55,7 @@ export function PlayerSurface({ onAir, player, host, volume, onFault, onPicture 
   }, [host])
 
   // Retuning: a new programme loads, the same one does not. `offsetSec` is
-  // deliberately absent from the dependencies — it moves every second, and
+  // deliberately absent from the dependencies: it moves every second, and
   // reloading on it would restart the video on every tick. The effect closes
   // over the offset from the render that brought the new programme in, which
   // is exactly the instant we are joining it at.

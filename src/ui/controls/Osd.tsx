@@ -16,7 +16,7 @@ export interface OsdProps {
  *
  * One component for both displays because they were one generator: the same
  * box, the same lettering, the same glow, in whichever corner that set's
- * designer put it. Presentational only — whoever renders it has already
+ * designer put it. Presentational only: whoever renders it has already
  * decided it should be seen.
  */
 export function Osd({ word, label, corner = 'bottom-left', children }: OsdProps) {
@@ -59,7 +59,7 @@ export const OSD_CSS = `
 }
 /*
   The numeral is the display, so it is set larger than its label and without
-  the tracking — a channel number was the one big thing these generators drew.
+  the tracking: a channel number was the one big thing these generators drew.
 */
 .tv-osd__value {
   font: 700 clamp(1.1rem, 4.4vw, 2rem)/1 ui-monospace, Menlo, monospace;

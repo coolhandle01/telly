@@ -9,8 +9,8 @@ import { createFakeSound } from './test/fakeAudio'
 
 describe('App', () => {
   it('runs on the fixture pool in development, with no fuss about it', () => {
-    // A fresh clone has no `.env.local` — it is deliberately not in the
-    // repository — so there is nothing to sign in to and no button. In a dev
+    // A fresh clone has no `.env.local` (it is deliberately not in the
+    // repository) so there is nothing to sign in to and no button. In a dev
     // build that is not a fault, it is the documented way to work on the set
     // without credentials, and the viewer should see television.
     render(<App />)
@@ -41,16 +41,14 @@ describe('App', () => {
     expect(document.querySelector('script[src*="youtube.com"]')).toBeNull()
   })
 
-  // Nothing in the suite has ever rendered a throwing tree, so no test owns the
-  // root's survival of one. There is no error boundary anywhere above Channel
-  // (main.tsx:6), so a single render-time throw unmounts the whole root and
-  // leaves an empty document — the failure mode this app's own philosophy (a
-  // card under every programme, a caption under the cabinet) exists to prevent,
-  // and the one a fault card cannot report because it has gone too.
-  it('keeps something on the screen when a render throws', async () => {
+  // A card under every programme and a caption under the cabinet are worth
+  // nothing if one throw inside a render takes the receiver, the card and the
+  // caption with it. A pool of the wrong shape is the everyday way in, and the
+  // set has to stay on and say it has no listings.
+  it('stays on the air when the pool is the wrong shape', async () => {
     // A pool whose `channels` is a plain object rather than a Map: the shape a
     // stored record comes back as when anything but this app wrote it.
-    // planStations runs in render (Channel.tsx:237) and calls .get on it.
+    // `planStations` runs in the render that reads it, and calls `.get` on it.
     const misshapen: PoolSource = {
       load: async () => ({
         videos: [
@@ -80,12 +78,16 @@ describe('App', () => {
 
     await view.user.click(screen.getByRole('button', { name: 'Power' }))
 
-    // A set that cannot provide a service says so on the screen, the same way
-    // it does for every other fault.
+    // The card, with the caption a station puts up when it has no listings.
+    // Waited for, not read once: the card is up from the moment the set is,
+    // and the caption changes when the pool that cannot be planned arrives.
     await waitFor(() =>
-      expect(screen.getByRole('group', { name: /closedown test card/i })).toBeInTheDocument(),
+      expect(screen.getByRole('status')).toHaveTextContent(/no programme information/i),
     )
-    expect(screen.getByText(/receiver fault/i)).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: /closedown test card/i })).toBeInTheDocument()
+    // Not the receiver fault card: the receiver is working. One unusable pool
+    // is one day's listings, and tomorrow is planned from tomorrow's pool.
+    expect(screen.queryByText(/receiver fault/i)).toBeNull()
     expect(view.container).not.toBeEmptyDOMElement()
   })
 })

@@ -20,7 +20,7 @@ describe('picture', () => {
 
     it('greys the blacks out when it is turned up, rather than merely brightening', () => {
       const milky = asSet(1)
-      // The fault is a lifted black level, not more gain — a picture that is
+      // The fault is a lifted black level, not more gain: a picture that is
       // simply brighter is not what a mis-set brightness control looks like.
       expect(milky.lift).toBeGreaterThan(0)
       expect(milky.gain).toBe(1)

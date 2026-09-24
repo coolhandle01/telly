@@ -66,7 +66,22 @@ export class IndexedDbPoolStore implements PoolStore {
         const database = request.result
         if (!database.objectStoreNames.contains(STORE_NAME)) database.createObjectStore(STORE_NAME)
       }
-      request.onsuccess = () => resolve(request.result)
+      request.onsuccess = () => {
+        const database = request.result
+        // Another tab upgrading or deleting this database waits until every
+        // open connection closes. Ours closes so it can proceed, and the next
+        // read or write opens a new one.
+        database.onversionchange = () => {
+          database.close()
+          this.#database = undefined
+        }
+        // The browser closes a connection itself when site data is cleared or
+        // storage is lost, and a closed one refuses every transaction.
+        database.onclose = () => {
+          this.#database = undefined
+        }
+        resolve(database)
+      }
       request.onerror = () => reject(request.error ?? new Error('indexeddb could not be opened'))
       // A blocked open means another tab holds an older version. Don't wait
       // for it: an unopened database is a cache miss, and the channel goes on.

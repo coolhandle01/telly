@@ -96,18 +96,26 @@ class FakeDatabase {
   readonly records = new Map<string, unknown>()
   failing = false
   transactions = 0
+  closed = false
+  onversionchange: Listener = null
+  onclose: Listener = null
 
   createObjectStore(name: string): FakeObjectStore {
     this.objectStoreNames.names.add(name)
     return new FakeObjectStore(this.records)
   }
 
+  // A closed connection refuses every transaction, as the real one does, so a
+  // store that keeps using one fails here too.
   transaction(_names: string, _mode: string): FakeTransaction {
+    if (this.closed) throw new Error('InvalidStateError: the database connection is closing')
     this.transactions += 1
     return new FakeTransaction(new FakeObjectStore(this.records, this.failing), this.failing)
   }
 
-  close(): void {}
+  close(): void {
+    this.closed = true
+  }
 }
 
 interface OpenRequest extends FakeRequest<FakeDatabase> {
@@ -142,6 +150,8 @@ function fakeIndexedDb(options: { failToOpen?: boolean; blockOpen?: boolean; fai
       }
 
       setTimeout(() => {
+        // Each open is a new connection over the same records.
+        database.closed = false
         request.result = database
         request.onupgradeneeded?.({ target: request })
         request.onsuccess?.({ target: request })
@@ -258,6 +268,33 @@ describe('IndexedDbPoolStore', () => {
     failing = false
 
     await expect(store.read('pool')).resolves.toBeUndefined()
+  })
+
+  // Another tab upgrading or deleting the database waits until every open
+  // connection closes, and this store holds one for the life of the page.
+  it('closes its connection when another tab needs the database, and opens again next time', async () => {
+    const fake = fakeIndexedDb()
+    const store = new IndexedDbPoolStore(fake.factory)
+    await store.write('pool', entry(1))
+
+    fake.database.onversionchange?.({ target: fake.database })
+
+    expect(fake.database.closed).toBe(true)
+    await expect(store.read('pool')).resolves.toEqual(entry(1))
+    expect(fake.opens).toBe(2)
+  })
+
+  // Clearing site data closes the connection from the browser's side.
+  it('opens again after the browser closes the connection under it', async () => {
+    const fake = fakeIndexedDb()
+    const store = new IndexedDbPoolStore(fake.factory)
+    await store.write('pool', entry(1))
+
+    fake.database.closed = true
+    fake.database.onclose?.({ target: fake.database })
+
+    await expect(store.read('pool')).resolves.toEqual(entry(1))
+    expect(fake.opens).toBe(2)
   })
 
   it('rejects rather than hanging when the database will not open', async () => {

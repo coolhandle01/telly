@@ -49,9 +49,17 @@ export function createPoolSource(config: PoolSourceConfig = {}): PoolSource {
 
   if (!isYouTubeConfigured(clientId) || !config.tokens) return new FixturePoolSource()
 
-  return new CachedPoolSource(
-    new YouTubePoolSource({ fetch, tokens: config.tokens, videosPerChannel: config.videosPerChannel }),
-    config.store ?? openPoolStore(),
-    config.cache,
-  )
+  const live = new YouTubePoolSource({
+    fetch,
+    tokens: config.tokens,
+    videosPerChannel: config.videosPerChannel,
+  })
+
+  return new CachedPoolSource(live, config.store ?? openPoolStore(), {
+    // What is kept on this machine is filed under whose it is: the signed-in
+    // account's own channel id. Overridable, like the rest of this, so a test
+    // can pin the key.
+    scope: () => live.ownerId(),
+    ...config.cache,
+  })
 }

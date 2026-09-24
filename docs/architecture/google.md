@@ -5,45 +5,102 @@ once you have one, and what Google asks of the UI that requests it.
 
 ## The pipeline
 
-```
-subscriptions.list  ->  channels.list  ->  playlistItems.list  ->  videos.list
-   (your subs)        (uploads playlist)     (recent videos)      (durations,
-                       50 ids per call                            embeddable,
-                                                                  category)
+`src/library/youTubePoolSource.ts`, and the quota table in that file's header is
+the same one as below.
+
+```mermaid
+flowchart TB
+  load(["CachedPoolSource.load"]) --> owner["ownerId · channels.list part=id mine=true · 1 unit"]
+  owner --> read[("PoolStore.read · key pool:UC…")]
+  read -->|"a record saved inside the day-long TTL"| pool(["Pool"])
+  read -->|"miss, stale, or unreadable"| subs
+
+  subgraph pipeline["YouTubePoolSource.load"]
+    direction TB
+    subs["subscriptions.list mine=true · 50 subs a page · 4 units"]
+    chans["channels.list by id · 50 ids a batch · 4 units"]
+    items["playlistItems.list · 1 per channel · 200 units"]
+    vids["videos.list by id · 50 ids a batch · 80 units"]
+    subs -->|"the subscribed channel ids"| chans
+    chans -->|"each uploads playlist"| items
+    items -->|"the recent video ids"| vids
+  end
+
+  vids --> write[("PoolStore.write")]
+  write --> pool
 ```
 
-`src/library/youTubePoolSource.ts`.
+The owner id is established **before** the read, because the key is made out of
+it (`#keyFor`), so a warm cache still costs that one unit.
 
 **The two 50s are load-bearing.** `channels.list` and `videos.list` both accept
-up to 50 IDs per call, and batching them is the difference between roughly
-**220 quota units a day** over ~200 subscriptions and blowing the 10,000-unit
-daily allowance before breakfast. A loop that fetches one ID at a time works
-perfectly in development and dies on contact with a real subscription list.
+up to 50 IDs per call, and batching them is the difference between the cost
+below and blowing the 10,000-unit daily allowance before breakfast. A loop that
+fetches one ID at a time works perfectly in development and dies on contact with
+a real subscription list.
 
-Only `videos.list` returns duration, embeddability and category — the three
-things the classifier needs — so the last hop is not optional.
+A list call costs one unit whatever parts it asks for, so the cost is the number
+of calls:
+
+| call | per | 200 subs, 20 videos each |
+|---|---|---|
+| `channels.list` with `mine=true` | the owner | 1 |
+| `subscriptions.list` | 50 subs | 4 |
+| `channels.list` | 50 ids | 4 |
+| `playlistItems.list` | 1 channel | 200 |
+| `videos.list` | 50 ids | 80 |
+
+**~290 units** against 10,000 a day. A `videos.list` per video would be 4,000 on
+its own.
+
+Only `videos.list` returns duration, embeddability and category (the three
+things the classifier needs) so the last hop is not optional.
+
+### Whose subscriptions these are
+
+`mine=true` answers for whoever the token belongs to, so this is an identity
+the `youtube.readonly` scope already covers: no profile scope, no name, no
+address. It exists to key the cache, and the memo lives as long as the source,
+which is the life of a signed-in session. `forget()` drops it, so the account
+that signs in next is keyed as itself.
 
 ## Error triage
 
 The rule is: **is this error about *them* or about *us*?**
 
-```ts
-} catch (error) {
-  if (isFatal(error)) throw error
-  continue
-}
+```mermaid
+flowchart TB
+  fail(["a playlistItems.list call throws, inside #listRecentVideoIds"]) --> fatal{"isFatal"}
+  fatal -->|"401, 403, 429, any QuotaExceededError"| stop(["rethrown · the whole load fails"])
+  fatal -->|"404 and everything else"| skip["count the loss, keep the first error, take the next playlist"]
+  skip --> tally{"every playlist lost"}
+  tally -->|"yes"| first(["throw the first error kept"])
+  tally -->|"no"| pool(["the pool, minus those channels"])
 ```
-
-`isFatal` returns true **only for 401 and 403**.
 
 A **404 playlist is skipped, not fatal.** Any subscription list that has been
 around a while contains channels that have been deleted or gone private, and
 that should cost you those channels — not the other two hundred. This was a real
 bug: one dead playlist took the whole load down.
 
-A **401 or 403 still fails the whole load**, because it is about our credentials
-and will fail identically for every remaining channel. Continuing would mean two
-hundred pointless requests and a misleading empty result.
+A **401, 403 or 429** is about our credentials or our allowance, so it will fail
+identically for every remaining channel. Continuing would mean two hundred
+pointless requests and a misleading empty result.
+
+429 is in `isFatal` by status as well as by reason. The per-minute limit comes
+back as `rateLimitExceeded` or `userRateLimitExceeded`, which classify as
+`QuotaExceededError`, but a 429 carrying neither reason is the same wall. It was
+not always: a 429 inside the per-playlist loop used to be swallowed once per
+playlist, so every playlist failed the same way and the load finished with an
+empty pool, which the screen reported as "No videos found in your
+subscriptions". That was false, and it is the reason for the second rule:
+
+**Every playlist failing is a failure of the load.** An empty pool is shown as
+an empty subscription list, and this is the case where that would be a lie.
+
+What a viewer is told about any of this is in `src/ui/faultMessage.ts`, not
+here: the endpoint, the status and Google's own wording stay in the `Error`. See
+[components.md](components.md).
 
 ## Caching
 
@@ -53,6 +110,24 @@ no usable store, so a private window still gets television.
 
 What is stored is subscription metadata: titles, durations, IDs. No token ever
 reaches it.
+
+**The key names whose data it is.** `CachedPoolSourceOptions.scope` is joined to
+the key, and `createPoolSource` passes `() => live.ownerId()`, so the record is
+filed under `pool:<the account's own channel id>`. Two accounts on one browser
+each get their own record and neither can read the other's.
+
+A scope that cannot be established is **not** a key. `#keyFor` returns
+`undefined`, and there is then no read and no write at all, because reading
+under the bare `pool` key would serve whoever was here last. A source that holds
+nobody's data passes no scope: the fixture is the same pool for everyone.
+
+`forget()` empties the store and forwards to the inner source, attempting both
+whatever the other answers, and reporting a failure rather than swallowing it.
+It is what signing out does to the copy held on this machine, and
+`PoolStore.clear()`
+empties **every** key rather than one account's: a viewer asking a browser to
+forget them means the browser, and a set in a hall or a library has had more
+than one person signed into it.
 
 ## Brand compliance
 
@@ -97,6 +172,12 @@ partly because it sidesteps the tile entirely.
 The button sits **off the cabinet**, in `.set__corner`. A 1975 television had no
 button for authorising a read scope, and the anachronism does less harm down
 there.
+
+**The way out carries no Google mark.** The guidelines cover the button that
+starts the consent flow; every other use of the marks needs written permission.
+So the sign-out control in the same corner is the set's own plain button, it
+says `Sign out`, and it names Google nowhere. Neither control is rendered at all
+while a page-load resume is still in flight ([tokens.md](tokens.md)).
 
 ## Verification
 

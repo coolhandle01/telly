@@ -55,6 +55,17 @@ class FakeObjectStore {
     }
     return request
   }
+
+  delete(key: string): FakeRequest<void> {
+    const request = new FakeRequest<void>()
+    if (this.#failing) {
+      request.fail(new Error('the record could not be removed'))
+    } else {
+      this.records.delete(key)
+      request.succeed()
+    }
+    return request
+  }
 }
 
 class FakeTransaction {
@@ -85,18 +96,26 @@ class FakeDatabase {
   readonly records = new Map<string, unknown>()
   failing = false
   transactions = 0
+  closed = false
+  onversionchange: Listener = null
+  onclose: Listener = null
 
   createObjectStore(name: string): FakeObjectStore {
     this.objectStoreNames.names.add(name)
     return new FakeObjectStore(this.records)
   }
 
+  // A closed connection refuses every transaction, as the real one does, so a
+  // store that keeps using one fails here too.
   transaction(_names: string, _mode: string): FakeTransaction {
+    if (this.closed) throw new Error('InvalidStateError: the database connection is closing')
     this.transactions += 1
     return new FakeTransaction(new FakeObjectStore(this.records, this.failing), this.failing)
   }
 
-  close(): void {}
+  close(): void {
+    this.closed = true
+  }
 }
 
 interface OpenRequest extends FakeRequest<FakeDatabase> {
@@ -131,6 +150,8 @@ function fakeIndexedDb(options: { failToOpen?: boolean; blockOpen?: boolean; fai
       }
 
       setTimeout(() => {
+        // Each open is a new connection over the same records.
+        database.closed = false
         request.result = database
         request.onupgradeneeded?.({ target: request })
         request.onsuccess?.({ target: request })
@@ -180,6 +201,20 @@ describe('IndexedDbPoolStore', () => {
     const { factory } = fakeIndexedDb()
 
     expect(await new IndexedDbPoolStore(factory).read('pool')).toBeUndefined()
+  })
+
+  // Signing out is one account leaving, not the machine being wiped. Somebody
+  // else's record is theirs, and throwing it away costs them a day's quota.
+  it('removes one account and leaves the other alone', async () => {
+    const { factory } = fakeIndexedDb()
+    const store = new IndexedDbPoolStore(factory)
+    await store.write('pool:UC-alice', entry(1000))
+    await store.write('pool:UC-bob', entry(2000))
+
+    await store.remove('pool:UC-alice')
+
+    expect(await store.read('pool:UC-alice')).toBeUndefined()
+    expect(await store.read('pool:UC-bob')).toBeDefined()
   })
 
   it('creates the object store on first open', async () => {
@@ -233,6 +268,33 @@ describe('IndexedDbPoolStore', () => {
     failing = false
 
     await expect(store.read('pool')).resolves.toBeUndefined()
+  })
+
+  // Another tab upgrading or deleting the database waits until every open
+  // connection closes, and this store holds one for the life of the page.
+  it('closes its connection when another tab needs the database, and opens again next time', async () => {
+    const fake = fakeIndexedDb()
+    const store = new IndexedDbPoolStore(fake.factory)
+    await store.write('pool', entry(1))
+
+    fake.database.onversionchange?.({ target: fake.database })
+
+    expect(fake.database.closed).toBe(true)
+    await expect(store.read('pool')).resolves.toEqual(entry(1))
+    expect(fake.opens).toBe(2)
+  })
+
+  // Clearing site data closes the connection from the browser's side.
+  it('opens again after the browser closes the connection under it', async () => {
+    const fake = fakeIndexedDb()
+    const store = new IndexedDbPoolStore(fake.factory)
+    await store.write('pool', entry(1))
+
+    fake.database.closed = true
+    fake.database.onclose?.({ target: fake.database })
+
+    await expect(store.read('pool')).resolves.toEqual(entry(1))
+    expect(fake.opens).toBe(2)
   })
 
   it('rejects rather than hanging when the database will not open', async () => {

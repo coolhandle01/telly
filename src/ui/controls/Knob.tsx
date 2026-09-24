@@ -119,8 +119,6 @@ const CSS = `
   letter-spacing: 0.18em;
   text-transform: uppercase;
   ${NO_SELECT}
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
   /* Engraved into the plate the spindle comes through, so it is cut dark
      with the burr under it catching the light — not printed on in cream. */
   color: #4a4640;
@@ -166,7 +164,7 @@ export function Knob({ label, value, onChange, step = DEFAULT_STEP }: KnobProps)
           {/*
             The scale is silk-screened onto the plate the spindle comes
             through. Printing does not know where the knob is pointing, so
-            every mark is the same ink at the same weight — the ticks the
+            every mark is the same ink at the same weight. The ticks the
             pointer has passed used to fade up, which is a meter's behaviour
             and not a fascia's.
           */}

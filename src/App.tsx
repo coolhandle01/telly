@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from 'react'
 import { SystemClock, type Clock } from './clock/clock'
-import { OffsetClock, offsetFromQuery } from './clock/offsetClock'
 import {
   createPoolSource,
+  googleSession,
   GoogleTokenProvider,
   isYouTubeConfigured,
   type PoolSource,
@@ -10,6 +10,7 @@ import {
 import { YouTubeIframePlayer, loadYouTubeIframeApi, type Player } from './player'
 import { WebAudioSound, type Sound } from './audio/sound'
 import { Channel } from './ui/Channel'
+import { FaultBoundary } from './ui/FaultBoundary'
 
 export const CHANNEL_NAME = 'CHANNEL ONE'
 
@@ -23,7 +24,11 @@ const systemClock = new SystemClock()
 const webAudioSound = new WebAudioSound(() => new AudioContext())
 
 export interface AppProps {
-  /** Overridable so a test can mount the whole app without a browser. */
+  /**
+   * Where "now" comes from. The set runs on the wall clock; a test hands it a
+   * `FakeClock` and drives the whole broadcast day by hand, which is how any
+   * hour is looked at without sitting up for it.
+   */
   clock?: Clock
   sound?: Sound
   poolSource?: PoolSource
@@ -44,16 +49,12 @@ const NO_CLIENT_ID = {
   detail: ['This receiver has not been', 'configured for a service.'],
 } as const
 
-export function App({ clock, sound = webAudioSound, poolSource, player }: AppProps = {}) {
-  // `?at=03:14` runs the channel at that hour — still ticking, so programmes
-  // end and junctions arrive as they would. It is how you look at closedown
-  // without sitting up until half one in the morning.
-  const shifted = useMemo(() => {
-    if (clock) return clock
-    const offset = offsetFromQuery(window.location.search, systemClock.now())
-    return offset === 0 ? systemClock : new OffsetClock(systemClock, offset)
-  }, [clock])
-
+export function App({
+  clock = systemClock,
+  sound = webAudioSound,
+  poolSource,
+  player,
+}: AppProps = {}) {
   const built = useMemo(() => {
     const host = document.createElement('div')
     return { player: new YouTubeIframePlayer(loadYouTubeIframeApi, host), playerHost: host }
@@ -64,10 +65,29 @@ export function App({ clock, sound = webAudioSound, poolSource, player }: AppPro
   // is nothing to sign in to.
   const clientId = import.meta.env.VITE_YOUTUBE_CLIENT_ID as string | undefined
   const tokens = useMemo(
-    () => (isYouTubeConfigured(clientId) ? new GoogleTokenProvider(clientId!.trim()) : undefined),
+    () =>
+      isYouTubeConfigured(clientId)
+        ? new GoogleTokenProvider(clientId!.trim(), {
+            // Every way a page load can stay signed out ends at the same
+            // sign-in button, so the reason is lost at the moment it is
+            // known. A development build puts it in the console, where
+            // somebody working on this can read it. A deployed build is
+            // given nothing and reports nothing.
+            diagnose: import.meta.env.DEV
+              ? (event, detail) => console.info(`[telly] ${event}${detail ? `: ${detail}` : ''}`)
+              : undefined,
+          })
+        : undefined,
     [clientId],
   )
   const defaultSource = useMemo(() => createPoolSource({ tokens }), [tokens])
+
+  // Signing out is both halves at once: the grant goes back to Google and the
+  // copy of the subscriptions goes out of this browser's database.
+  const session = useMemo(
+    () => (tokens ? googleSession(tokens, defaultSource) : undefined),
+    [tokens, defaultSource],
+  )
 
   // Fetch Google's script now, not when the button is clicked: a popup must
   // be traceable to a user gesture, and that gesture does not survive the
@@ -77,19 +97,22 @@ export function App({ clock, sound = webAudioSound, poolSource, player }: AppPro
   }, [tokens])
 
   return (
-    <Channel
-      channelName={CHANNEL_NAME}
-      clock={shifted}
-      poolSource={poolSource ?? defaultSource}
-      player={player ?? built.player}
-      playerHost={player ? undefined : built.playerHost}
-      sound={sound}
-      sourceUrl={SOURCE_URL}
-      signIn={tokens ? () => tokens.signIn().then(() => undefined) : undefined}
-      // A deployed build with no client ID is broken, and says so on the
-      // screen. A dev build with none is running on fixtures, which is the
-      // documented way to work on this without credentials.
-      fault={tokens || import.meta.env.DEV ? undefined : NO_CLIENT_ID}
-    />
+    // A card under every programme, and a card under the receiver itself.
+    <FaultBoundary channelName={CHANNEL_NAME} clock={clock}>
+      <Channel
+        channelName={CHANNEL_NAME}
+        clock={clock}
+        poolSource={poolSource ?? defaultSource}
+        player={player ?? built.player}
+        playerHost={player ? undefined : built.playerHost}
+        sound={sound}
+        sourceUrl={SOURCE_URL}
+        session={session}
+        // A deployed build with no client ID is broken, and says so on the
+        // screen. A dev build with none is running on fixtures, which is the
+        // documented way to work on this without credentials.
+        fault={tokens || import.meta.env.DEV ? undefined : NO_CLIENT_ID}
+      />
+    </FaultBoundary>
   )
 }

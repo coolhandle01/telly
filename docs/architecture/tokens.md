@@ -1,6 +1,7 @@
 # Token handling
 
-`src/library/googleTokenProvider.ts`
+`src/library/googleTokenProvider.ts`, and the seam it is used through,
+`src/library/session.ts`.
 
 ## The shape, and why it is the right one
 
@@ -13,16 +14,27 @@ is no refresh token to leak.
 |---|---|
 | Flow | GIS `initTokenClient` — the implicit token flow |
 | Scope | `https://www.googleapis.com/auth/youtube.readonly`, and nothing else |
-| Lifetime | ~1 hour, renewed silently while consent stands |
+| Lifetime | ~1 hour. Nothing renews it: the next one comes from a click |
 | Client secret | none exists |
 | Refresh token | none issued |
+| Kept in storage | the account identifier, and the token for the life of the tab |
 
-The token **lives in memory for its hour and nowhere else**. It is never written
-to storage, never logged, and never put in a URL. It is asked for again when it
-expires, one minute early (`EXPIRY_MARGIN_MS`) so a request never goes out
-holding a token that dies in flight.
+The token **is held in `sessionStorage` for the life of the tab**, and that is
+what carries a signed-in session across a reload. It is never logged and never
+put in a URL.
 
-The **client ID is inlined into the bundle**, which is correct and by design —
+It has to be the token that crosses the reload, because nothing else can. The
+one way to obtain a token is `requestAccessToken`, which opens a popup window,
+and a popup wants a user gesture behind it that a page load does not have. The
+silent branch inside GIS is gated on an experiment the shipped script never
+turns on, so `prompt: 'none'` falls through to the popup branch like any other
+prompt and is refused with `popup_failed_to_open`.
+
+The token is let go one minute early (`EXPIRY_MARGIN_MS`) so a request never
+goes out holding a token that dies in flight. At that point the session ends
+and the viewer signs in again with one click.
+
+The **client ID is inlined into the bundle**, which is correct and by design:
 it is a public identifier. The control that actually matters is the OAuth
 client's *authorised JavaScript origins*: that list, not the secrecy of the ID,
 is what stops someone else's page using it.
@@ -51,22 +63,164 @@ The caller must respect the same rule. In `Channel.tsx`:
 
 ```tsx
 onClick={() => {
-  setSignInError(undefined)
+  setSessionError(undefined)
   // Straight from the click: an await here would lose the user
   // gesture and the consent popup would be blocked.
-  signIn().then(
+  session.signIn().then(
     () => setSignedIn(true),
-    (error: Error) => setSignInError(error.message),
+    // The reason decides the sentence. Google's own wording is for
+    // whoever is holding the Error.
+    (error: unknown) => setSessionError(signInMessage(error)),
   )
 }}
 ```
 
-If the client somehow is not ready, `signIn()` prepares and asks anyway — the
+Everything `signIn()` rejects with is a `SignInError` carrying Google's
+`reason`, including a script that never arrived, which is reported as
+`unavailable` because it never reached Google to have a reason of its own.
+`signInMessage` turns the reason into the sentence, so a closed window, a
+blocked window and a refused scope each ask the viewer for the right thing, and
+a reason this app has no sentence for reaches the screen as none of Google's
+wording at all.
+
+If the client somehow is not ready, `signIn()` prepares and asks anyway: the
 popup may well be blocked, but reporting that beats silently doing nothing.
 
-`getAccessToken()` is the opposite case: a **silent** renewal opens no popup, so
-it needs no gesture and is free to `await`. It succeeds while consent stands and
-fails — rather than popping up — when it does not.
+`getAccessToken()` never asks for a popup, so it needs no gesture: it hands back
+the token already in hand, and once that is past its hour it drops it and
+rejects. There is nothing else it could do. A renewal would need a popup, a
+popup needs a click, and a request for programmes has no click behind it.
+
+## The session, from page load to sign-out
+
+A token is obtained one way, from a click, and because GIS refreshes nothing on
+its own the hour running out is the end of the session rather than the start of
+a renewal.
+
+```mermaid
+stateDiagram-v2
+  state "Signed out · the sign-in button" as signedOut
+  state "Resuming · neither button" as resuming
+  state "Signed in · the sign-out button" as signedIn
+
+  [*] --> resuming : page load. resume reads this tab's own storage
+  resuming --> signedIn : a held token with time left on it
+  resuming --> signedOut : nothing held, or what was held is past its hour
+
+  signedOut --> signedIn : signIn, prompt consent, straight from the click
+  signedIn --> signedIn : getAccessToken serves the held token while isSignedIn
+  signedIn --> signedOut : now within EXPIRY_MARGIN_MS of expiresAtMs
+  signedIn --> signedOut : signOut, revoke plus empty the store
+```
+
+Google is asked nothing on a page load. The state is read back out of the tab,
+so the only question `resume` has to answer is whether what it found is still
+good.
+
+| Moment | Method | What GIS is asked for | What `subscribe` is told |
+|---|---|---|---|
+| Page load, this tab held a token | `resume()` | nothing is asked of Google | `true` where the held token has time left, `false` where it does not |
+| The button | `signIn()` | `requestAccessToken({ prompt: 'consent', login_hint })`, popup | `true` on a token. A refusal says nothing, and the click's own rejected promise carries it |
+| The hour runs out | `getAccessToken()` | nothing is asked of Google | `false`: the token goes and the sign-in button comes back |
+| The way out | `signOut()` | `oauth2.revoke(token, done)` | `false`, from `#discard` dropping the token |
+
+### The held token
+
+`sessionStorage`, key `TOKEN_KEY` (`telly.google.token`), holding the token and
+the moment it expires.
+
+Session storage rather than local: it survives the reload it exists for, it dies
+with the tab, and what it holds Google already limits to an hour.
+
+- Written in `#onResponse`, at the moment a token is issued, so what the tab
+  holds is always a token the app is actually using.
+- Removed by `#discard`, which runs on expiry and on sign-out.
+- Read back by `resume()`. Anything that is not the pair this app wrote is
+  treated as nothing: a half-written record, another version's shape, or a
+  value some other script put under the key. The cost of refusing one is a
+  sign-in button.
+- Every read and write is wrapped, because a browser with site data blocked
+  throws on the property access itself, before any key is named: a private
+  window in Safari and Firefox's strict mode both do it. Without the store the
+  set still works, and the viewer presses the button after each reload.
+
+### The account identifier
+
+`localStorage`, key `ACCOUNT_KEY` (`telly.google.account`), holding Google's
+own `sub` for the account that granted.
+
+It is not a credential and not a token: it cannot be replayed against Google,
+and it is scoped to this client id, so it names the account to nobody else.
+What it buys is `login_hint` on the next sign-in, so a returning viewer is not
+asked to pick their account out of a list.
+
+It comes from Sign In With Google rather than from YouTube. The token client
+returns an access token and says nothing about whose it is, so `#identify` asks
+the identity half once, after the viewer already has their television, and
+keeps the `sub` out of the ID token it returns. Every failure there is quiet: it
+costs the next sign-in its `login_hint`, which is a list the viewer picks from.
+
+### Resuming
+
+`resume()` returns true when a token is already in hand, and otherwise reads the
+one this tab stored. A record past its hour is dropped rather than adopted, so
+the screen shows the sign-in button and the next token comes from a click.
+
+`Channel` shows neither button while that is being worked out (`resuming`
+state). A button saying Sign in, replaced half a second later by one saying Sign
+out, is the set telling the viewer two different things.
+
+### Expiry
+
+`isSignedIn` is false once `now()` is inside `EXPIRY_MARGIN_MS` of the expiry,
+so the last minute of a token counts as expired.
+
+`getAccessToken()` serves the held token while it is good, and once it is not,
+drops it, tells every subscriber, and rejects. It asks Google for nothing: a
+token comes from a popup, a popup comes from a click, and there is no click
+behind a request for programmes. So the corner goes back to a sign-in button
+rather than offering a way out of a session that has already ended.
+
+A response that says nothing about its own life is treated as the hour GIS
+issues. A response whose `expires_in` does not parse as a finite number is
+treated as already over, so `isSignedIn` stays false and the next request for
+programmes ends the session.
+
+### Signing out is two operations
+
+`GoogleTokenProvider.signOut()` calls `google.accounts.oauth2.revoke(token,
+done)`, which hands back **every scope granted to this app**, and then drops the
+in-memory token. `revoke` needs a live token, so it goes first; the local state
+is cleared whatever it answers, because a viewer who asked to be signed out is
+signed out of this page either way.
+
+That is only the Google half. `googleSession(tokens, source)` in
+`src/library/session.ts` ties it to the other one, and attempts both whatever
+either answers:
+
+```mermaid
+flowchart TB
+  click(["Sign out"]) --> both["Promise.allSettled"]
+  both --> revoke["tokens.signOut · revoke, then drop the token"]
+  both --> forget["source.forget · remove this account's record"]
+  revoke --> verdict{"either rejected"}
+  forget --> verdict
+  verdict -->|"no"| done(["signed out"])
+  verdict -->|"yes"| err(["SignOutError · revoked, cleared, cause"])
+  err --> words["signOutMessage picks the sentence from which half stood"]
+```
+
+Revoking alone leaves a day-old copy of the subscriptions in this browser's
+database. Clearing alone leaves the grant standing at Google. See
+[components.md](components.md) for `forget` and `clear`, and
+[google.md](google.md) for what the cache holds.
+
+### Watching, rather than remembering the last click
+
+`subscribe(listener)` reports sign-in, expiry and sign-out. The UI subscribes
+once and follows the session, because a token's hour runs out whether or not
+anyone touched the set, and a corner that showed the outcome of the last click
+would be wrong for as long as the page stayed open.
 
 ## The settle bug worth remembering
 

@@ -9,8 +9,11 @@ No count is given here, because a count goes stale the day someone writes a
 test and tells you nothing on the day it is right. `npx vitest run` prints the
 current one. The shape is the part worth knowing:
 
-- **A `.test.ts` beside the module it covers**, in the same directory, named for
-  it. There is no separate test tree.
+- **The tests are `test/`, the app is `src/`.** `test/` mirrors `src/`: the
+  tests for `src/ui/Channel.tsx` are `test/ui/Channel.test.tsx`, and they reach
+  the app through the `@/` alias. The fakes, the fixture pool and the setup file
+  are `test/support/`. `tsconfig.app.json` covers `src/` without the Vitest
+  types, so app code cannot reach test code.
 - **The pure layers carry the weight.** `domain/`, `schedule/`, `programming/`
   and `broadcast/` touch no browser API, so a whole broadcast day is provable in
   a millisecond and those files are tested exhaustively rather than sampled.

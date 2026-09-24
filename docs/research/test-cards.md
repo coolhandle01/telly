@@ -99,11 +99,10 @@ fault card that quietly ticks along looks like a service.
 It lives in `CARD_DESIGNS` so it can be drawn and is deliberately absent from
 `DESIGN_ROTATION`, because a station does not take a turn at being broken.
 
-Its first use is a deployed build with no OAuth client ID. The ID is baked in
-at build time, so a viewer cannot do anything about its absence and is not
-asked to — the card exists to tell whoever deployed it that they deployed it
-wrong. In a *development* build the same condition is not a fault at all: it is
-the documented way to work on the set with no credentials, on the fixture pool.
+Its first use is a build with no OAuth client ID. The ID is baked in at build
+time, so a viewer cannot do anything about its absence and is not asked to: the
+card exists to tell whoever built it that they built it wrong, in development
+as well as in a deployed build.
 
 ## Tone
 

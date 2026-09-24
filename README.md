@@ -34,10 +34,9 @@ npm install
 npm run dev        # then press POWER
 ```
 
-**It runs with no credentials.** Without a client ID it uses a deterministic
-fixture pool, so the schedule, the cards and the clock-driven core all work
-offline. Fixture programmes have invented video IDs and will never play — you
-get the card, captioned with what should be on, which is the honest outcome.
+**It needs a client ID to schedule anything.** Without one the set shows the
+no-service-configuration fault card. The tests run on a deterministic fixture
+pool in `test/support/`, offline and with no credentials.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full script list and how the code
 is arranged, and [docs/](docs/) for how it works and why — [architecture](docs/architecture/)
@@ -55,10 +54,9 @@ for the build, [research](docs/research/) for the period detail behind the set.
 4. `cp .env.example .env.local`, paste the **client ID** only, and **restart the
    dev server** — env files are read at startup.
 
-A **Sign in with Google** button then appears. Until it does, the set runs on
-the fixture pool and says so under the cabinet: `.env.local` is deliberately
-not in the repository, so a fresh clone on a second machine has no client ID
-and therefore nothing to sign in to.
+A **Sign in with Google** button then appears. Until it does, the set shows the
+fault card: `.env.local` is deliberately not in the repository, so a fresh
+clone on a second machine has no client ID and therefore nothing to sign in to.
 
 The wording is Google's to choose, not ours: their branding guidelines permit a
 closed set of labels, and a more honest one like "Use my subscriptions" is not
@@ -191,7 +189,7 @@ src/
   testcard/    the five card designs, their geometry, and the renderer
   audio/       the line-up tone, the hiss, and the noises the cabinet makes
   ui/          the screen, and the cabinet it sits in
-  fixtures/    the pool it runs on with no credentials
+test/          the tests, mirroring src/; the fakes and the fixture pool in support/
 ```
 
 The cabinet is drawn, not photographed: teak grain and the highlights on the

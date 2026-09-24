@@ -15,10 +15,6 @@
   "mutate": [
     "src/**/*.ts",
     "src/**/*.tsx",
-    "!src/**/*.test.ts",
-    "!src/**/*.test.tsx",
-    "!src/test/**",
-    "!src/fixtures/**",
     "!src/main.tsx"
   ],
   "thresholds": { "high": 90, "low": 75, "break": null }

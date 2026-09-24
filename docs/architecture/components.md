@@ -239,9 +239,6 @@ classDiagram
     +load() Promise~Pool~
     +forget() Promise~void~
   }
-  class FixturePoolSource {
-    +load() Promise~Pool~
-  }
   class YouTubePoolSource {
     +load() Promise~Pool~
     +ownerId() Promise~string~
@@ -257,7 +254,6 @@ classDiagram
     +write(key, entry) Promise~void~
     +clear() Promise~void~
   }
-  PoolSource <|.. FixturePoolSource
   PoolSource <|.. YouTubePoolSource
   PoolSource <|.. CachedPoolSource
   CachedPoolSource o-- PoolSource : wraps one
@@ -271,27 +267,23 @@ established is not a key, so there is no read and no write until the account is
 known.
 
 `createPoolSource` builds the source from the configuration, `App` holds it, and
-`Channel` chooses between it and a fixture of its own.
+`Channel` uses it only while someone is signed in.
 
 ```mermaid
 flowchart TB
   id{"VITE_YOUTUBE_CLIENT_ID configured"}
-  id -->|"no"| nosession["App builds no GoogleTokenProvider, so no session prop"]
-  nosession --> fix["createPoolSource returns FixturePoolSource"]
-  fix --> runs1(["the fixture pool, and nothing to sign in to"])
-  id -->|"yes"| built["GoogleTokenProvider · googleSession · createPoolSource returns CachedPoolSource over YouTubePoolSource"]
+  id -->|"no"| nosession["App builds no GoogleTokenProvider and createPoolSource returns no source"]
+  nosession --> fault(["the no-service-configuration fault card, and nothing to sign in to"])
+  id -->|"yes"| built["GoogleTokenProvider, googleSession, and createPoolSource returns CachedPoolSource over YouTubePoolSource"]
   built --> state{"Channel: session present and signedIn"}
-  state -->|"signed out, or still resuming"| demo(["Channel's own FixturePoolSource, the demo pool"])
-  state -->|"signed in"| live(["CachedPoolSource over YouTubePoolSource, keyed to the account"])
+  state -->|"signed out, or still resuming"| none(["no source: nothing loads, no Telly Guide, NO PROGRAMME INFORMATION AVAILABLE"])
+  state -->|"signed in"| live(["CachedPoolSource over YouTubePoolSource, keyed to the account, loading at once"])
 ```
 
-Signed out with a service configured, the set runs on the demo pool. The
-alternative is a request with no token behind it, which fails, so the first
-thing a first-time viewer would see is a failure rather than television.
-
-The screen says nothing about it, because these are real videos and they
-schedule like any others. The paper does: the listings carry `Sample
-programmes. Sign in to see your own subscriptions.`
+Signed out, there is nobody's subscriptions to schedule and a request with no
+token behind it would only fail, so nothing is loaded. There is no demo mode:
+the fixture pool in `test/support/` is for tests only, and its videos are made
+up.
 
 ## The session seam
 
@@ -337,7 +329,7 @@ sequenceDiagram
 ```
 
 `App` builds one only when a client ID is configured. No client ID, no session
-prop, and `Channel` runs on the fixture pool with nothing to sign in to. The
+prop, no source, and the set shows the fault card with nothing to sign in to. The
 prop must be **stable across renders**: it feeds a subscription and a page-load
 effect, and a fresh object each paint would re-run both.
 

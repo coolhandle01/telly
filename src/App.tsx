@@ -38,11 +38,9 @@ export interface AppProps {
 /**
  * A build that reached a viewer without a client ID cannot show anyone their
  * own television, and no viewer can do anything about it — the ID is baked in
- * at build time, so its absence is a deployment that went out wrong.
- *
- * In development it is not a fault at all: it is how the app is meant to run
- * before anyone has a client ID, on the fixture pool, which is what makes it
- * possible to work on the set offline and in CI.
+ * at build time, so its absence is a deployment that went out wrong. A
+ * development build without one has the same fault: there is nothing to
+ * schedule.
  */
 const NO_CLIENT_ID = {
   code: 'Fault 01 \u00b7 no service configuration',
@@ -61,8 +59,8 @@ export function App({
   }, [])
 
   // With a client ID configured the channel can use your own subscriptions,
-  // once you have signed in; without one it runs on the fixture pool and there
-  // is nothing to sign in to.
+  // once you have signed in; without one there is nothing to sign in to and
+  // nothing to schedule.
   const clientId = import.meta.env.VITE_YOUTUBE_CLIENT_ID as string | undefined
   const tokens = useMemo(
     () =>
@@ -85,7 +83,7 @@ export function App({
   // Signing out is both halves at once: the grant goes back to Google and the
   // copy of the subscriptions goes out of this browser's database.
   const session = useMemo(
-    () => (tokens ? googleSession(tokens, defaultSource) : undefined),
+    () => (tokens && defaultSource ? googleSession(tokens, defaultSource) : undefined),
     [tokens, defaultSource],
   )
 
@@ -108,10 +106,9 @@ export function App({
         sound={sound}
         sourceUrl={SOURCE_URL}
         session={session}
-        // A deployed build with no client ID is broken, and says so on the
-        // screen. A dev build with none is running on fixtures, which is the
-        // documented way to work on this without credentials.
-        fault={tokens || import.meta.env.DEV ? undefined : NO_CLIENT_ID}
+        // No source means no client ID: the build is broken, and says so on
+        // the screen.
+        fault={(poolSource ?? defaultSource) ? undefined : NO_CLIENT_ID}
       />
     </FaultBoundary>
   )

@@ -48,7 +48,7 @@ src/
   audio/       what comes out of the speaker: the line-up tone, and the hiss
   ui/          the screen, the cabinet it sits in, and the only place a
                failure becomes words
-  fixtures/    the pool it runs on with no credentials
+test/          the tests, mirroring src/; the fakes and the fixture pool in support/
 ```
 
 `domain/` is the frozen vocabulary and depends on nothing. `schedule/`,

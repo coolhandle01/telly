@@ -37,7 +37,6 @@ flowchart TB
     provider("GoogleTokenProvider")
     ytpool("YouTubePoolSource")
     cached("CachedPoolSource")
-    fixture("FixturePoolSource")
     idb[("IndexedDB · testcard / pools")]
     account[("localStorage · telly.google.account")]
     token[("sessionStorage · telly.google.token")]
@@ -63,7 +62,6 @@ flowchart TB
   channel --> sourcelink
   channel -->|"titles"| guide
   cached -->|"the pool"| channel
-  fixture -->|"the sample pool, signed out"| channel
 
   channel -->|"sign in, resume, sign out"| session
   session -->|"signed in, expired, signed out"| channel
@@ -137,7 +135,7 @@ origin, and everything on the far side of B7 is this one.
 | T3 | GIS script flow · **T** | Sits on the network between the browser and `accounts.google.com` | Arbitrary JavaScript in the origin that holds the token. The script URL is `https://` and fixed, and `script-src` names the host. | CWE-494 | **Mitigate** | `GIS_SCRIPT_URL` in [googleTokenProvider.ts](../../src/library/googleTokenProvider.ts), CSP at [index.html:10](../../index.html) |
 | T4 | Token in the page · **I** | Runs any script in this origin | Read of the viewer's subscriptions for the token's remaining hour. The scope is read-only and no refresh token exists. `connect-src` permits only `self`, `googleapis.com` and `accounts.google.com`, which closes fetch, `XMLHttpRequest`, `WebSocket`, `EventSource` and `sendBeacon` to every other host. It does not reach top-level navigation or `window.open`, so a script in this origin carries the token out in a URL, and no directive covers that: `navigate-to` left CSP Level 3 in September 2022 and shipped in no browser. The hour and the read-only scope are what bound this threat; the policy narrows it. An expired token is dropped rather than kept as a fallback, and there is no renewal to attempt: a token comes from a popup, which comes from a click. | CWE-522 | **Mitigate** | `#token`, `EXPIRY_MARGIN_MS`, `GoogleTokenProvider.getAccessToken` and `signOut` in [googleTokenProvider.ts](../../src/library/googleTokenProvider.ts); [index.html:14](../../index.html) |
 | T35 | Token at rest · **I** | Has the unlocked machine, or runs code in this origin | The token is written to this tab's `sessionStorage` under `telly.google.token`, with the moment it expires, because nothing else can cross a reload: the only way to obtain one is a popup and a page load has no gesture to open one with. Holding it in memory alone was a decision to sign the viewer out on every refresh. What is exposed is a bearer token for a read-only scope that Google already limits to an hour, readable by anything already running in this origin, which is the same reach it has over the token in the page (T4). The record dies with the tab, a restored token past its hour is dropped rather than adopted, and signing out removes it whatever the revocation answers. | CWE-522 | **Accept**: the reload has to carry something, and the token is the only thing that can; the window is the tab's life or the hour, whichever ends first | `TOKEN_KEY`, `rememberToken`, `storedToken`, `resume` and `#discard` in [googleTokenProvider.ts](../../src/library/googleTokenProvider.ts), [tokens.md](tokens.md) |
-| T5 | GIS loader · **D** | Blocks the script: an extension, a firewall, an outage | Sign-in is impossible. The loader rejects instead of hanging, the failure is reported under the cabinet, and a failed `prepare()` does not stop the set coming on: signed out with a service configured, the set runs on the fixture pool and the listings say so. | CWE-703 | **Mitigate** | `loadGoogleIdentityServices` in [googleTokenProvider.ts](../../src/library/googleTokenProvider.ts), `sessionError` and `demoSource` in [Channel.tsx](../../src/ui/Channel.tsx), the `prepare()` effect in [App.tsx](../../src/App.tsx) |
+| T5 | GIS loader · **D** | Blocks the script: an extension, a firewall, an outage | Sign-in is impossible. The loader rejects instead of hanging, the failure is reported under the cabinet, and a failed `prepare()` does not stop the set coming on: signed out, it has no programmes to show and says so on the card. | CWE-703 | **Mitigate** | `loadGoogleIdentityServices` in [googleTokenProvider.ts](../../src/library/googleTokenProvider.ts), `sessionError` and the signed-out `source` in [Channel.tsx](../../src/ui/Channel.tsx), the `prepare()` effect in [App.tsx](../../src/App.tsx) |
 
 ### B2: the YouTube Data API
 

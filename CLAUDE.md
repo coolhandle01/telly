@@ -9,7 +9,7 @@ Vite 8, React 19, TypeScript, Vitest 5, oxlint. `.nvmrc` pins Node 24.
 ## Commands
 
 ```
-npm run dev        # the set, on the fixture pool
+npm run dev        # the set; needs VITE_YOUTUBE_CLIENT_ID in .env.local
 npm test           # watch
 npm run test:ci    # coverage, then the DST suite under TZ=Europe/London
 npm run test:dst   # the clocks-change suite on its own
@@ -28,11 +28,15 @@ catches the 23 hour and 25 hour broadcast days.
 - `src/domain/` is the broadcast day. It starts at 06.00 and ends at the next
   06.00, which twice a year is not 24 hours long: `broadcastDayLength` is the
   only thing that knows how long a day is, and everything else asks it.
-- `src/library/` fetches the pool. `PoolSource` is the seam: a fixture, the
-  YouTube API, or a cache over either, and the app above cannot tell which.
+- `src/library/` fetches the pool. `PoolSource` is the seam: the YouTube API or
+  a cache over it, and the app above cannot tell which.
 - `src/programming/` and `src/schedule/` turn a pool into five stations'
   listings. `planStations` runs inside a render.
 - `src/ui/` is the set, the room and the paper. `src/testcard/` draws the cards.
+- `test/` is the tests and nothing else is: it mirrors `src/`, imports the app
+  through `@/`, and keeps its fakes and the made-up fixture pool in
+  `test/support/`. Nothing in `src/` imports from `test/`, and there is no demo
+  mode: without a client ID the set shows the fault card.
 - `src/clock/` is the only source of "now". Nothing else calls `new Date()`.
 
 `docs/architecture/` carries the design: `google.md` and `tokens.md` for the

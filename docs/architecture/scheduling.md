@@ -266,7 +266,7 @@ render(<App clock={clock} />)
 act(() => clock.set(new Date(2026, 8, 9, 11, 58)))
 ```
 
-`FakeClock` (`src/test/fakeClock.ts`) implements `Clock` and ticks its
+`FakeClock` (`test/support/fakeClock.ts`) implements `Clock` and ticks its
 subscribers from `set()`, so a junction arrives, a programme ends and the card's
 clock counts on, all without waiting and without a timer.
 

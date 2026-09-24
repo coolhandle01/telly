@@ -661,6 +661,16 @@ export class GoogleTokenProvider implements AccessTokenProvider {
     return Promise.reject(new SignInError(EXPIRED))
   }
 
+  /**
+   * The API refused this token, as it does once the grant is revoked from the
+   * Google account itself. Only the token that was refused is dropped: a load
+   * sent before a fresh sign-in reports on the token it carried, not on the
+   * one held now.
+   */
+  reject(token: string): void {
+    if (token === this.#token) this.#discard()
+  }
+
   /** Opens the popup in the caller's own task: no await before the request. */
   #requestSynchronously(prompt: TokenPrompt, login_hint?: string): Promise<string> {
     const client = this.#client

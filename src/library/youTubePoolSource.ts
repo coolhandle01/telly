@@ -414,6 +414,10 @@ export class YouTubePoolSource implements PoolSource {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     })
 
+    // 401 is the API refusing the credential itself (reason `authError`,
+    // located in the Authorization header), so the token is handed back to be
+    // dropped. 403 refuses the request, and the token stays good.
+    if (response.status === 401) this.#tokens.reject?.(token)
     if (!response.ok) throw await toApiError(response, endpoint)
     return response.json()
   }

@@ -304,6 +304,30 @@ describe('YouTubePoolSource', () => {
       )
     })
 
+    it('tells the token provider which token the API refused', async () => {
+      const refused: string[] = []
+      tokens.reject = (token) => refused.push(token)
+      const { fetch } = fakeYouTube({
+        subscriptions: () => apiError(401, 'authError'),
+      })
+
+      await expect(new YouTubePoolSource({ fetch, tokens }).load()).rejects.toMatchObject({ status: 401 })
+      expect(refused).toEqual(['test-access-token'])
+    })
+
+    // A 403 is a verdict on the request (quota, or a resource this account may
+    // not read), not on the token, which still works for everything else.
+    it('keeps the token when the API refuses the request rather than the token', async () => {
+      const refused: string[] = []
+      tokens.reject = (token) => refused.push(token)
+      const { fetch } = fakeYouTube({
+        subscriptions: () => apiError(403, 'quotaExceeded'),
+      })
+
+      await expect(new YouTubePoolSource({ fetch, tokens }).load()).rejects.toMatchObject({ status: 403 })
+      expect(refused).toEqual([])
+    })
+
     it('turns 120 video ids into 3 videos.list calls, not 120', async () => {
       const channelIds = ids(12, 'UC')
       const { fetch, callsTo } = fakeYouTube({

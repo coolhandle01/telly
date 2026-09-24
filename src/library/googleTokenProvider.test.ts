@@ -453,6 +453,42 @@ describe('GoogleTokenProvider', () => {
     })
   })
 
+  // A grant revoked from the Google account's own settings leaves this tab
+  // holding a token the API answers 401 to. Until it is dropped, every load
+  // fails with an error instead of putting the sign-in button back.
+  describe('a token the API refused', () => {
+    it('drops it, clears it from the tab and tells whoever is watching', async () => {
+      const session = fakeStorage()
+      const { load } = fakeGis(() => granted())
+      const provider = new GoogleTokenProvider('client-1', { loadGis: load, session })
+      await provider.signIn()
+      const heard: boolean[] = []
+      provider.subscribe((signedIn) => heard.push(signedIn))
+
+      provider.reject('tok-abc')
+
+      expect(provider.isSignedIn).toBe(false)
+      expect(heard).toEqual([false])
+      expect(session.getItem(TOKEN_KEY)).toBeNull()
+      await expect(provider.getAccessToken()).rejects.toThrow()
+    })
+
+    // A load that started before a fresh sign-in can come back with a 401 for
+    // the token it was sent with. That answer is about the old token only.
+    it('keeps the token it holds when the refusal was for a different one', async () => {
+      const session = fakeStorage()
+      const { load } = fakeGis(() => granted())
+      const provider = new GoogleTokenProvider('client-1', { loadGis: load, session })
+      await provider.signIn()
+
+      provider.reject('tok-from-before')
+
+      expect(provider.isSignedIn).toBe(true)
+      expect(session.getItem(TOKEN_KEY)).toContain('tok-abc')
+      await expect(provider.getAccessToken()).resolves.toBe('tok-abc')
+    })
+  })
+
   describe('signOut', () => {
     it('hands the token back to Google and forgets it here', async () => {
       const storage = fakeStorage()

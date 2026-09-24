@@ -93,9 +93,9 @@ The rule is: **is this error about *them* or about *us*?**
 
 ```mermaid
 flowchart TB
-  call(["a playlistItems.list call, inside #get"]) --> limited{"429, or rateLimitExceeded / userRateLimitExceeded"}
+  request(["a playlistItems.list call, inside #get"]) --> limited{"429, or rateLimitExceeded / userRateLimitExceeded"}
   limited -->|"yes, and a backoff step is left"| wait["wait 1s, 2s, 4s, 8s in turn, each plus up to 1s of jitter"]
-  wait --> call
+  wait --> request
   limited -->|"no, or the backoff is spent"| fail
   fail(["a playlistItems.list call throws, inside #listRecentVideoIds"]) --> fatal{"isFatal"}
   fatal -->|"401, 403, 429, any QuotaExceededError"| stop(["rethrown: no further playlist starts, and the whole load fails"])

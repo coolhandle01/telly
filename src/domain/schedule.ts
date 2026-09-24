@@ -20,14 +20,12 @@ export interface Programme {
 }
 
 /**
- * A gap, and there are only three kinds.
+ * A gap.
  *
  * `closedown` is the station off air for the night and `interlude` is a gap
- * long enough to be worth the card. `ident` is the short one: the station's
+ * long enough to be worth the card. `ident` is the short one: a station
  * symbol, held for a minute or two to bring the next programme up onto the
- * hour or the quarter. That last one is the whole of what a station did with
- * a couple of spare minutes. It did not print a caption saying what was
- * coming; it put its own mark up and started the next thing on the mark.
+ * hour or the quarter.
  */
 export interface Filler {
   kind: 'filler'

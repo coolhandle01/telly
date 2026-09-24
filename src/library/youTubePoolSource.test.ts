@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { QuotaExceededError, YouTubeApiError } from './errors'
 import type { FetchLike, HttpResponseLike } from './http'
 import type { AccessTokenProvider } from './tokenProvider'
-import { YouTubePoolSource } from './youTubePoolSource'
+import { MAX_SUBSCRIPTIONS, YouTubePoolSource } from './youTubePoolSource'
 
 /** The four endpoints the source is allowed to touch, keyed by last path segment. */
 type Endpoint = 'subscriptions' | 'channels' | 'playlistItems' | 'videos'
@@ -792,6 +792,61 @@ describe('YouTubePoolSource', () => {
       // it again spends quota the 24h cache cannot give back, because a load
       // that never finishes is never cached (cachedPoolSource.ts:77-88).
       expect(callsTo('subscriptions').length).toBeLessThanOrEqual(2)
+    })
+
+    // Fresh tokens get past the repeat check, so only a limit ends this loop.
+    // The load's cost grows with the subscription count, a call per channel for
+    // its uploads, so the list is where the bound belongs.
+    it('stops listing subscriptions at MAX_SUBSCRIPTIONS however many pages are offered', async () => {
+      const PEER_GIVES_UP_AFTER = 100
+      const { fetch, callsTo } = fakeYouTube({
+        subscriptions: (_params, call) =>
+          call < PEER_GIVES_UP_AFTER
+            ? subscriptionPage(ids(50, `UC${String(call)}-`), `page-${String(call + 1)}`)
+            : subscriptionPage([]),
+        channels: (params) => channelsPage(params.get('id')!.split(',')),
+        playlistItems: () => playlistItemsPage([]),
+      })
+
+      await new YouTubePoolSource({ fetch, tokens }).load()
+
+      expect(callsTo('subscriptions')).toHaveLength(MAX_SUBSCRIPTIONS / 50)
+      const described = callsTo('channels').flatMap((call) => call.params.get('id')!.split(','))
+      expect(described).toHaveLength(MAX_SUBSCRIPTIONS)
+    })
+
+    // An item limit counts items, so a peer paging nothing but fresh tokens
+    // never reaches it. A page that brings nothing ends the loop.
+    it('stops at an empty page even when it offers another', async () => {
+      const PEER_GIVES_UP_AFTER = 50
+      const { fetch, callsTo } = fakeYouTube({
+        subscriptions: (_params, call) =>
+          call < PEER_GIVES_UP_AFTER ? subscriptionPage([], `page-${String(call + 1)}`) : subscriptionPage([]),
+      })
+
+      await new YouTubePoolSource({ fetch, tokens }).load()
+
+      expect(callsTo('subscriptions')).toHaveLength(1)
+    })
+
+    it('stops paging a batch of ids once every id in it has come back', async () => {
+      const PEER_GIVES_UP_AFTER = 20
+      const offer = (call: number) => (call < PEER_GIVES_UP_AFTER ? { nextPageToken: `more-${String(call + 1)}` } : {})
+      const { fetch, callsTo } = fakeYouTube({
+        subscriptions: () => subscriptionPage(['UC1']),
+        channels: (_params, call) =>
+          json({
+            ...offer(call),
+            items: [{ id: 'UC1', contentDetails: { relatedPlaylists: { uploads: 'UU1' } } }],
+          }),
+        playlistItems: () => playlistItemsPage(['v1']),
+        videos: (_params, call) => json({ ...offer(call), items: [{ id: 'v1', contentDetails: { duration: 'PT10M' } }] }),
+      })
+
+      await new YouTubePoolSource({ fetch, tokens }).load()
+
+      expect(callsTo('channels')).toHaveLength(1)
+      expect(callsTo('videos')).toHaveLength(1)
     })
 
     it('never asks for a page larger than the API will give', async () => {

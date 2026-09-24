@@ -33,6 +33,13 @@ const MAX_PAGE_SIZE = 50
 /** Recent uploads fetched per channel. Enough to plan a week without paging. */
 const DEFAULT_VIDEOS_PER_CHANNEL = 20
 
+/**
+ * Subscriptions read per load. The load costs about 1.45 units per
+ * subscription by the table above, so this holds one load to about 1,450 of
+ * the day's 10,000 however long the list is.
+ */
+export const MAX_SUBSCRIPTIONS = 1000
+
 /** What `contentDetails.contentRating.ytRating` says when a video is 18+. */
 const AGE_RESTRICTED = 'ytAgeRestricted'
 
@@ -228,12 +235,15 @@ export class YouTubePoolSource implements PoolSource {
    * `maxResults` is clamped to the API's maximum, above which it answers 400.
    * A token it has already issued ends the loop: a peer reissuing one is
    * repeating itself, not paging. `limit` ends it once the caller has what it
-   * asked for.
+   * asked for, and a page with no items ends it too, because a peer handing
+   * out fresh tokens for empty pages would otherwise never reach the limit.
+   * Every page before the last brings at least one item, so no list call
+   * makes more requests than its `limit`.
    */
   async *#pages<T extends PagedResponse>(
     endpoint: string,
     params: Record<string, string>,
-    limit = Number.POSITIVE_INFINITY,
+    limit: number,
   ): AsyncGenerator<T> {
     const followed = new Set<string>()
     let pageToken: string | undefined
@@ -247,22 +257,24 @@ export class YouTubePoolSource implements PoolSource {
       })) as T
 
       yield page
-      collected += page.items?.length ?? 0
+      const brought = page.items?.length ?? 0
+      collected += brought
 
       const next = page.nextPageToken
-      pageToken = next !== undefined && !followed.has(next) && collected < limit ? next : undefined
+      pageToken = next !== undefined && !followed.has(next) && brought > 0 && collected < limit ? next : undefined
       if (pageToken !== undefined) followed.add(pageToken)
     } while (pageToken)
   }
 
-  /** Step 1: every subscribed channel, 50 a page, following `nextPageToken`. */
+  /** Step 1: the subscribed channels, 50 a page, up to `MAX_SUBSCRIPTIONS`. */
   async #listSubscriptions(): Promise<Channel[]> {
     const channels: Channel[] = []
 
-    for await (const page of this.#pages<SubscriptionListResponse>('subscriptions', {
-      part: 'snippet',
-      mine: 'true',
-    })) {
+    for await (const page of this.#pages<SubscriptionListResponse>(
+      'subscriptions',
+      { part: 'snippet', mine: 'true' },
+      MAX_SUBSCRIPTIONS,
+    )) {
       for (const item of page.items ?? []) {
         const id = item.snippet?.resourceId?.channelId
         if (!id) continue
@@ -288,10 +300,11 @@ export class YouTubePoolSource implements PoolSource {
     const channels = new Map(subscribed.map((channel) => [channel.id, channel]))
 
     for (const batch of batchIds(subscribed.map((channel) => channel.id))) {
-      for await (const page of this.#pages<ChannelListResponse>('channels', {
-        part: 'contentDetails,topicDetails,statistics',
-        id: batch.join(','),
-      })) {
+      for await (const page of this.#pages<ChannelListResponse>(
+        'channels',
+        { part: 'contentDetails,topicDetails,statistics', id: batch.join(',') },
+        batch.length,
+      )) {
         for (const item of page.items ?? []) {
           // A channel with uploads disabled has no uploads playlist. Skip it
           // rather than losing every other channel to one missing field.
@@ -361,13 +374,17 @@ export class YouTubePoolSource implements PoolSource {
     const videos: Video[] = []
 
     for (const batch of batchIds(videoIds)) {
-      for await (const page of this.#pages<VideoListResponse>('videos', {
-        // `liveStreamingDetails` is free (parts cost nothing extra within a
-        // call) and it is the only reliable way to tell a finished stream
-        // from one still running.
-        part: 'contentDetails,status,snippet,statistics,liveStreamingDetails',
-        id: batch.join(','),
-      })) {
+      for await (const page of this.#pages<VideoListResponse>(
+        'videos',
+        {
+          // `liveStreamingDetails` is free (parts cost nothing extra within a
+          // call) and it is the only reliable way to tell a finished stream
+          // from one still running.
+          part: 'contentDetails,status,snippet,statistics,liveStreamingDetails',
+          id: batch.join(','),
+        },
+        batch.length,
+      )) {
         for (const item of page.items ?? []) {
           if (!item.id) continue
           videos.push({

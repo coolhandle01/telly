@@ -67,8 +67,8 @@ that signs in next is keyed as itself.
 **`playlistItems.list` is the one that cannot be batched**, so it is one call
 per subscription: two hundred subscriptions is two hundred calls, and made one
 after another that is most of a minute of a viewer looking at a button that
-appears to do nothing. Eight are in the air at once (`mapLimit`). This costs no
-extra quota — the charge is per call and the number of calls is unchanged — it
+appears to do nothing. Eight are in the air at once (`mapLimit`). The charge is
+per call and the number of calls is unchanged, so this costs no extra quota: it
 only stops the wall clock from being the sum of every round trip. It also does
 not change the pool: `mapLimit` returns results in the order the items went in,
 so the day planned from the pool does not depend on which channel's server
@@ -82,8 +82,8 @@ costs at most the calls already in flight rather than another two hundred.
 
 `load(onProgress?)` reports a fraction from 0 to 1, and the Telly Guide button
 shows it while the set is programming. The denominator is arithmetic off the
-subscription count — one call per 50 channels, one per channel for its uploads,
-one per 50 videos — refined downward once the real video count is known. It
+subscription count (one call per 50 channels, one per channel for its uploads,
+one per 50 videos), refined downward once the real video count is known. It
 only ever shrinks, so the fraction only ever moves forwards; a load that
 finishes a little early is a better lie than one that sits at 99%.
 

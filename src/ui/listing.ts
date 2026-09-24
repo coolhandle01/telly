@@ -7,7 +7,7 @@ import { DEFAULT_DAYPARTS, type Daypart, type DaypartId, type Schedule, type Sch
  * item the packer laid down, down to the two minutes of station ident before
  * a programme; a listing is what a paper printed, and no paper ever printed
  * "18.42 Ident". So runs of everything that is not a programme collapse into
- * one line — which is exactly what "6.00 Closedown" is, a four-and-a-half-hour
+ * one line, which is exactly what "6.00 Closedown" is: a four-and-a-half-hour
  * run of test card given one line and no apology.
  *
  * A stripped daypart collapses its programmes too. Nobody printed two hundred

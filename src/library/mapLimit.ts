@@ -5,7 +5,7 @@
  * second: a channel's uploads is one call whether it is made on its own or
  * alongside seven others, so a subscription list two hundred long costs the
  * same either way and takes an eighth as long. What concurrency must not do is
- * become unbounded — two hundred requests fired at once is a different thing
+ * become unbounded: two hundred requests fired at once is a different thing
  * to explain to the far end than eight, and nothing about the quota rewards it.
  *
  * Results come back in the order the items went in, whatever order the work

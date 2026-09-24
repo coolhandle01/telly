@@ -1089,7 +1089,7 @@ describe('YouTubePoolSource, two hundred subscriptions', () => {
 
   it('abandons the rest of the playlists once the token is refused', async () => {
     // A 403 will refuse every remaining playlist identically. Carrying on
-    // would spend another twenty-nine calls to learn the same thing — and
+    // would spend another twenty-nine calls to learn the same thing. And
     // with requests in flight, "stop" has to mean the workers stop taking
     // new ones, not merely that the loop breaks.
     const account = fakeYouTube({

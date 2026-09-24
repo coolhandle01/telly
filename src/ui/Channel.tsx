@@ -347,7 +347,7 @@ export function Channel({
     How far along programming the channels is, or absent once it is done.
 
     Derived rather than stored, because the thing that ends it is the listings
-    arriving and not the fetch finishing — there is a fraction of a second of
+    arriving and not the fetch finishing: there is a fraction of a second of
     planning five stations after the last call comes back, and a button that
     said it was ready before it was would be a lie by exactly that much.
 
@@ -652,7 +652,7 @@ export function Channel({
         ) : programming !== undefined && station ? (
           /*
             Switched on before the schedules exist. The station has not closed
-            down and there is no fault, so neither card is true — what a
+            down and there is no fault, so neither card is true. What a
             station with nothing to hand out yet put up is its own symbol, and
             that is exactly the situation this is.
           */

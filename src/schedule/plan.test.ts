@@ -441,7 +441,7 @@ describe('plan, gaps', () => {
     expect(schedule.items[1].endSec).toBe(12 * MINUTE)
   })
 
-  it('never captions what is coming next — a schedule has no continuity kind', () => {
+  it('never captions what is coming next: a schedule has no continuity kind', () => {
     // The whole vocabulary of a gap is card, ident, closedown. A station that
     // had something to say said it over its own symbol.
     const schedule = plan(fixturePool(), { dayStart: DAY_START })

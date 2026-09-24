@@ -145,8 +145,8 @@ export function plan(pool: Pool, options: PlanOptions): Schedule {
   /**
    * Close the distance to `target` the way television did.
    *
-   * `target` here is always a junction — the top of a daypart, or the end of
-   * the day — so the gap is the station padding to a time it has to hit. A
+   * `target` here is always a junction (the top of a daypart, or the end of
+   * the day), so the gap is the station padding to a time it has to hit. A
    * couple of minutes of that is what the ident was *for*: the symbol goes up
    * and the next programme starts on the mark. Only once the gap is longer
    * than a station would hold its own mark does it become an interlude, which

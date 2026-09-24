@@ -244,8 +244,8 @@ export class YouTubePoolSource implements PoolSource {
       Now that the subscription list is in, how many calls the rest of this
       will take is arithmetic: one per 50 channels to describe them, one per
       channel for its uploads, and one per 50 videos to describe those. The
-      last is an over-estimate — channels with uploads disabled contribute
-      none, and two channels can carry the same video — so it is replaced with
+      last is an over-estimate (channels with uploads disabled contribute
+      none, and two channels can carry the same video), so it is replaced with
       the real figure the moment that is known. A denominator that only ever
       shrinks moves the fraction forwards, which is the direction progress is
       allowed to move.

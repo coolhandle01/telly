@@ -47,7 +47,7 @@ const switchOn = async (user: { click: (el: Element) => Promise<void> }) =>
   user.click(screen.getByRole('button', { name: 'Power' }))
 
 /**
- * Waits until the channels are programmed — the pool in, five days planned.
+ * Waits until the channels are programmed: the pool in, five days planned.
  * The button says so: while it is working it counts, and it goes back to
  * being the way to the paper once there is a paper to go to.
  */
@@ -319,9 +319,9 @@ describe('Channel', () => {
 
     it('holds the station ident while there is nothing to put on yet', async () => {
       /*
-        Not the closedown card. The station has not closed down — it is the
+        Not the closedown card. The station has not closed down: it is the
         middle of the afternoon and the schedules are simply still being
-        worked out — and a card reading NORMAL SERVICE WILL RESUME AT 06.00
+        worked out. A card reading NORMAL SERVICE WILL RESUME AT 06.00
         would be the set inventing a reason it does not have.
       */
       const held = heldSource()

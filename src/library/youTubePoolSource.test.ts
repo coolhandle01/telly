@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { QuotaExceededError, YouTubeApiError } from './errors'
 import type { FetchLike, HttpResponseLike } from './http'
 import type { AccessTokenProvider } from './tokenProvider'
-import { CONCURRENCY, MAX_SUBSCRIPTIONS, YouTubePoolSource } from './youTubePoolSource'
+import { CONCURRENCY, MAX_SUBSCRIPTIONS, RATE_LIMIT_BACKOFF_MS, YouTubePoolSource } from './youTubePoolSource'
 
 /** The four endpoints the source is allowed to touch, keyed by last path segment. */
 type Endpoint = 'subscriptions' | 'channels' | 'playlistItems' | 'videos'
@@ -261,10 +261,10 @@ describe('YouTubePoolSource', () => {
     // finishes with a pool the screen reads out as an empty subscription list.
     // The subscriptions were fine. The rate limit was the thing to say.
     // Playlists are fetched CONCURRENCY at a time, so the first wave is already
-    // in the air when the first 429 lands. Stopping at the wall means no
-    // playlist is started after it: the first wave, and nothing more.
+    // in the air when the first 429 lands. A limit that outlasts the backoff
+    // means no playlist is started after it: the first wave, and nothing more.
     it.each(['rateLimitExceeded', 'userRateLimitExceeded'])(
-      'abandons the whole load on a 429 %s rather than emptying the pool',
+      'abandons the whole load on a 429 %s that outlasts the backoff, rather than emptying the pool',
       async (reason) => {
         const { fetch, callsTo } = fakeYouTube({
           subscriptions: () => subscriptionPage(ids(3 * CONCURRENCY, 'UC')),
@@ -273,15 +273,16 @@ describe('YouTubePoolSource', () => {
           videos: () => videosPage([]),
         })
 
-        const load = new YouTubePoolSource({ fetch, tokens }).load()
+        const load = new YouTubePoolSource({ fetch, tokens, sleep: async () => {} }).load()
 
         await expect(load).rejects.toBeInstanceOf(QuotaExceededError)
         await expect(load).rejects.toMatchObject({ status: 429, reason })
-        expect(callsTo('playlistItems')).toHaveLength(CONCURRENCY)
+        const asked = new Set(callsTo('playlistItems').map((call) => call.params.get('playlistId')))
+        expect(asked.size).toBe(CONCURRENCY)
       },
     )
 
-    it('abandons the whole load on a 429 that names no reason at all', async () => {
+    it('abandons the whole load on a 429 that names no reason at all, once it outlasts the backoff', async () => {
       const { fetch, callsTo } = fakeYouTube({
         subscriptions: () => subscriptionPage(ids(3 * CONCURRENCY, 'UC')),
         channels: (params) => channelsPage(params.get('id')!.split(',')),
@@ -289,8 +290,11 @@ describe('YouTubePoolSource', () => {
         videos: () => videosPage([]),
       })
 
-      await expect(new YouTubePoolSource({ fetch, tokens }).load()).rejects.toMatchObject({ status: 429 })
-      expect(callsTo('playlistItems')).toHaveLength(CONCURRENCY)
+      await expect(
+        new YouTubePoolSource({ fetch, tokens, sleep: async () => {} }).load(),
+      ).rejects.toMatchObject({ status: 429 })
+      const asked = new Set(callsTo('playlistItems').map((call) => call.params.get('playlistId')))
+      expect(asked.size).toBe(CONCURRENCY)
     })
 
     it('still fails when the token is rejected', async () => {
@@ -959,6 +963,71 @@ describe('YouTubePoolSource', () => {
         expect(call.params.get('access_token')).toBeNull()
         expect(call.params.get('key')).toBeNull()
       }
+    })
+  })
+
+  // The per-minute limit clears in seconds, so it is waited out and the call
+  // made again. The daily quota does not, and neither does a refusal.
+  describe('the per-minute rate limit', () => {
+    const recorder = () => {
+      const waits: number[] = []
+      return { waits, sleep: async (ms: number) => void waits.push(ms) }
+    }
+
+    it.each([
+      ['a 429 rateLimitExceeded', () => apiError(429, 'rateLimitExceeded')],
+      ['a 429 userRateLimitExceeded', () => apiError(429, 'userRateLimitExceeded')],
+      ['a 403 rateLimitExceeded', () => apiError(403, 'rateLimitExceeded')],
+      ['a 429 that names no reason', () => json({ error: { code: 429, message: 'too many requests' } }, 429)],
+    ])('backs off and asks again after %s, and the load succeeds', async (_name, limited) => {
+      const { waits, sleep } = recorder()
+      const { fetch, callsTo } = fakeYouTube({
+        subscriptions: (_params, call) => (call < 2 ? limited() : subscriptionPage(['UC1'])),
+        channels: (params) => channelsPage(params.get('id')!.split(',')),
+        playlistItems: () => playlistItemsPage(['v1']),
+        videos: (params) => videosPage(params.get('id')!.split(',').map((id) => ({ id }))),
+      })
+
+      const pool = await new YouTubePoolSource({ fetch, tokens, sleep }).load()
+
+      expect(callsTo('subscriptions')).toHaveLength(3)
+      expect(pool.videos.map((video) => video.id)).toEqual(['v1'])
+      expect(waits).toHaveLength(2)
+      // Each wait is longer than the last, so a limit that is still in force
+      // is not asked again at the rate that tripped it.
+      expect(waits[1]).toBeGreaterThan(waits[0])
+      expect(waits[0]).toBeGreaterThanOrEqual(1000)
+    })
+
+    it('gives up after a bounded number of attempts and fails the load with the limit', async () => {
+      const { waits, sleep } = recorder()
+      const { fetch, callsTo } = fakeYouTube({
+        subscriptions: () => apiError(429, 'rateLimitExceeded'),
+      })
+
+      const load = new YouTubePoolSource({ fetch, tokens, sleep }).load()
+
+      await expect(load).rejects.toBeInstanceOf(QuotaExceededError)
+      await expect(load).rejects.toMatchObject({ status: 429, reason: 'rateLimitExceeded' })
+      expect(callsTo('subscriptions')).toHaveLength(RATE_LIMIT_BACKOFF_MS.length + 1)
+      expect(waits).toHaveLength(RATE_LIMIT_BACKOFF_MS.length)
+    })
+
+    it.each([
+      ['the daily quota', () => apiError(403, 'quotaExceeded')],
+      ['the daily limit', () => apiError(403, 'dailyLimitExceeded')],
+      ['a refused token', () => apiError(401, 'authError')],
+      ['a refused request', () => apiError(403, 'forbidden')],
+      ['a server error', () => json({ error: { code: 500, message: 'backend error' } }, 500)],
+    ])('does not wait out %s', async (_name, refused) => {
+      const { waits, sleep } = recorder()
+      const { fetch, callsTo } = fakeYouTube({ subscriptions: refused })
+
+      await expect(new YouTubePoolSource({ fetch, tokens, sleep }).load()).rejects.toBeInstanceOf(
+        YouTubeApiError,
+      )
+      expect(callsTo('subscriptions')).toHaveLength(1)
+      expect(waits).toEqual([])
     })
   })
 

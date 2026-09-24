@@ -93,6 +93,10 @@ The rule is: **is this error about *them* or about *us*?**
 
 ```mermaid
 flowchart TB
+  call(["a playlistItems.list call, inside #get"]) --> limited{"429, or rateLimitExceeded / userRateLimitExceeded"}
+  limited -->|"yes, and a backoff step is left"| wait["wait 1s, 2s, 4s, 8s in turn, each plus up to 1s of jitter"]
+  wait --> call
+  limited -->|"no, or the backoff is spent"| fail
   fail(["a playlistItems.list call throws, inside #listRecentVideoIds"]) --> fatal{"isFatal"}
   fatal -->|"401, 403, 429, any QuotaExceededError"| stop(["rethrown: no further playlist starts, and the whole load fails"])
   fatal -->|"404 and everything else"| skip["record the loss against that playlist, and the worker takes the next"]
@@ -109,6 +113,13 @@ bug: one dead playlist took the whole load down.
 A **401, 403 or 429** is about our credentials or our allowance, so it will fail
 identically for every remaining channel. Continuing would mean two hundred
 pointless requests and a misleading empty result.
+
+**The per-minute limit is waited out first.** It clears in seconds, so `#get`
+repeats any call it refuses (a 429, or either rate-limit reason on any status)
+after each step of `RATE_LIMIT_BACKOFF_MS`, and only a call still refused after
+the last step throws. The daily quota, a refused token and a refused request are
+not waited out: none of them clears in seconds. Eight calls in the air means
+eight backoffs, and the jitter keeps them from coming back together.
 
 429 is in `isFatal` by status as well as by reason. The per-minute limit comes
 back as `rateLimitExceeded` or `userRateLimitExceeded`, which classify as

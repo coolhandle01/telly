@@ -64,6 +64,17 @@ const AGE_RESTRICTED = 'ytAgeRestricted'
 /** Reasons Google returns when there is nothing left to spend. */
 const QUOTA_REASONS = new Set(['quotaExceeded', 'dailyLimitExceeded', 'rateLimitExceeded', 'userRateLimitExceeded'])
 
+/** The per-minute limit, as against the daily quota. It clears in seconds. */
+const RATE_LIMIT_REASONS = new Set(['rateLimitExceeded', 'userRateLimitExceeded'])
+
+/**
+ * The waits before each repeat of a call the per-minute limit refused, in
+ * milliseconds. Each doubles the last, and up to a second of jitter is added
+ * so the calls in the air together do not all come back in the same instant.
+ * A call still refused after the last of these fails as it would have.
+ */
+export const RATE_LIMIT_BACKOFF_MS: readonly number[] = [1000, 2000, 4000, 8000]
+
 export interface YouTubePoolSourceOptions {
   /** Injected transport. Never read from a global, so tests cannot escape. */
   fetch: FetchLike
@@ -72,6 +83,8 @@ export interface YouTubePoolSourceOptions {
   videosPerChannel?: number
   /** Override for tests and for a proxy deployment. */
   baseUrl?: string
+  /** How a rate-limit backoff waits. Injected so tests do not wait in real time. */
+  sleep?: (ms: number) => Promise<void>
 }
 
 interface SubscriptionListResponse {
@@ -178,7 +191,8 @@ export function batchIds(ids: readonly string[], size: number = MAX_IDS_PER_CALL
  *
  * 429 is in here by status as well as by reason: the per-minute limit is
  * returned with `rateLimitExceeded` or `userRateLimitExceeded`, and a 429
- * carrying neither is still the same wall.
+ * carrying neither is still the same wall. It reaches here only once `#get`
+ * has waited it out through every step of `RATE_LIMIT_BACKOFF_MS`.
  */
 function isFatal(error: unknown): boolean {
   if (error instanceof QuotaExceededError) return true
@@ -193,6 +207,7 @@ export class YouTubePoolSource implements PoolSource {
   readonly #tokens: AccessTokenProvider
   readonly #videosPerChannel: number
   readonly #baseUrl: string
+  readonly #sleep: (ms: number) => Promise<void>
   #owner: Promise<string> | undefined
 
   constructor(options: YouTubePoolSourceOptions) {
@@ -200,6 +215,7 @@ export class YouTubePoolSource implements PoolSource {
     this.#tokens = options.tokens
     this.#videosPerChannel = options.videosPerChannel ?? DEFAULT_VIDEOS_PER_CHANNEL
     this.#baseUrl = options.baseUrl ?? API_BASE
+    this.#sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
   }
 
   /**
@@ -498,7 +514,20 @@ export class YouTubePoolSource implements PoolSource {
     return videos
   }
 
+  /** One call, repeated after a backoff for as long as the per-minute limit refuses it. */
   async #get(endpoint: string, params: Record<string, string>): Promise<unknown> {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await this.#getOnce(endpoint, params)
+      } catch (error) {
+        const wait = RATE_LIMIT_BACKOFF_MS[attempt]
+        if (wait === undefined || !isRateLimited(error)) throw error
+        await this.#sleep(wait + Math.random() * 1000)
+      }
+    }
+  }
+
+  async #getOnce(endpoint: string, params: Record<string, string>): Promise<unknown> {
     const url = `${this.#baseUrl}/${endpoint}?${new URLSearchParams(params).toString()}`
     // The token goes in the header, never the query string: URLs end up in
     // browser history, referrers and server logs (CWE-598).
@@ -516,6 +545,14 @@ export class YouTubePoolSource implements PoolSource {
     if (!response.ok) throw await toApiError(response, endpoint)
     return response.json()
   }
+}
+
+/** The per-minute limit, by status or by the reason Google gives it. */
+function isRateLimited(error: unknown): boolean {
+  return (
+    error instanceof YouTubeApiError &&
+    (error.status === 429 || (error.reason !== undefined && RATE_LIMIT_REASONS.has(error.reason)))
+  )
 }
 
 /** Never includes the request URL or any header: an error must not carry a token. */

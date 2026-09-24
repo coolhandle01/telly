@@ -7,14 +7,14 @@ import type { Pool } from '../domain'
  * estimate: the work is a few hundred API calls whose exact number is not
  * known until the subscription list is, so the denominator is refined as the
  * load learns what it is doing. Refining it can only move the fraction
- * forwards — a load that finishes a little early is a better lie than one that
+ * forwards. A load that finishes a little early is a better lie than one that
  * sits at 99% while it does the last third of the work.
  */
 export type LoadProgress = (fraction: number) => void
 
 /**
- * Where a pool comes from. One method, so the app above can be handed a
- * fixture, the real API, or a cache over either, and cannot tell the difference.
+ * Where a pool comes from. The app above can be handed a fixture, the real
+ * API, or a cache over either, and cannot tell the difference.
  *
  * `onProgress` is optional on both sides: a caller need not care, and a source
  * with nothing to report need not pretend. A source that takes several seconds
@@ -23,4 +23,11 @@ export type LoadProgress = (fraction: number) => void
  */
 export interface PoolSource {
   load(onProgress?: LoadProgress): Promise<Pool>
+  /**
+   * Drop whatever this source is keeping on the machine, answering once it is
+   * gone. Signing out calls it, and waits.
+   *
+   * Optional: only a source that keeps something has anything to drop.
+   */
+  forget?(): Promise<void>
 }

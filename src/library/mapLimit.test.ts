@@ -55,6 +55,25 @@ describe('mapLimit', () => {
     expect(await all).toEqual([0, 1, 2])
   })
 
+  // Every item is an API call. Once one has failed the whole map, taking more
+  // only spends calls on an answer nobody will read.
+  it('takes no new items once one has failed', async () => {
+    const started: number[] = []
+
+    const all = mapLimit(Array.from({ length: 10 }, (_, i) => i), 2, async (n) => {
+      started.push(n)
+      await Promise.resolve()
+      if (n === 0) throw new Error('the wall')
+      return n
+    })
+
+    await expect(all).rejects.toThrow('the wall')
+    await new Promise((r) => setTimeout(r, 0))
+    // The one already running when it failed may take its next item; nothing
+    // after that starts.
+    expect(started.length).toBeLessThanOrEqual(3)
+  })
+
   it('does nothing at all with nothing to do', async () => {
     expect(await mapLimit([], 4, async () => 1)).toEqual([])
   })

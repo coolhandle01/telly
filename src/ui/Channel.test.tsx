@@ -3,8 +3,8 @@ import { Channel } from './Channel'
 import { act, render, screen, waitFor, within } from '../test/render'
 import { FakeClock } from '../test/fakeClock'
 import { FakePlayer } from '../player/fakePlayer'
-import { FixturePoolSource } from '../library'
-import type { PoolSource } from '../library'
+import { FixturePoolSource, SignInError, YouTubeApiError } from '../library'
+import type { PoolSource, Session } from '../library'
 import { createFakeSound } from '../test/fakeAudio'
 
 const CHANNEL = 'CHANNEL ONE'
@@ -223,13 +223,13 @@ describe('Channel', () => {
   it('says why there is nothing on, rather than just showing a card', async () => {
     const failing: PoolSource = {
       load: async () => {
-        throw new Error('YouTube API 403: accessNotConfigured')
+        throw new YouTubeApiError(403, 'accessNotConfigured', 'youtube videos failed: 403')
       },
     }
     const { view } = setUp(AFTERNOON, failing)
     await switchOn(view.user)
 
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/accessNotConfigured/))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/would not answer/i))
     expect(screen.getByRole('status')).toHaveTextContent(/no programme information/i)
   })
 
@@ -366,58 +366,163 @@ describe('Channel', () => {
     })
   })
 
-  describe('signing in to YouTube', () => {
-    const render_ = (signIn?: () => Promise<void>) => {
+  describe('the Google session', () => {
+    /** A session the test drives, standing in for `googleSession`. */
+    const fakeSession = (overrides: Partial<Session> = {}) => {
+      const listeners = new Set<(signedIn: boolean) => void>()
+      const announce = (signedIn: boolean) => {
+        for (const listener of [...listeners]) listener(signedIn)
+      }
+      const calls = { signIn: 0, signOut: 0 }
+      const session: Session = {
+        signIn: async () => {
+          calls.signIn += 1
+          announce(true)
+        },
+        signOut: async () => {
+          calls.signOut += 1
+          announce(false)
+        },
+        resume: async () => false,
+        subscribe: (listener) => {
+          listeners.add(listener)
+          return () => {
+            listeners.delete(listener)
+          }
+        },
+        ...overrides,
+      }
+      return { session, calls, announce }
+    }
+
+    const render_ = (session?: Session, source: PoolSource = new FixturePoolSource()) => {
       const clock = new FakeClock(AFTERNOON)
       return render(
         <Channel
           channelName={CHANNEL}
           clock={clock}
-          poolSource={new FixturePoolSource()}
+          poolSource={source}
           player={new FakePlayer()}
-          signIn={signIn}
+          session={session}
         />,
       )
     }
 
+    const signInButton = () => screen.queryByRole('button', { name: /sign in with google/i })
+    const signOutButton = () => screen.queryByRole('button', { name: /sign out/i })
+
     it('offers nothing to sign in to when no client ID is configured', () => {
       render_(undefined)
-      expect(screen.queryByRole('button', { name: /sign in with google/i })).toBeNull()
+      expect(signInButton()).toBeNull()
+      expect(signOutButton()).toBeNull()
     })
 
-    it('offers sign-in when a client ID is configured', () => {
-      render_(async () => {})
-      expect(screen.getByRole('button', { name: /sign in with google/i })).toBeInTheDocument()
+    it('offers sign-in when a client ID is configured', async () => {
+      render_(fakeSession().session)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+    })
+
+    // Both at once, or one and then the other, is the set saying two
+    // different things about the same session.
+    it('offers neither while a grant is still being taken up', () => {
+      render_(fakeSession({ resume: () => new Promise(() => {}) }).session)
+
+      expect(signInButton()).toBeNull()
+      expect(signOutButton()).toBeNull()
     })
 
     it('calls sign-in straight from the click, so the popup is not blocked', async () => {
-      let calls = 0
-      const view = render_(async () => {
-        calls++
-      })
+      const { session, calls } = fakeSession()
+      const view = render_(session)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
 
-      await view.user.click(screen.getByRole('button', { name: /sign in with google/i }))
+      await view.user.click(signInButton()!)
 
-      expect(calls).toBe(1)
-    })
-
-    it('stops offering once signed in', async () => {
-      const view = render_(async () => {})
-      await view.user.click(screen.getByRole('button', { name: /sign in with google/i }))
-      await waitFor(() =>
-        expect(screen.queryByRole('button', { name: /sign in with google/i })).toBeNull(),
-      )
+      expect(calls.signIn).toBe(1)
     })
 
     it('says what went wrong, and lets you try again', async () => {
-      const view = render_(async () => {
-        throw new Error('YouTube sign-in failed: popup_closed')
-      })
+      const view = render_(
+        fakeSession({
+          signIn: async () => {
+            throw new SignInError('popup_closed')
+          },
+        }).session,
+      )
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
 
-      await view.user.click(screen.getByRole('button', { name: /sign in with google/i }))
+      await view.user.click(signInButton()!)
 
-      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/popup_closed/))
-      expect(screen.getByRole('button', { name: /sign in with google/i })).toBeInTheDocument()
+      const alert = await screen.findByRole('alert')
+      await waitFor(() => expect(alert).toHaveTextContent(/closed before it finished/i))
+      // Google's own wording is for whoever is holding the Error. This used to
+      // put `YouTube sign-in failed: popup_closed` in front of the viewer.
+      expect(alert).not.toHaveTextContent(/popup_closed|YouTube sign-in failed/)
+      expect(signInButton()).toBeInTheDocument()
+    })
+
+    // A refresh is not a sign-out. Google's token model takes a token at page
+    // load, and taking one up is what keeps a returning viewer signed in.
+    it('shows the way out when a grant is taken up at page load', async () => {
+      render_(fakeSession({ resume: async () => true }).session)
+
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+      expect(signInButton()).toBeNull()
+    })
+
+    it('signs out, and offers sign-in again', async () => {
+      const { session, calls } = fakeSession({ resume: async () => true })
+      const view = render_(session)
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+
+      await view.user.click(signOutButton()!)
+
+      expect(calls.signOut).toBe(1)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+      expect(signOutButton()).toBeNull()
+    })
+
+    // Nothing was clicked: the token's hour ran out. The corner has to follow
+    // it, or the set offers a way out of a session that has already ended.
+    it('follows the session when the token expires on its own', async () => {
+      const { session, announce } = fakeSession({ resume: async () => true })
+      render_(session)
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+
+      act(() => announce(false))
+
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+    })
+
+    it('says the programmes are samples while nobody is signed in', async () => {
+      const view = render_(fakeSession().session)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+
+      await view.user.click(screen.getByRole('button', { name: /telly guide/i }))
+
+      const page = await screen.findByRole('dialog', { name: /listings/i })
+      await waitFor(() =>
+        expect(within(page).getByRole('status')).toHaveTextContent(/sample programmes/i),
+      )
+    })
+
+    // The signed-out set runs on the fixture, so switching it on shows
+    // television rather than the failure of a request with no token behind it.
+    it('does not touch the signed-in source while nobody is signed in', async () => {
+      let loads = 0
+      const counting: PoolSource = {
+        load: async () => {
+          loads += 1
+          throw new Error('not signed in: no YouTube access token is available')
+        },
+      }
+      const view = render_(fakeSession().session, counting)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+
+      await switchOn(view.user)
+
+      expect(loads).toBe(0)
+      expect(screen.queryByRole('alert')).toBeNull()
     })
   })
 
@@ -435,13 +540,21 @@ describe('Channel', () => {
   })
 
   it('says why the page is empty when the pool would not load', async () => {
-    const failing: PoolSource = { load: async () => { throw new Error('quota') } }
+    const failing: PoolSource = {
+      load: async () => {
+        throw new YouTubeApiError(403, 'quotaExceeded', 'youtube videos failed: 403 (quotaExceeded)')
+      },
+    }
     const { view } = setUp(AFTERNOON, failing)
 
     await view.user.click(screen.getByRole('button', { name: /telly guide/i }))
 
     const page = await screen.findByRole('dialog', { name: /listings/i })
-    await waitFor(() => expect(within(page).getByRole('status')).toHaveTextContent(/quota/))
+    const notice = within(page).getByRole('status')
+    await waitFor(() => expect(notice).toHaveTextContent(/allowance of YouTube requests/i))
+    // The endpoint, the status and Google's own wording belong to whoever is
+    // holding the Error, not to the person sitting in front of the screen.
+    expect(notice).not.toHaveTextContent(/403|quotaExceeded|youtube videos/)
   })
 
   describe('the on-screen display', () => {
@@ -812,11 +925,15 @@ describe('Channel', () => {
     // The row it shares used to render only when there was a fault. It now
     // always renders, and the fault joins it rather than replacing it.
     it('keeps the links when a fault is showing', async () => {
-      const failing: PoolSource = { load: async () => { throw new Error('quota') } }
+      const failing: PoolSource = {
+        load: async () => {
+          throw new YouTubeApiError(403, 'quotaExceeded', 'youtube videos failed: 403')
+        },
+      }
       const { view } = setUp(AFTERNOON, failing)
       await switchOn(view.user)
 
-      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/quota/))
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/allowance/i))
       expect(screen.getByRole('link', { name: /privacy/i })).toBeInTheDocument()
     })
   })

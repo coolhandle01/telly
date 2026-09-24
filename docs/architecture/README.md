@@ -29,6 +29,9 @@ Everything else — sign-in, the Data API, IndexedDB, the iframe player, WebAudi
 | [tokens.md](tokens.md) | Google Identity Services, the user-gesture rule, and why a token never reaches storage. |
 | [google.md](google.md) | The Data API pipeline, the quota arithmetic, error triage, and sign-in brand compliance. |
 | [testing.md](testing.md) | The gates, the seams, and the precise shape of jsdom's blind spot. |
+| [threat-model.md](threat-model.md) | The trust boundaries, the data-flow diagram, and every threat with what was done about it. |
+| [technologies.md](technologies.md) | What it is made of: the two runtime dependencies, the toolchain, and the services it talks to. |
+| [release-process.md](release-process.md) | Branch to tag to deploy: every gate, what runs it, and what cannot be verified from the repository. |
 
 ## The layout, and what each directory is allowed to know
 
@@ -39,10 +42,12 @@ src/
   programming/ the five stations: genre, profiles, the draft, what goes where
   broadcast/   tune() — wall clock in, what-is-on-air out
   player/      the YouTube IFrame API, behind a seam
-  library/     subscriptions -> uploads -> videos; cached in IndexedDB
+  library/     subscriptions -> uploads -> videos; cached in IndexedDB under
+               whose they are, plus sign-in and the Session seam over it
   testcard/    the five card designs, their geometry, and the renderer
   audio/       what comes out of the speaker: the line-up tone, and the hiss
-  ui/          the screen, and the cabinet it sits in
+  ui/          the screen, the cabinet it sits in, and the only place a
+               failure becomes words
   fixtures/    the pool it runs on with no credentials
 ```
 
@@ -73,7 +78,15 @@ the alternative.
 | The sound follows what is on the screen, never what is in the schedule | [components.md](components.md) |
 | An error, and a stop, both tear the player down | [player.md](player.md) |
 | The GIS script is fetched on mount, never in the click handler | [tokens.md](tokens.md) |
-| A 404 playlist is skipped; a 401 or 403 is fatal | [google.md](google.md) |
+| A reload keeps the session because the token crosses it; Google is asked nothing at page load | [tokens.md](tokens.md) |
+| Signing out is two operations: revoke at Google, and empty the store | [tokens.md](tokens.md) |
+| The screen follows the session, not the last click | [tokens.md](tokens.md) |
+| A 404 playlist is skipped; 401, 403, 429 and a spent quota are fatal | [google.md](google.md) |
+| The cache is keyed to whose data it is, and an unknown account is not a key | [google.md](google.md) |
 | The sign-in button's wording is Google's to choose, not ours | [google.md](google.md) |
+| What a failure says on the screen is the station's words, never the API's | [components.md](components.md) |
+| A render throw shows the fault card and never retries | [components.md](components.md) |
 | Every piece of I/O sits behind an injected interface | [testing.md](testing.md) |
 | The type gate must be `tsc -b`, because `tsc --noEmit` fails open here | [testing.md](testing.md) |
+| Two runtime dependencies, and everything else is a dev tool | [technologies.md](technologies.md) |
+| Mutation testing exists but is not a gate, and cannot fail a build | [release-process.md](release-process.md) |

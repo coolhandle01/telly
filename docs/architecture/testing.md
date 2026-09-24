@@ -1,8 +1,29 @@
 # Testing posture
 
-584 tests, and the four worst bugs this app has had were invisible to all of
-them. That is not an indictment of the suite — it is the thing to understand
-before trusting one.
+The worst bugs this app has had were invisible to the whole suite. That is not
+an indictment of it: it is the thing to understand before trusting one.
+
+## The shape of the suite
+
+No count is given here, because a count goes stale the day someone writes a
+test and tells you nothing on the day it is right. `npx vitest run` prints the
+current one. The shape is the part worth knowing:
+
+- **A `.test.ts` beside the module it covers**, in the same directory, named for
+  it. There is no separate test tree.
+- **The pure layers carry the weight.** `domain/`, `schedule/`, `programming/`
+  and `broadcast/` touch no browser API, so a whole broadcast day is provable in
+  a millisecond and those files are tested exhaustively rather than sampled.
+- **The I/O layers are tested through their seams**, with the fakes in the table
+  below. No test reaches a network, a database or an audio context.
+- **The component tests query the DOM a user sees**, never a class name or an
+  SVG filter.
+- **Some tests are compliance tests in UI-test clothing.**
+  `GoogleSignInButton.test.tsx` pins Google's branding rules and
+  `SourceLink.test.tsx` pins GitHub's, because the edits that break a brand rule
+  are sympathetic ones nobody flags in review.
+- **The clocks-change suite is separate.** `src/**/*.dst.test.ts` runs under
+  `TZ=Europe/London` from its own config, and is excluded from the ordinary run.
 
 ## The gates
 
@@ -35,8 +56,11 @@ IndexedDB, so without these seams the behaviour could not be tested at all.
 | `Clock` | `SystemClock` | `FakeClock` — drive a whole day by hand |
 | `Player` | `YouTubeIframePlayer` | `FakePlayer` — records calls, pushes faults |
 | `Sound` | `WebAudioSound` | a stub asserting tone/hiss/stop |
-| `PoolSource` | `YouTubePoolSource` | `FixturePoolSource` — seeded, deterministic |
+| `PoolSource` | `YouTubePoolSource` | `FixturePoolSource`: seeded, deterministic |
+| `PoolStore` | `IndexedDbPoolStore` | `inMemoryStore()`: a Map, and a write counter |
+| `Session` | `googleSession` | `fakeSession()`: records the calls, resolves on demand |
 | `AccessTokenProvider` | `GoogleTokenProvider` | any object returning a string |
+| `Storage` | `localStorage` and `sessionStorage` | `fakeStorage()`: so the account identifier and the held token are both drivable |
 | `FetchLike` | the platform `fetch` | canned payloads; no test can reach a network |
 
 ## A fake must not be more capable than the real thing

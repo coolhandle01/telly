@@ -25,8 +25,8 @@ with no network, no browser and no real clock.
 
 ## Running it
 
-Needs **Node 20.19+ or 22.12+** (a Vite requirement); `.nvmrc` pins 22. Distro
-packages are often still on Node 18, which is below the floor — take the LTS
+Needs **Node 20.19+ or 22.12+** (a Vite requirement); `.nvmrc` pins 24. Distro
+packages are often still on Node 18, which is below the floor: take the LTS
 from [nodejs.org/en/download](https://nodejs.org/en/download) instead.
 
 ```bash
@@ -66,12 +66,17 @@ on it. Google's script is fetched on mount rather than on the click, because a
 popup must be traceable to a user gesture and that gesture does not survive a
 network round-trip.
 
-Consent lapses weekly while the app is unverified, so expect to click it again
-about once a week. Security posture, and what is stored where, is in
-[SECURITY.md](SECURITY.md).
+Signing in again is not needed on every visit: the browser records that consent
+was given here, and a later page load takes the grant up without a screen.
+Google expires the grant itself after a week while the app is unverified, so
+the button comes back about that often. **Sign out** hands the grant back to
+Google and empties the schedule data this browser saved.
 
-A daily refresh over ~200 subscriptions costs about 220 of the 10,000-unit
-quota, because IDs are batched 50 at a time.
+Security posture, and what is stored where, is in [SECURITY.md](SECURITY.md).
+
+A daily refresh over ~200 subscriptions costs about 290 of the 10,000-unit
+quota, because IDs are batched 50 at a time. The breakdown is in
+[docs/architecture/google.md](docs/architecture/google.md).
 
 ## Five channels
 
@@ -158,16 +163,20 @@ which matters because YouTube fails quietly.
 
 ## Seeing a particular hour
 
-Most of what a schedule does happens at hours you are not awake for. `?at=`
-jumps the set to another hour, and it keeps ticking from there:
+Most of what a schedule does happens at hours you are not awake for, and the
+set has no way to jump to them. It does not need one: nothing in `src/` calls
+`new Date()` except `SystemClock`, so time is an argument.
 
-```
-http://localhost:5173/?at=03:14      # closedown on one, the clip show on five
-http://localhost:5173/?at=11:58      # the run-up to the lunchtime news junction
-http://localhost:5173/?at=21:00      # peak time, which is different on all five
+A test hands `App` a `FakeClock` and drives the day by hand:
+
+```ts
+const clock = new FakeClock(new Date(2026, 8, 9, 1, 40))
+render(<App clock={clock} />)          // closedown on one, the clip show on five
+act(() => clock.set(new Date(2026, 8, 9, 11, 58)))   // the lunchtime junction
 ```
 
-A wall-clock time means its *next* occurrence. Nonsense is ignored.
+There is no query parameter and no dev-only route, because a second mechanism
+for something the seam already does is a second mechanism to keep honest.
 
 ## Layout
 
@@ -218,9 +227,9 @@ Three things live outside the repository:
 - **The client ID.** `VITE_YOUTUBE_CLIENT_ID`, a variable on the
   `github-pages` environment. A variable rather than a secret, because it is
   inlined into a public bundle and marking it secret would only hide it from
-  the build log. Jobs that read it join that environment; the `client ID` job
-  checks for it beside the gates rather than behind them, so a missing setting
-  is reported in seconds instead of after three minutes of runner time.
+  the build log. The `build` job joins that environment and reads it, and that
+  job runs behind `needs: [checks, tests, codeql]`, so a missing setting is
+  reported only once those have passed.
 - **The release App.** `COMMITLINT_CLIENT_ID` (a variable, holding the App's
   numeric id) and `COMMITLINT_CLIENT_SECRET` (a secret, holding the App's
   private key — the `.pem`, not the OAuth client secret it sits beside) on the

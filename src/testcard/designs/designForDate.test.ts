@@ -54,7 +54,15 @@ describe('designForDate', () => {
     expect(designForDate(on(2031, 1, 1), ['electronic'])).toBe('electronic')
   })
 
-  it('does not go negative on dates before 1970', () => {
-    expect(FIVE).toContain(designForDate(on(1967, 7, 1), FIVE))
+  // Widened: this was the only test asking "whatever the date, a card comes
+  // back", and its one extreme input was a perfectly ordinary Date. A clock
+  // that hands this an Invalid Date carries NaN through the arithmetic, the
+  // rotation is indexed with it, and the caller looks the result up in
+  // CARD_DESIGNS and calls what it finds.
+  it.each([
+    ['a date before 1970', () => on(1967, 7, 1)],
+    ['a date the arithmetic cannot use', () => new Date(Number.NaN)],
+  ])('still gives back a card in the rotation for %s', (_case, date) => {
+    expect(FIVE).toContain(designForDate(date(), FIVE))
   })
 })

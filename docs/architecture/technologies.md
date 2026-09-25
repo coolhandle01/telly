@@ -227,11 +227,12 @@ holds that name and is published with the site. `base: './'` in `vite.config.ts`
 keeps asset paths relative. GitHub Pages offers no control over response
 headers, which is why the CSP is a meta tag; the reasoning, including why the
 default `Cross-Origin-Opener-Policy` is the one the sign-in popup needs, is in
-the [README](../../README.md).
+[release-process.md](release-process.md#the-domain-and-the-headers-it-does-not-set).
 
 The DNS record, the Pages custom-domain setting and the HTTPS enforcement are
-GitHub and registrar settings rather than files here. They are described in the
-README and cannot be verified from the repository.
+GitHub and registrar settings rather than files here. They are described in
+[release-process.md](release-process.md#the-domain-and-the-headers-it-does-not-set)
+and cannot be verified from the repository.
 
 ## Build-time configuration
 

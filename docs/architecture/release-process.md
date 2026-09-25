@@ -216,6 +216,28 @@ changing, and a poor score cannot block a merge or a release. How to run it
 usefully, and why a very low score usually means a broken harness rather than a
 bad suite, is in [testing.md](testing.md).
 
+## The domain, and the headers it does not set
+
+`public/CNAME` names `telly.na-n.xyz`. The matching DNS record is a CNAME at the
+registrar: host `telly`, value `coolhandle01.github.io.`. Settings, Pages,
+Custom domain has to hold the same name for GitHub to issue the certificate.
+Tick **Enforce HTTPS** once its check passes.
+
+The domain is a Google requirement rather than a hosting one. Authorised
+domains are verified in Search Console as a Domain property over DNS TXT, and
+that is impossible for `*.github.io` because you do not control its DNS. So
+`na-n.xyz` is verified at the registrar, `telly.na-n.xyz` is the homepage, and
+`https://telly.na-n.xyz` is the one authorised JavaScript origin on the OAuth
+client. Once the custom domain is set GitHub redirects the `github.io` address
+to it, so there is no second origin to keep in step.
+
+No response headers are set. GitHub Pages offers no control over them, and here
+that costs nothing: the default `Cross-Origin-Opener-Policy` is `unsafe-none`,
+which is what the sign-in popup needs. Setting `same-origin` from a generic
+hardening checklist nulls `window.opener` in the popup and the callback never
+arrives, silently, with no console error. A host with a `_headers` file is the
+move if headers ever become necessary; nothing here requires them.
+
 ## Not verifiable from this repository
 
 These are real parts of the process, configured in GitHub or at a registrar,

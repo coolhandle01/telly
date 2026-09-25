@@ -1,14 +1,13 @@
 import { startTransition, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { SystemClock, type Clock } from '../clock/clock'
 import { broadcastDayStart, type Pool } from '../domain'
-import { FixturePoolSource, type PoolSource, type Session } from '../library'
+import type { PoolSource, Session } from '../library'
 import { PlayerSurface, type Player, type PlayerFault } from '../player'
 import { opensAt, planStations, stationById, STATIONS, type Listings } from '../programming'
 import type { PlanOptions } from '../schedule/plan'
 import { TestCard } from '../testcard/TestCard'
 import { nextServiceResume } from '../testcard/serviceResume'
 import { DEFAULT_TONE_HZ, type Sound } from '../audio/sound'
-import { Caption } from './Caption'
 import { GoogleSignInButton } from './GoogleSignInButton'
 import { Guide, type GuidePage } from './Guide'
 import { SourceLink } from './SourceLink'
@@ -43,8 +42,7 @@ export interface ChannelProps {
   planOptions?: Partial<PlanOptions>
   /**
    * The viewer's Google session. Present only when a client ID is configured;
-   * absent means the channel runs on the fixture pool and there is nothing to
-   * sign in to.
+   * absent means there is nothing to sign in to.
    *
    * Must be stable across renders: it feeds a subscription and a page-load
    * effect, and a fresh object each paint would re-run both.
@@ -114,14 +112,6 @@ const INTERLUDE_MESSAGE = 'PROGRAMMES WILL CONTINUE SHORTLY'
 /** The caption over the card when a programme will not play. */
 const FAULT_MESSAGE = 'NORMAL SERVICE WILL BE RESUMED AS SOON AS POSSIBLE'
 
-/**
- * What the paper says while the set is running on the demo pool.
- *
- * These programmes are real videos and they schedule like any others, so
- * nothing on the screen would tell you whose they are. The listings say.
- */
-const DEMO_POOL_NOTICE = 'Sample programmes. Sign in to see your own subscriptions.'
-
 export function Channel({
   channelName,
   clock = defaultClock,
@@ -168,6 +158,14 @@ export function Channel({
   const [showGuide, setShowGuide] = useState(false)
   const [hasPicture, setHasPicture] = useState(false)
   const [signedIn, setSignedIn] = useState(false)
+  /*
+    How far the set has got with programming the channels, as whole percent.
+
+    Whole percent because it is read as a number on a button, and because a
+    live subscription list reports it a few hundred times. There is no sense
+    re-rendering the room for a change nobody can see.
+  */
+  const [programmed, setProgrammed] = useState(0)
   // Nothing is offered in the corner until a grant this browser already made
   // has had its chance. A button saying Sign in, replaced half a second later
   // by one saying Sign out, is the set telling the viewer two different things.
@@ -230,25 +228,20 @@ export function Channel({
       .finally(() => {
         setSigningOut(false)
         setSignedIn(false)
-        // The previous session's programmes come off the screen with it.
+        // The previous session's programmes come off the screen with it, and
+        // so does how far programming them got.
         setPool(undefined)
         setPoolError(undefined)
+        setProgrammed(0)
       })
   }
 
-  const demoSource = useMemo(() => new FixturePoolSource(), [])
   /*
-    Signed out with a service configured, the set runs on the demo pool.
-
-    The alternative is a request with no token behind it, which fails, and a
-    first-time viewer switching the set on is shown a failure rather than
-    television. The paper says whose programmes these are.
+    Signed out with a service configured, there is no source: nobody's
+    subscriptions to schedule, and a request with no token behind it would
+    only fail.
   */
-  const onDemoPool = session !== undefined && !signedIn
-  const source = useMemo(
-    () => (onDemoPool ? demoSource : (poolSource ?? demoSource)),
-    [onDemoPool, poolSource, demoSource],
-  )
+  const source = session !== undefined && !signedIn ? undefined : poolSource
 
   /** Which broadcast day we are in. Changing it is what rolls the schedule. */
   const [dayStartMs, setDayStartMs] = useState(() => broadcastDayStart(clock.now()).getTime())
@@ -264,12 +257,15 @@ export function Channel({
   // The pool is fetched once the set is switched on, or once someone picks up
   // the paper — never at import time, so the app costs nothing until someone
   // actually wants television. The listings matter with the set *off*: that is
-  // when you look at them, to decide whether to switch it on.
+  // when you look at them, to decide whether to switch it on. Signing in is
+  // asking for your own programmes, so it starts the fetch as well.
   useEffect(() => {
-    if (!on && !showGuide) return
+    if (!source || (!on && !showGuide && !signedIn)) return
     let live = true
     source
-      .load()
+      .load((fraction) => {
+        if (live) setProgrammed(Math.round(fraction * 100))
+      })
       .then((loaded) => {
         if (!live) return
         /*
@@ -305,7 +301,7 @@ export function Channel({
     return () => {
       live = false
     }
-  }, [on, showGuide, source])
+  }, [on, showGuide, signedIn, source])
 
   /*
     All five stations, planned together and in one go.
@@ -333,6 +329,28 @@ export function Channel({
 
   const station = stationById(channel)
   const schedule = station ? listings?.schedules.get(station.id) : undefined
+
+  /*
+    How far along programming the channels is, or absent once it is done.
+
+    Derived rather than stored, because the thing that ends it is the listings
+    arriving and not the fetch finishing: there is a fraction of a second of
+    planning five stations after the last call comes back, and a button that
+    said it was ready before it was would be a lie by exactly that much.
+
+    A failed load is not programming either, and neither is a pool that arrived
+    and could not be planned. Both end up on the card and in the footer;
+    leaving the button counting for ever would be the one outcome that tells
+    the viewer nothing at all.
+  */
+  const programming =
+    source !== undefined &&
+    (on || showGuide || signedIn) &&
+    listings === undefined &&
+    !unplannable &&
+    poolError === undefined
+      ? programmed
+      : undefined
 
   /*
     The paper, which prints every channel whether or not the set is tuned to
@@ -400,11 +418,11 @@ export function Channel({
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'i') setShowGuide((was) => !was)
+      if (event.key === 'i' && source !== undefined) setShowGuide((was) => !was)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [source])
 
   // Stamped with the day that produced them, so a new broadcast day forgives
   // yesterday's faults without an effect having to reset anything.
@@ -497,14 +515,23 @@ export function Channel({
             }}
           />
         )}
-        <button
-          type="button"
-          className="guide-toggle"
-          onClick={() => setShowGuide((was) => !was)}
-          aria-pressed={showGuide}
-        >
-          Telly Guide
-        </button>
+        {/*
+          The paper is not printed until the schedules exist, so while they are
+          being worked out the button says what it is waiting for rather than
+          offering a page with nothing on it. No source means nothing to
+          schedule, so there is no button.
+        */}
+        {source === undefined ? null : (
+          <button
+            type="button"
+            className="guide-toggle"
+            onClick={() => setShowGuide((was) => !was)}
+            aria-pressed={showGuide}
+            disabled={programming !== undefined}
+          >
+            {programming === undefined ? 'Telly Guide' : `Programming ${programming}%`}
+          </button>
+        )}
       </div>
 
       {/*
@@ -530,13 +557,13 @@ export function Channel({
           says so, which is the difference between listings being worked out
           and a button that does nothing.
         */}
-        {showGuide ? (
+        {showGuide && source !== undefined ? (
           <Guide
             pages={pages}
             day={new Date(dayStartMs)}
             now={clock.now()}
             tunedTo={station?.id}
-            notice={poolError ?? (onDemoPool ? DEMO_POOL_NOTICE : undefined)}
+            notice={poolError}
             onClose={() => setShowGuide(false)}
           />
         ) : null}
@@ -616,6 +643,14 @@ export function Channel({
             shows — there is no station behind it to put a card up.
           */
           null
+        ) : programming !== undefined && station ? (
+          /*
+            Switched on before the schedules exist. The station has not closed
+            down and there is no fault, so neither card is true. What a
+            station with nothing to hand out yet put up is its own symbol, and
+            that is exactly the situation this is.
+          */
+          <Ident ident={station.ident} name={onScreenName} number={station.id} />
         ) : !onAir ? (
           <>
             <TestCard
@@ -624,7 +659,11 @@ export function Channel({
               clock={clock}
               rotation={station?.cards}
               resumesAt={resumesAt}
-              message={poolError !== undefined || unplannable ? NO_PROGRAMMES_MESSAGE : undefined}
+              message={
+                source === undefined || poolError !== undefined || unplannable
+                  ? NO_PROGRAMMES_MESSAGE
+                  : undefined
+              }
             />
           </>
         ) : onAir.kind === 'programme' ? (
@@ -665,8 +704,6 @@ export function Channel({
               </div>
             ) : null}
           </>
-        ) : onAir.kind === 'continuity' ? (
-          <Caption>{onAir.message}</Caption>
         ) : onAir.variant === 'ident' && station ? (
           /*
             The station's own symbol, held for the minute or two it takes to

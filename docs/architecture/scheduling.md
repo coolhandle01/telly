@@ -204,8 +204,8 @@ flowchart TB
   prog --> room
   pick -->|no| tail
   tail --> gap{"how big is the gap?"}
-  gap -->|"90s or more"| interlude["test card"]
-  gap -->|"under 90s"| caption["continuity caption, NEXT ..."]
+  gap -->|"180s or less"| padded["ident"]
+  gap -->|"over 180s"| interlude["test card"]
 ```
 
 The end of the day is cut the same way a junction is, and on two days a year it
@@ -229,9 +229,12 @@ Candidates are ranked on affinity, adjusted by:
   will fit; the second is marked `repeat`. Two uploads of one channel with the
   same name count as one programme whatever their ids say.
 
-A daypart with nothing eligible in it takes the `no` branch on its first pass
-and fills entirely with card. A station that has run out is showing the card,
-which is both the honest outcome and the thematically correct one.
+Whatever is left over becomes filler, and the vocabulary is three words wide:
+card, ident, closedown. A gap of three minutes or less is the station's ident,
+which is what an ident was for; anything longer is a test card. A daypart with
+nothing eligible in it takes the `no` branch on its first pass and fills
+entirely with card. A station that has run out is showing the card, which is
+both the honest outcome and the thematically correct one.
 
 ## Tuning
 
@@ -263,7 +266,7 @@ render(<App clock={clock} />)
 act(() => clock.set(new Date(2026, 8, 9, 11, 58)))
 ```
 
-`FakeClock` (`src/test/fakeClock.ts`) implements `Clock` and ticks its
+`FakeClock` (`test/support/fakeClock.ts`) implements `Clock` and ticks its
 subscribers from `set()`, so a junction arrives, a programme ends and the card's
 clock counts on, all without waiting and without a timer.
 

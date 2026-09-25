@@ -141,9 +141,10 @@ the bundle will not produce: same aliases, same plugins.
 |---|---|
 | Environment | `jsdom` (jsdom 30.0.1) |
 | Globals | on, `describe`/`it`/`expect` without imports |
-| Setup | `src/test/setup.ts` |
+| Tests | `include: ['test/**/*.test.{ts,tsx}']` |
+| Setup | `test/support/setup.ts` |
 | Mocks | `restoreMocks: true` |
-| Coverage | provider `v8`, reporters `text` and `lcov`, `include: ['src/**/*.{ts,tsx}']`, excluding `src/**/*.test.{ts,tsx}` and `src/test/**` |
+| Coverage | provider `v8`, reporters `text` and `lcov`, `include: ['src/**/*.{ts,tsx}']` |
 | Excluded from the ordinary run | `node_modules`, `dist`, `.stryker-tmp`, and `**/*.dst.test.ts` |
 
 No coverage thresholds are configured. Coverage is measured and reported; it
@@ -176,8 +177,7 @@ run by `npm run mutate`.
   10.0.0 is installed but the config does not select it; why, is in
   [testing.md](testing.md).
 - `coverageAnalysis: "off"`, `concurrency: 2`, `timeoutMS: 60000`.
-- `mutate` covers `src/**/*.ts` and `src/**/*.tsx` less the tests,
-  `src/test/**`, `src/fixtures/**` and `src/main.tsx`.
+- `mutate` covers `src/**/*.ts` and `src/**/*.tsx` less `src/main.tsx`.
 - `thresholds`: `high` 90, `low` 75, `break` **null**.
 
 `break: null` means no score fails the run, and no workflow invokes Stryker at
@@ -245,8 +245,8 @@ it is fetched at runtime and kept in memory.
 
 `.env.example` is the only env file in the repository. `.gitignore` excludes
 `.env` and `.env.*` with `!.env.example` as the one exception, so a real
-`.env.local` never arrives here. Left unset, the app runs on the fixture pool in
-`src/fixtures/` and there is nothing to sign in to.
+`.env.local` never arrives here. Left unset, there is nothing to sign in to and
+nothing to schedule, and the set shows the no-service-configuration fault card.
 
 In CI the value comes from `vars.VITE_YOUTUBE_CLIENT_ID` on the `github-pages`
 environment, read by the `build` job in `release.yml`. Its value is a GitHub

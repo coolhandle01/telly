@@ -2,7 +2,8 @@ import type { Channel, Pool, Video } from '../domain'
 import { parseIso8601Duration } from './duration'
 import { QuotaExceededError, YouTubeApiError } from './errors'
 import type { FetchLike } from './http'
-import type { PoolSource } from './poolSource'
+import { mapLimit } from './mapLimit'
+import type { LoadProgress, PoolSource } from './poolSource'
 import type { AccessTokenProvider } from './tokenProvider'
 
 /**
@@ -22,6 +23,13 @@ import type { AccessTokenProvider } from './tokenProvider'
  *
  * ~290 units against a 10,000/day allowance, and the two `50`s are what hold
  * it there: a `videos.list` per video would be 4,000 on its own.
+ *
+ * The playlist row is the one that is per-channel and cannot be batched, so
+ * two hundred subscriptions is two hundred calls, and made one after another
+ * that is most of a minute of a viewer watching nothing happen. They are made
+ * `CONCURRENCY` at a time instead. The charge is per call and the number of
+ * calls does not change, so this costs no extra quota: it only stops the wall
+ * clock from being the sum of two hundred round trips.
  */
 
 const API_BASE = 'https://www.googleapis.com/youtube/v3'
@@ -32,6 +40,16 @@ const MAX_PAGE_SIZE = 50
 
 /** Recent uploads fetched per channel. Enough to plan a week without paging. */
 const DEFAULT_VIDEOS_PER_CHANNEL = 20
+
+/**
+ * How many API calls may be in the air at once.
+ *
+ * Enough to turn a minute into a few seconds, and far short of anything that
+ * looks like abuse from the far end. The per-call quota is untouched either
+ * way, so there is nothing to be won by raising it and a rate limit to be
+ * tripped by raising it a lot.
+ */
+export const CONCURRENCY = 8
 
 /**
  * Subscriptions read per load. The load costs about 1.45 units per
@@ -46,6 +64,17 @@ const AGE_RESTRICTED = 'ytAgeRestricted'
 /** Reasons Google returns when there is nothing left to spend. */
 const QUOTA_REASONS = new Set(['quotaExceeded', 'dailyLimitExceeded', 'rateLimitExceeded', 'userRateLimitExceeded'])
 
+/** The per-minute limit, as against the daily quota. It clears in seconds. */
+const RATE_LIMIT_REASONS = new Set(['rateLimitExceeded', 'userRateLimitExceeded'])
+
+/**
+ * The waits before each repeat of a call the per-minute limit refused, in
+ * milliseconds. Each doubles the last, and up to a second of jitter is added
+ * so the calls in the air together do not all come back in the same instant.
+ * A call still refused after the last of these fails as it would have.
+ */
+export const RATE_LIMIT_BACKOFF_MS: readonly number[] = [1000, 2000, 4000, 8000]
+
 export interface YouTubePoolSourceOptions {
   /** Injected transport. Never read from a global, so tests cannot escape. */
   fetch: FetchLike
@@ -54,6 +83,8 @@ export interface YouTubePoolSourceOptions {
   videosPerChannel?: number
   /** Override for tests and for a proxy deployment. */
   baseUrl?: string
+  /** How a rate-limit backoff waits. Injected so tests do not wait in real time. */
+  sleep?: (ms: number) => Promise<void>
 }
 
 interface SubscriptionListResponse {
@@ -160,7 +191,8 @@ export function batchIds(ids: readonly string[], size: number = MAX_IDS_PER_CALL
  *
  * 429 is in here by status as well as by reason: the per-minute limit is
  * returned with `rateLimitExceeded` or `userRateLimitExceeded`, and a 429
- * carrying neither is still the same wall.
+ * carrying neither is still the same wall. It reaches here only once `#get`
+ * has waited it out through every step of `RATE_LIMIT_BACKOFF_MS`.
  */
 function isFatal(error: unknown): boolean {
   if (error instanceof QuotaExceededError) return true
@@ -175,6 +207,7 @@ export class YouTubePoolSource implements PoolSource {
   readonly #tokens: AccessTokenProvider
   readonly #videosPerChannel: number
   readonly #baseUrl: string
+  readonly #sleep: (ms: number) => Promise<void>
   #owner: Promise<string> | undefined
 
   constructor(options: YouTubePoolSourceOptions) {
@@ -182,6 +215,7 @@ export class YouTubePoolSource implements PoolSource {
     this.#tokens = options.tokens
     this.#videosPerChannel = options.videosPerChannel ?? DEFAULT_VIDEOS_PER_CHANNEL
     this.#baseUrl = options.baseUrl ?? API_BASE
+    this.#sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
   }
 
   /**
@@ -219,12 +253,39 @@ export class YouTubePoolSource implements PoolSource {
     return id
   }
 
-  async load(): Promise<Pool> {
+  async load(onProgress?: LoadProgress): Promise<Pool> {
     const subscribed = await this.#listSubscriptions()
-    const described = await this.#describeChannels(subscribed)
-    const videoIds = await this.#listRecentVideoIds(described.uploadPlaylists)
-    const videos = await this.#describeVideos(videoIds)
 
+    /*
+      Now that the subscription list is in, how many calls the rest of this
+      will take is arithmetic: one per 50 channels to describe them, one per
+      channel for its uploads, and one per 50 videos to describe those. The
+      last is an over-estimate (channels with uploads disabled contribute
+      none, and two channels can carry the same video), so it is replaced with
+      the real figure the moment that is known. A denominator that only ever
+      shrinks moves the fraction forwards, which is the direction progress is
+      allowed to move.
+    */
+    const perChannelCalls = subscribed.length
+    const describeCalls = batchIds(subscribed.map((c) => c.id)).length
+    let total =
+      describeCalls +
+      perChannelCalls +
+      Math.ceil((subscribed.length * this.#videosPerChannel) / MAX_IDS_PER_CALL)
+    let done = 0
+    const tick = (): void => {
+      done += 1
+      onProgress?.(Math.min(done / Math.max(total, 1), 1))
+    }
+
+    const described = await this.#describeChannels(subscribed, tick)
+    const videoIds = await this.#listRecentVideoIds(described.uploadPlaylists, tick)
+
+    const videoCalls = batchIds(videoIds).length
+    total = describeCalls + perChannelCalls + videoCalls
+    const videos = await this.#describeVideos(videoIds, tick)
+
+    onProgress?.(1)
     return { videos, channels: described.channels }
   }
 
@@ -266,6 +327,17 @@ export class YouTubePoolSource implements PoolSource {
     } while (pageToken)
   }
 
+  /** Every page `#pages` yields, for a worker that hands its pages back whole. */
+  async #collect<T extends PagedResponse>(
+    endpoint: string,
+    params: Record<string, string>,
+    limit: number,
+  ): Promise<T[]> {
+    const pages: T[] = []
+    for await (const page of this.#pages<T>(endpoint, params, limit)) pages.push(page)
+    return pages
+  }
+
   /** Step 1: the subscribed channels, 50 a page, up to `MAX_SUBSCRIPTIONS`. */
   async #listSubscriptions(): Promise<Channel[]> {
     const channels: Channel[] = []
@@ -295,30 +367,39 @@ export class YouTubePoolSource implements PoolSource {
    */
   async #describeChannels(
     subscribed: readonly Channel[],
+    tick: () => void,
   ): Promise<{ channels: Map<string, Channel>; uploadPlaylists: string[] }> {
     const uploadPlaylists: string[] = []
     const channels = new Map(subscribed.map((channel) => [channel.id, channel]))
 
-    for (const batch of batchIds(subscribed.map((channel) => channel.id))) {
-      for await (const page of this.#pages<ChannelListResponse>(
-        'channels',
-        { part: 'contentDetails,topicDetails,statistics', id: batch.join(',') },
-        batch.length,
-      )) {
-        for (const item of page.items ?? []) {
-          // A channel with uploads disabled has no uploads playlist. Skip it
-          // rather than losing every other channel to one missing field.
-          const uploads = item.contentDetails?.relatedPlaylists?.uploads
-          if (uploads) uploadPlaylists.push(uploads)
+    const batches = await mapLimit(
+      batchIds(subscribed.map((channel) => channel.id)),
+      CONCURRENCY,
+      async (batch) => {
+        const pages = await this.#collect<ChannelListResponse>(
+          'channels',
+          { part: 'contentDetails,topicDetails,statistics', id: batch.join(',') },
+          batch.length,
+        )
+        tick()
+        return pages
+      },
+    )
 
-          const known = item.id ? channels.get(item.id) : undefined
-          if (!known) continue
-          channels.set(known.id, {
-            ...known,
-            topics: topicSlugs(item.topicDetails?.topicCategories),
-            subscriberCount: countOf(item.statistics?.subscriberCount),
-          })
-        }
+    for (const page of batches.flat()) {
+      for (const item of page.items ?? []) {
+        // A channel with uploads disabled has no uploads playlist. Skip it
+        // rather than losing every other channel to one missing field.
+        const uploads = item.contentDetails?.relatedPlaylists?.uploads
+        if (uploads) uploadPlaylists.push(uploads)
+
+        const known = item.id ? channels.get(item.id) : undefined
+        if (!known) continue
+        channels.set(known.id, {
+          ...known,
+          topics: topicSlugs(item.topicDetails?.topicCategories),
+          subscriberCount: countOf(item.statistics?.subscriberCount),
+        })
       }
     }
 
@@ -326,55 +407,64 @@ export class YouTubePoolSource implements PoolSource {
   }
 
   /**
-   * Step 3: recent uploads per playlist. This is the expensive step, so it is
-   * sequential to stay inside the per-minute rate limit rather than firing two
-   * hundred requests at once.
+   * Step 3: recent uploads per playlist, one playlist to a worker and
+   * `CONCURRENCY` of them in the air. This is the long pole: it is the only
+   * step the API will not let us batch, so it is as many calls as you have
+   * subscriptions.
    *
    * `videosPerChannel` is a budget, not a page size: above the API's maximum
    * it takes more than one page.
+   *
+   * The ids come back in playlist order however the requests interleaved, so
+   * the pool, and the day planned from it, does not depend on which channel's
+   * server answered first.
    */
-  async #listRecentVideoIds(playlistIds: readonly string[]): Promise<string[]> {
-    const videoIds = new Set<string>()
-    let firstFailure: unknown
-    let failures = 0
+  async #listRecentVideoIds(playlistIds: readonly string[], tick: () => void): Promise<string[]> {
+    const failures = new Map<number, unknown>()
 
-    for (const playlistId of playlistIds) {
+    const perPlaylist = await mapLimit(playlistIds, CONCURRENCY, async (playlistId, index) => {
       try {
-        for await (const page of this.#pages<PlaylistItemListResponse>(
+        const pages = await this.#collect<PlaylistItemListResponse>(
           'playlistItems',
           { part: 'contentDetails', playlistId },
           this.#videosPerChannel,
-        )) {
-          for (const item of page.items ?? []) {
-            const id = item.contentDetails?.videoId
-            if (id) videoIds.add(id)
-          }
-        }
+        )
+        tick()
+        return pages
       } catch (error) {
         // One channel being deleted, made private or otherwise unreachable is
         // an ordinary fact of a subscription list that has been around a
         // while. It must cost you that channel, not the other two hundred.
+        // A fatal error fails the load, and mapLimit hands out no more
+        // playlists once one has.
         if (isFatal(error)) throw error
-        failures += 1
-        firstFailure ??= error
-        continue
+        failures.set(index, error)
+        tick()
+        return []
       }
-    }
+    })
 
     // Every playlist failing is a failure of the load, whatever each
     // individual answer said. An empty pool is shown as an empty subscription
     // list, and this is the case where that would be untrue.
-    if (failures > 0 && failures === playlistIds.length) throw firstFailure
+    if (failures.size > 0 && failures.size === playlistIds.length) throw failures.get(0)
 
+    const videoIds = new Set<string>()
+    for (const page of perPlaylist.flat()) {
+      for (const item of page.items ?? []) {
+        const id = item.contentDetails?.videoId
+        if (id) videoIds.add(id)
+      }
+    }
     return [...videoIds]
   }
 
   /** Step 4 — durations, ratings, category and views, batched 50 ids to a call. */
-  async #describeVideos(videoIds: readonly string[]): Promise<Video[]> {
+  async #describeVideos(videoIds: readonly string[], tick: () => void): Promise<Video[]> {
     const videos: Video[] = []
 
-    for (const batch of batchIds(videoIds)) {
-      for await (const page of this.#pages<VideoListResponse>(
+    const batches = await mapLimit(batchIds(videoIds), CONCURRENCY, async (batch) => {
+      const pages = await this.#collect<VideoListResponse>(
         'videos',
         {
           // `liveStreamingDetails` is free (parts cost nothing extra within a
@@ -384,43 +474,60 @@ export class YouTubePoolSource implements PoolSource {
           id: batch.join(','),
         },
         batch.length,
-      )) {
-        for (const item of page.items ?? []) {
-          if (!item.id) continue
-          videos.push({
-            id: item.id,
-            channelId: item.snippet?.channelId ?? '',
-            title: item.snippet?.title ?? '',
-            durationSec: parseIso8601Duration(item.contentDetails?.duration ?? ''),
-            publishedAt: item.snippet?.publishedAt ?? '',
-            categoryId: item.snippet?.categoryId,
-            tags: item.snippet?.tags,
-            viewCount: countOf(item.statistics?.viewCount),
-            // The watershed, as a field. YouTube has already made this judgement
-            // and it is the only one of its kind we get for free.
-            ageRestricted: item.contentDetails?.contentRating?.ytRating === AGE_RESTRICTED,
-            madeForKids: item.status?.madeForKids === true,
-            // Reported, not filtered: the scheduler decides what to do with an
-            // unembeddable or live item, this layer only says what is true.
-            embeddable: item.status?.embeddable !== false,
-            // Two ways to be live, and the snippet only knows one of them. A
-            // stream that is running says so; a stream that has *just* finished
-            // says `none` and still plays as "this live event has ended" until
-            // YouTube publishes the recording. Anything carrying streaming
-            // details without an end time has not finished.
-            isLive:
-              (item.snippet?.liveBroadcastContent ?? 'none') !== 'none' ||
-              (item.liveStreamingDetails !== undefined &&
-                item.liveStreamingDetails.actualEndTime === undefined),
-          })
-        }
+      )
+      tick()
+      return pages
+    })
+
+    for (const page of batches.flat()) {
+      for (const item of page.items ?? []) {
+        if (!item.id) continue
+        videos.push({
+          id: item.id,
+          channelId: item.snippet?.channelId ?? '',
+          title: item.snippet?.title ?? '',
+          durationSec: parseIso8601Duration(item.contentDetails?.duration ?? ''),
+          publishedAt: item.snippet?.publishedAt ?? '',
+          categoryId: item.snippet?.categoryId,
+          tags: item.snippet?.tags,
+          viewCount: countOf(item.statistics?.viewCount),
+          // The watershed, as a field. YouTube has already made this judgement
+          // and it is the only one of its kind we get for free.
+          ageRestricted: item.contentDetails?.contentRating?.ytRating === AGE_RESTRICTED,
+          madeForKids: item.status?.madeForKids === true,
+          // Reported, not filtered: the scheduler decides what to do with an
+          // unembeddable or live item, this layer only says what is true.
+          embeddable: item.status?.embeddable !== false,
+          // Two ways to be live, and the snippet only knows one of them. A
+          // stream that is running says so; a stream that has *just* finished
+          // says `none` and still plays as "this live event has ended" until
+          // YouTube publishes the recording. Anything carrying streaming
+          // details without an end time has not finished.
+          isLive:
+            (item.snippet?.liveBroadcastContent ?? 'none') !== 'none' ||
+            (item.liveStreamingDetails !== undefined &&
+              item.liveStreamingDetails.actualEndTime === undefined),
+        })
       }
     }
 
     return videos
   }
 
+  /** One call, repeated after a backoff for as long as the per-minute limit refuses it. */
   async #get(endpoint: string, params: Record<string, string>): Promise<unknown> {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await this.#getOnce(endpoint, params)
+      } catch (error) {
+        const wait = RATE_LIMIT_BACKOFF_MS[attempt]
+        if (wait === undefined || !isRateLimited(error)) throw error
+        await this.#sleep(wait + Math.random() * 1000)
+      }
+    }
+  }
+
+  async #getOnce(endpoint: string, params: Record<string, string>): Promise<unknown> {
     const url = `${this.#baseUrl}/${endpoint}?${new URLSearchParams(params).toString()}`
     // The token goes in the header, never the query string: URLs end up in
     // browser history, referrers and server logs (CWE-598).
@@ -438,6 +545,14 @@ export class YouTubePoolSource implements PoolSource {
     if (!response.ok) throw await toApiError(response, endpoint)
     return response.json()
   }
+}
+
+/** The per-minute limit, by status or by the reason Google gives it. */
+function isRateLimited(error: unknown): boolean {
+  return (
+    error instanceof YouTubeApiError &&
+    (error.status === 429 || (error.reason !== undefined && RATE_LIMIT_REASONS.has(error.reason)))
+  )
 }
 
 /** Never includes the request URL or any header: an error must not carry a token. */

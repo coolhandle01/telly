@@ -15,7 +15,7 @@ export default {
   ...config,
   test: {
     ...config.test,
-    include: ['src/**/*.dst.test.ts'],
+    include: ['test/**/*.dst.test.ts'],
     exclude: ['**/node_modules/**', '**/dist/**', '.stryker-tmp/**'],
     coverage: { enabled: false },
   },

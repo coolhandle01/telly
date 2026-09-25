@@ -52,6 +52,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // The app is src/ and its tests are test/, so nothing in src/ is test code.
+    include: ['test/**/*.test.{ts,tsx}'],
     // Stryker's sandbox is a full copy of the project, tests and all. Without
     // this, a mutation run makes `vitest` find every test file twice — and the
     // copies it finds are instrumented.
@@ -60,7 +62,7 @@ export default defineConfig({
     // fail for the right reason and the wrong one.
     exclude: ['**/node_modules/**', '**/dist/**', '.stryker-tmp/**', '**/*.dst.test.ts'],
     globals: true, // describe/it/expect without imports
-    setupFiles: './src/test/setup.ts',
+    setupFiles: './test/support/setup.ts',
     restoreMocks: true, // no spy leaks between tests
     coverage: {
       provider: 'v8',
@@ -69,7 +71,6 @@ export default defineConfig({
       // score 100% by being invisible. Vitest 5 removed that flag: an explicit
       // `include` now *is* the all-files behaviour, so this is the same gate.
       include: ['src/**/*.{ts,tsx}'],
-      exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**'],  // src/fixtures is shipped, so it is measured
     },
   },
 })

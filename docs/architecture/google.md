@@ -64,17 +64,44 @@ address. It exists to key the cache, and the memo lives as long as the source,
 which is the life of a signed-in session. `forget()` drops it, so the account
 that signs in next is keyed as itself.
 
+**`playlistItems.list` is the one that cannot be batched**, so it is one call
+per subscription: two hundred subscriptions is two hundred calls, and made one
+after another that is most of a minute of a viewer looking at a button that
+appears to do nothing. Eight are in the air at once (`mapLimit`). The charge is
+per call and the number of calls is unchanged, so this costs no extra quota: it
+only stops the wall clock from being the sum of every round trip. It also does
+not change the pool: `mapLimit` returns results in the order the items went in,
+so the day planned from the pool does not depend on which channel's server
+answered first.
+
+Stopping matters as much as starting. Once one playlist fails the load, with a
+401, 403 or 429 or spent quota, `mapLimit` hands out no more, so the failure
+costs at most the calls already in flight rather than another two hundred.
+
+## Progress
+
+`load(onProgress?)` reports a fraction from 0 to 1, and the Telly Guide button
+shows it while the set is programming. The denominator is arithmetic off the
+subscription count (one call per 50 channels, one per channel for its uploads,
+one per 50 videos), refined downward once the real video count is known. It
+only ever shrinks, so the fraction only ever moves forwards; a load that
+finishes a little early is a better lie than one that sits at 99%.
+
 ## Error triage
 
 The rule is: **is this error about *them* or about *us*?**
 
 ```mermaid
 flowchart TB
+  call(["a playlistItems.list call, inside #get"]) --> limited{"429, or rateLimitExceeded / userRateLimitExceeded"}
+  limited -->|"yes, and a backoff step is left"| wait["wait 1s, 2s, 4s, 8s in turn, each plus up to 1s of jitter"]
+  wait --> call
+  limited -->|"no, or the backoff is spent"| fail
   fail(["a playlistItems.list call throws, inside #listRecentVideoIds"]) --> fatal{"isFatal"}
-  fatal -->|"401, 403, 429, any QuotaExceededError"| stop(["rethrown · the whole load fails"])
-  fatal -->|"404 and everything else"| skip["count the loss, keep the first error, take the next playlist"]
+  fatal -->|"401, 403, 429, any QuotaExceededError"| stop(["rethrown: no further playlist starts, and the whole load fails"])
+  fatal -->|"404 and everything else"| skip["record the loss against that playlist, and the worker takes the next"]
   skip --> tally{"every playlist lost"}
-  tally -->|"yes"| first(["throw the first error kept"])
+  tally -->|"yes"| first(["throw the first playlist's error"])
   tally -->|"no"| pool(["the pool, minus those channels"])
 ```
 
@@ -86,6 +113,13 @@ bug: one dead playlist took the whole load down.
 A **401, 403 or 429** is about our credentials or our allowance, so it will fail
 identically for every remaining channel. Continuing would mean two hundred
 pointless requests and a misleading empty result.
+
+**The per-minute limit is waited out first.** It clears in seconds, so `#get`
+repeats any call it refuses (a 429, or either rate-limit reason on any status)
+after each step of `RATE_LIMIT_BACKOFF_MS`, and only a call still refused after
+the last step throws. The daily quota, a refused token and a refused request are
+not waited out: none of them clears in seconds. Eight calls in the air means
+eight backoffs, and the jitter keeps them from coming back together.
 
 429 is in `isFatal` by status as well as by reason. The per-minute limit comes
 back as `rateLimitExceeded` or `userRateLimitExceeded`, which classify as

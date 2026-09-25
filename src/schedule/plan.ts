@@ -36,7 +36,11 @@ const DEFAULT_MIN_AFFINITY = 0.15
  */
 const DEFAULT_MAX_OVERRUN_SEC = 600
 
-/** At or above this, a gap is worth a test card; below it, a caption will do. */
+/**
+ * The shortest slot the packer will try to fill with a programme at all.
+ * Below this there is no programme worth starting, so whatever is left goes
+ * to `fillTo` to be padded out.
+ */
 const INTERLUDE_MIN_SEC = 90
 
 /**
@@ -83,9 +87,6 @@ const MIN_REPEAT_GAP_SEC = 4 * 3600
 const REPEAT_PENALTY = 0.2
 
 const MS_PER_DAY = 86_400_000
-
-const CONTINUITY_NEXT = (name: string): string => `NEXT: ${name.toUpperCase()}`
-const CONTINUITY_CLOSE = 'END OF PROGRAMMES'
 
 interface Candidate {
   readonly video: Video
@@ -141,17 +142,23 @@ export function plan(pool: Pool, options: PlanOptions): Schedule {
     cursor = endSec
   }
 
-  /** Close the distance to `target` the way television does: card, or caption. */
-  const fillTo = (target: number, daypart: DaypartId, nextName: string): void => {
+  /**
+   * Close the distance to `target` the way television did.
+   *
+   * `target` here is always a junction (the top of a daypart, or the end of
+   * the day), so the gap is the station padding to a time it has to hit. A
+   * couple of minutes of that is what the ident was *for*: the symbol goes up
+   * and the next programme starts on the mark. Only once the gap is longer
+   * than a station would hold its own mark does it become an interlude, which
+   * is the card's job.
+   */
+  const fillTo = (target: number, daypart: DaypartId): void => {
     const gap = target - cursor
     if (gap <= 0) return
-    push(
-      target,
-      daypart,
-      gap >= INTERLUDE_MIN_SEC
-        ? { kind: 'filler', variant: 'interlude' }
-        : { kind: 'continuity', message: nextName },
-    )
+    push(target, daypart, {
+      kind: 'filler',
+      variant: gap <= IDENT_MAX_SEC ? 'ident' : 'interlude',
+    })
   }
 
   /** "We're going over to the news now." Cut back to `limit`, whatever is running. */
@@ -246,12 +253,9 @@ export function plan(pool: Pool, options: PlanOptions): Schedule {
     const daypart = dayparts[i]
     const startSec = Math.min(daypart.startMin * 60, daySeconds)
     const endSec = Math.min(daypart.endMin * 60, daySeconds)
-    const following = i + 1 < dayparts.length ? dayparts[i + 1].name : undefined
-    const nextName = following === undefined ? CONTINUITY_CLOSE : CONTINUITY_NEXT(following)
-
     // The junction rule. Everything else floats; this does not.
     if (daypart.junction && cursor > startSec) truncateTo(startSec)
-    fillTo(startSec, daypart.id, CONTINUITY_NEXT(daypart.name))
+    fillTo(startSec, daypart.id)
 
     if (daypart.offAir) {
       push(endSec, daypart.id, { kind: 'filler', variant: 'closedown' })
@@ -259,13 +263,13 @@ export function plan(pool: Pool, options: PlanOptions): Schedule {
     }
 
     fillDaypart(daypart, endSec)
-    fillTo(endSec, daypart.id, nextName)
+    fillTo(endSec, daypart.id)
   }
 
   // The end of the day is the hardest junction there is — and on the two days
   // a year the clocks move, it is not where the arithmetic says it is.
   if (cursor > daySeconds) truncateTo(daySeconds)
-  fillTo(daySeconds, last.id, CONTINUITY_CLOSE)
+  fillTo(daySeconds, last.id)
 
   assertCoversDay(items, daySeconds)
   return { startsAt, items }

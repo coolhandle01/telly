@@ -1,5 +1,4 @@
 import { CachedPoolSource, type CachedPoolSourceOptions } from './cachedPoolSource'
-import { FixturePoolSource } from './fixturePoolSource'
 import type { FetchLike } from './http'
 import { openPoolStore } from './indexedDbPoolStore'
 import type { PoolSource } from './poolSource'
@@ -8,11 +7,11 @@ import type { AccessTokenProvider } from './tokenProvider'
 import { YouTubePoolSource } from './youTubePoolSource'
 
 /**
- * Which pool the app runs on.
+ * The pool the app runs on: the viewer's own subscriptions, or none.
  *
- * The fixture is the default and stays the default until an OAuth client ID is
- * configured *and* something can actually produce a token. Anything less and
- * the channel runs on fixture programmes rather than showing a sign-in wall.
+ * There is a source only once an OAuth client ID is configured *and* something
+ * can actually produce a token. Anything less and there is nothing to
+ * schedule, so there is no source.
  *
  * `import.meta.env.VITE_*` is inlined into the bundle at build time and is
  * therefore **public** — readable by anyone who views source. Only the OAuth
@@ -25,7 +24,7 @@ import { YouTubePoolSource } from './youTubePoolSource'
 export interface PoolSourceConfig {
   /** Public OAuth client ID. Defaults to the build-time `VITE_YOUTUBE_CLIENT_ID`. */
   clientId?: string
-  /** Whatever the sign-in flow provides. Without it, the fixture stays on. */
+  /** Whatever the sign-in flow provides. Without it, there is no source. */
   tokens?: AccessTokenProvider
   /** Injected transport; defaults to the platform `fetch`. */
   fetch?: FetchLike
@@ -43,11 +42,11 @@ export function isYouTubeConfigured(clientId: string | undefined = configuredCli
   return (clientId ?? '').trim().length > 0
 }
 
-export function createPoolSource(config: PoolSourceConfig = {}): PoolSource {
+export function createPoolSource(config: PoolSourceConfig = {}): PoolSource | undefined {
   const clientId = config.clientId ?? configuredClientId()
   const fetch = config.fetch ?? ((url, init) => globalThis.fetch(url, init))
 
-  if (!isYouTubeConfigured(clientId) || !config.tokens) return new FixturePoolSource()
+  if (!isYouTubeConfigured(clientId) || !config.tokens) return undefined
 
   const live = new YouTubePoolSource({
     fetch,

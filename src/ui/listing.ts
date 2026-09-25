@@ -4,11 +4,11 @@ import { DEFAULT_DAYPARTS, type Daypart, type DaypartId, type Schedule, type Sch
  * The day's schedule as a page of listings.
  *
  * A schedule and a listing are not the same document. The schedule is every
- * item the packer laid down, including the twenty-second continuity captions
- * between programmes; a listing is what a paper printed, and no paper ever
- * printed "18.42 Caption". So runs of everything that is not a programme
- * collapse into one line — which is exactly what "6.00 Closedown" is, a
- * four-and-a-half-hour run of test card given one line and no apology.
+ * item the packer laid down, down to the two minutes of station ident before
+ * a programme; a listing is what a paper printed, and no paper ever printed
+ * "18.42 Ident". So runs of everything that is not a programme collapse into
+ * one line, which is exactly what "6.00 Closedown" is: a four-and-a-half-hour
+ * run of test card given one line and no apology.
  *
  * A stripped daypart collapses its programmes too. Nobody printed two hundred
  * and forty clips; they printed `2.00 Clip Show`.
@@ -29,9 +29,7 @@ export interface Entry {
 
 const kindOf = (item: ScheduleItem): EntryKind => {
   if (item.content.kind === 'programme') return 'programme'
-  return item.content.kind === 'filler' && item.content.variant === 'closedown'
-    ? 'closedown'
-    : 'interlude'
+  return item.content.variant === 'closedown' ? 'closedown' : 'interlude'
 }
 
 /** An ident: the station's symbol, held to bring the next programme up. */

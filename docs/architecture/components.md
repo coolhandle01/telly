@@ -24,7 +24,7 @@ flowchart TB
   cab -->|"controls"| panel["ControlPanel · presets, trimmers, POWER, volume, grille"]
   cab -->|"children"| screen("Screen · the glass, 4:3, black, CRT phases")
   screen -->|"overlay"| osd["ChannelOverlay · CH n · VolumeOverlay · VOL bars, both transient"]
-  screen -->|"children"| air["TestCard · PlayerSurface · Caption · Ident"]
+  screen -->|"children"| air["TestCard · PlayerSurface · Ident"]
   footer --> alert[".set__fault · role=alert"]
   footer --> legal["Privacy · Terms"]
 ```
@@ -138,8 +138,8 @@ the receiver's.
 ### What decides what is on the screen
 
 One chain of conditions in `Channel`, in this order. The tube's own phase comes
-first and the schedule comes last, so nothing the schedule says can put a
-caption on a dark screen.
+first and the schedule comes last, so nothing the schedule says can put
+anything on a dark screen.
 
 ```mermaid
 flowchart TB
@@ -149,13 +149,14 @@ flowchart TB
   fault -->|"present"| faultcard(["TestCard design=fault · nothing else is on"])
   fault -->|"none"| carrier{"a station on this preset"}
   carrier -->|"none"| snow(["NO_SIGNAL snow, and no card under it"])
-  carrier -->|"one"| onair{"useOnAir covers this instant"}
+  carrier -->|"one"| loading{"the schedules are still being worked out"}
+  loading -->|"yes"| held(["Ident, the station's symbol, until they exist"])
+  loading -->|"no"| onair{"useOnAir covers this instant"}
   onair -->|"no"| closed(["closedown TestCard · NO PROGRAMME INFORMATION AVAILABLE when the pool failed or could not be planned"])
   onair -->|"yes"| kind{"onAir.kind"}
   kind -->|"programme"| picture{"the player reports a picture"}
   picture -->|"not yet"| under(["TestCard carrying the title, or NORMAL SERVICE WILL BE RESUMED for a video that has already faulted"])
   picture -->|"yes"| shown(["black behind PlayerSurface, revealed over the card"])
-  kind -->|"continuity"| caption(["Caption · the announcement"])
   kind -->|"filler, variant ident"| ident(["Ident · the station's symbol"])
   kind -->|"filler, any other variant"| interlude(["closedown TestCard · PROGRAMMES WILL CONTINUE SHORTLY for an interlude"])
 ```
@@ -238,9 +239,6 @@ classDiagram
     +load() Promise~Pool~
     +forget() Promise~void~
   }
-  class FixturePoolSource {
-    +load() Promise~Pool~
-  }
   class YouTubePoolSource {
     +load() Promise~Pool~
     +ownerId() Promise~string~
@@ -256,7 +254,6 @@ classDiagram
     +write(key, entry) Promise~void~
     +clear() Promise~void~
   }
-  PoolSource <|.. FixturePoolSource
   PoolSource <|.. YouTubePoolSource
   PoolSource <|.. CachedPoolSource
   CachedPoolSource o-- PoolSource : wraps one
@@ -270,27 +267,23 @@ established is not a key, so there is no read and no write until the account is
 known.
 
 `createPoolSource` builds the source from the configuration, `App` holds it, and
-`Channel` chooses between it and a fixture of its own.
+`Channel` uses it only while someone is signed in.
 
 ```mermaid
 flowchart TB
   id{"VITE_YOUTUBE_CLIENT_ID configured"}
-  id -->|"no"| nosession["App builds no GoogleTokenProvider, so no session prop"]
-  nosession --> fix["createPoolSource returns FixturePoolSource"]
-  fix --> runs1(["the fixture pool, and nothing to sign in to"])
-  id -->|"yes"| built["GoogleTokenProvider · googleSession · createPoolSource returns CachedPoolSource over YouTubePoolSource"]
+  id -->|"no"| nosession["App builds no GoogleTokenProvider and createPoolSource returns no source"]
+  nosession --> fault(["the no-service-configuration fault card, and nothing to sign in to"])
+  id -->|"yes"| built["GoogleTokenProvider, googleSession, and createPoolSource returns CachedPoolSource over YouTubePoolSource"]
   built --> state{"Channel: session present and signedIn"}
-  state -->|"signed out, or still resuming"| demo(["Channel's own FixturePoolSource, the demo pool"])
-  state -->|"signed in"| live(["CachedPoolSource over YouTubePoolSource, keyed to the account"])
+  state -->|"signed out, or still resuming"| none(["no source: nothing loads, no Telly Guide, NO PROGRAMME INFORMATION AVAILABLE"])
+  state -->|"signed in"| live(["CachedPoolSource over YouTubePoolSource, keyed to the account, loading at once"])
 ```
 
-Signed out with a service configured, the set runs on the demo pool. The
-alternative is a request with no token behind it, which fails, so the first
-thing a first-time viewer would see is a failure rather than television.
-
-The screen says nothing about it, because these are real videos and they
-schedule like any others. The paper does: the listings carry `Sample
-programmes. Sign in to see your own subscriptions.`
+Signed out, there is nobody's subscriptions to schedule and a request with no
+token behind it would only fail, so nothing is loaded. There is no demo mode:
+the fixture pool in `test/support/` is for tests only, and its videos are made
+up.
 
 ## The session seam
 
@@ -336,7 +329,7 @@ sequenceDiagram
 ```
 
 `App` builds one only when a client ID is configured. No client ID, no session
-prop, and `Channel` runs on the fixture pool with nothing to sign in to. The
+prop, no source, and the set shows the fault card with nothing to sign in to. The
 prop must be **stable across renders**: it feeds a subscription and a page-load
 effect, and a fresh object each paint would re-run both.
 
@@ -464,7 +457,7 @@ card with the set still on the air.
 
 `Screen.tsx` is the glass. It belongs to the television rather than to anything
 shown on it, so the vignette and the phase animations live here and not inside
-the card, and a card, a picture and a caption all get the same treatment.
+the card, and a card, a picture and an ident all get the same treatment.
 
 `src/ui/trim.ts` holds the arithmetic all five trimmers share. Each runs 0..1,
 and three of them lock over a band rather than at a point. The band-edge
@@ -592,7 +585,8 @@ An hour-by-hour grid across all five would be an anachronism twice over: nobody
 printed one, and no television could have drawn one.
 
 `listing(schedule, dayparts)` turns a `Schedule` into a page. Programmes get a
-line each, runs of card and continuity collapse into one, and a daypart marked
+line each, runs of card collapse into one and an ident joins the line above
+it, and a daypart marked
 `stripped` collapses its programmes too — a paper printed `2.00 Clip Show`, not
 two hundred and forty clips. Repeats are printed `(R)`.
 

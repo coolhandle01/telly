@@ -4,7 +4,7 @@ Your YouTube subscriptions, broadcast as five television channels with their
 own schedules. You don't pick what to watch — you switch it on, press a preset,
 and see what's on. When nothing is on, you get the test card.
 
-![The set at closedown, showing the crosshatch test card](docs/set-closedown.png)
+![The set at closedown, showing the colour bars test card](docs/set-closedown.png)
 
 ## The one idea
 
@@ -34,10 +34,9 @@ npm install
 npm run dev        # then press POWER
 ```
 
-**It runs with no credentials.** Without a client ID it uses a deterministic
-fixture pool, so the schedule, the cards and the clock-driven core all work
-offline. Fixture programmes have invented video IDs and will never play — you
-get the card, captioned with what should be on, which is the honest outcome.
+**It needs a client ID to schedule anything.** Without one the set shows the
+no-service-configuration fault card. The tests run on a deterministic fixture
+pool in `test/support/`, offline and with no credentials.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full script list and how the code
 is arranged, and [docs/](docs/) for how it works and why — [architecture](docs/architecture/)
@@ -55,10 +54,9 @@ for the build, [research](docs/research/) for the period detail behind the set.
 4. `cp .env.example .env.local`, paste the **client ID** only, and **restart the
    dev server** — env files are read at startup.
 
-A **Sign in with Google** button then appears. Until it does, the set runs on
-the fixture pool and says so under the cabinet: `.env.local` is deliberately
-not in the repository, so a fresh clone on a second machine has no client ID
-and therefore nothing to sign in to.
+A **Sign in with Google** button then appears. Until it does, the set shows the
+fault card: `.env.local` is deliberately not in the repository, so a fresh
+clone on a second machine has no client ID and therefore nothing to sign in to.
 
 The wording is Google's to choose, not ours: their branding guidelines permit a
 closed set of labels, and a more honest one like "Use my subscriptions" is not
@@ -100,7 +98,11 @@ Two of the presets were tuned in carelessly by whoever installed the set, so
 they come up as snow until you turn the tuner. Preset six has nothing on it at
 all.
 
-Press **Telly Guide** for the listings, which print all five.
+Press **Telly Guide** for the listings, which print all five. The first time,
+that button counts, `Programming 46%`, because there is nothing to print
+until your subscriptions are in and five days have been planned off them. A set
+switched on while that is happening holds the station's ident, which is what a
+station with nothing to hand out yet put up.
 
 ## How a day is built
 
@@ -124,8 +126,9 @@ with three minutes is put its own ident up and start the next one at nine. Each
 station has its own, and they are five different mechanisms rather than five
 colours of one.
 
-Gaps too long for that become the card, very short ones a continuity caption,
-and a daypart with nothing eligible fills with card. A station that has run out
+Padding to a junction is the ident too, up to the three minutes a station
+would hold one for; longer gaps become the card, and a daypart with nothing
+eligible fills with card. A station that has run out
 is showing the card, which is both the honest outcome and the thematically
 correct one.
 
@@ -186,7 +189,7 @@ src/
   testcard/    the five card designs, their geometry, and the renderer
   audio/       the line-up tone, the hiss, and the noises the cabinet makes
   ui/          the screen, and the cabinet it sits in
-  fixtures/    the pool it runs on with no credentials
+test/          the tests, mirroring src/; the fakes and the fixture pool in support/
 ```
 
 The cabinet is drawn, not photographed: teak grain and the highlights on the

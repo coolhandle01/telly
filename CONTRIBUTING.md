@@ -22,9 +22,10 @@ LTS on 2026-10-28; moving to it means bumping both in one commit.
 | `npm run build` | typecheck, then bundle |
 | `npm run preview` | serve the real bundle |
 
-It runs with no credentials at all: without a client ID it uses a
-deterministic fixture pool, so the schedule, the cards and the whole
-clock-driven core work offline and in CI.
+The app is `src/` and its tests are `test/`, which mirrors it. The tests run
+with no credentials at all, on a deterministic fixture pool in `test/support/`,
+so the schedule, the cards and the whole clock-driven core are tested offline
+and in CI. The app itself needs a client ID to schedule anything.
 
 ## How the code is arranged
 

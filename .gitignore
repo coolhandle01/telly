@@ -33,10 +33,16 @@ dist-ssr
 # Coverage
 coverage
 
-# Session review papers: kept locally, published as artifacts, not in the repo.
-docs/security-review.md
-docs/verification-roadmap.md
-
 # Mutation testing: the sandbox is a full copy of the project.
 .stryker-tmp/
 reports/
+
+# A browser profile for driving the app via playwright: cookies, a live Google session and a
+# saved password. Never committed, and nothing here reads it but the browser.
+.browser/
+
+# Snapshots and console logs written by Playwright while driving the app.
+.playwright-mcp/
+
+.claude/worktrees/
+.claude/settings.local.json

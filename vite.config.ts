@@ -50,6 +50,16 @@ export default defineConfig({
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
+  server: {
+    watch: {
+      // A running browser holds its profile's session files open, and watching
+      // one throws EBUSY on Windows and takes the dev server down with it. The
+      // browser we drive the app with keeps its profile in `.browser/`, and
+      // Playwright writes its snapshots to `.playwright-mcp/`. Neither is
+      // source, and `.gitignore` does not reach the watcher.
+      ignored: ['**/.browser/**', '**/.playwright-mcp/**'],
+    },
+  },
   test: {
     environment: 'jsdom',
     // The app is src/ and its tests are test/, so nothing in src/ is test code.

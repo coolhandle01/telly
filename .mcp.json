@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "playwright-brave": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--browser", "chromium",
+        "--executable-path", "${ProgramFiles:-C:/Program Files}/BraveSoftware/Brave-Browser/Application/brave.exe",
+        "--user-data-dir", "${CLAUDE_PROJECT_DIR:-.}/.browser/telly-brave-profile",
+        "--viewport-size", "1280,900"
+      ]
+    },
+    "playwright-edge": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--browser", "msedge",
+        "--executable-path", "${ProgramFilesx86:-C:/Program Files (x86)}/Microsoft/Edge/Application/msedge.exe",
+        "--user-data-dir", "${CLAUDE_PROJECT_DIR:-.}/.browser/telly-edge-profile",
+        "--viewport-size", "1280,900"
+      ]
+    }
+  }
+}

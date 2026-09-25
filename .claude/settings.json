@@ -1,0 +1,44 @@
+{
+    "permissions": {
+        "blockReadsOutsideWorkingDirectories": true,
+        "allow": [
+            // React
+            "Bash(npm install)",
+            "Bash(npm audit)",
+            "Bash(npm audit --fix)",
+            "Bash(npm run dev)",
+            "Bash(npm run test)",
+            "Bash(npm run test:ci)",
+            "Bash(npm run test:dst)",
+            "Bash(npm run mutate)",
+            "Bash(npm run typecheck)",
+            "Bash(npm run lint)",
+            "Bash(npm run build)",
+            "Bash(npm run preview)",
+            // Playwright, driving Brave
+            "mcp__playwright-brave__browser_navigate",
+            "mcp__playwright-brave__browser_evaluate",
+            "mcp__playwright-brave__browser_snapshot",
+            "mcp__playwright-brave__browser_tabs",
+            "mcp__playwright-brave__browser_click",
+            "mcp__playwright-brave__browser_take_screenshot",
+            "mcp__playwright-brave__browser_wait_for",
+            "mcp__playwright-brave__browser_network_requests",
+            "mcp__playwright-brave__browser_console_messages",
+            // Playwright, driving Edge
+            "mcp__playwright-edge__browser_navigate",
+            "mcp__playwright-edge__browser_evaluate",
+            "mcp__playwright-edge__browser_snapshot",
+            "mcp__playwright-edge__browser_tabs",
+            "mcp__playwright-edge__browser_click",
+            "mcp__playwright-edge__browser_take_screenshot",
+            "mcp__playwright-edge__browser_wait_for",
+            "mcp__playwright-edge__browser_network_requests",
+            "mcp__playwright-edge__browser_console_messages"
+        ],
+        "deny": [
+            "Read(.browser/)",
+            "Read(.env)"
+        ]
+    }
+}

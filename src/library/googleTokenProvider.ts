@@ -564,11 +564,19 @@ export class GoogleTokenProvider implements AccessTokenProvider {
     }
   }
 
+  /**
+   * Resolves only when Google answers that the grant is gone. Any other
+   * answer rejects: Google refuses a token past its hour, and then the grant
+   * is still standing.
+   */
   #revoke(token: string): Promise<void> {
     return this.#loadGis().then(
       (gis) =>
-        new Promise<void>((resolve) => {
-          gis.accounts.oauth2.revoke(token, () => resolve())
+        new Promise<void>((resolve, reject) => {
+          gis.accounts.oauth2.revoke(token, (response) => {
+            if (response?.successful === true) resolve()
+            else reject(new Error(`Google refused the revocation: ${response?.error ?? 'no reason given'}`))
+          })
         }),
     )
   }

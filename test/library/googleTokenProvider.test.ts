@@ -10,6 +10,7 @@ import {
   loadGoogleIdentityServices,
   YOUTUBE_READONLY_SCOPE,
   type GoogleIdentityServices,
+  type RevocationResponse,
   type TokenResponse,
 } from '@/library/googleTokenProvider'
 
@@ -25,8 +26,14 @@ function idToken(sub: string): string {
  * `identity` is what Sign In With Google answers with. `undefined` is a
  * browser that cannot place the viewer without asking, which is the case that
  * leaves the callback unfired.
+ *
+ * `revocation` is what Google answers a revocation with.
  */
-function fakeGis(respond: (prompt: string) => TokenResponse | 'silent', identity?: string) {
+function fakeGis(
+  respond: (prompt: string) => TokenResponse | 'silent',
+  identity?: string,
+  revocation: RevocationResponse = { successful: true },
+) {
   const prompts: string[] = []
   const hints: (string | undefined)[] = []
   const configs: { client_id: string; scope: string }[] = []
@@ -59,7 +66,7 @@ function fakeGis(respond: (prompt: string) => TokenResponse | 'silent', identity
         },
         revoke: (accessToken, done) => {
           revoked.push(accessToken)
-          done?.({ successful: true })
+          done?.(revocation)
         },
       },
     },
@@ -504,6 +511,30 @@ describe('GoogleTokenProvider', () => {
       // GIS records the sign-out on its own side. Its documentation says this
       // is what stops the next visit signing the viewer straight back in.
       expect(autoSelect()).toBe(false)
+    })
+
+    // Google answers a revocation through its callback, and `successful:
+    // false` is Google keeping the grant: it refuses a token past its hour,
+    // for one. The grant is still standing, so the sign-out says so, and the
+    // page is signed out all the same.
+    it('fails when Google refuses to take the grant back, and forgets it here anyway', async () => {
+      const storage = fakeStorage()
+      const session = fakeStorage()
+      const { load, revoked } = fakeGis(() => granted(), undefined, {
+        successful: false,
+        error: 'invalid_token',
+      })
+      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage, session })
+      const seen: boolean[] = []
+      provider.subscribe((signedIn) => seen.push(signedIn))
+      await provider.signIn()
+
+      await expect(provider.signOut()).rejects.toThrow()
+
+      expect(revoked).toEqual(['tok-abc'])
+      expect(provider.isSignedIn).toBe(false)
+      expect(session.getItem(TOKEN_KEY)).toBeNull()
+      expect(seen).toEqual([true, false])
     })
 
     it('tells whoever is watching, so the screen follows', async () => {

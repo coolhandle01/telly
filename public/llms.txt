@@ -9,12 +9,12 @@ telly is a browser-only single-page app, served as static files from GitHub
 Pages, with no backend, no server and no server-side database of its own. It
 signs in with Google Identity Services, reads the visitor's own subscriptions
 with the `youtube.readonly` scope, and plays them in YouTube's own embedded
-player. The access token is kept in the
-tab's own session storage, so that reloading the page does not sign the visitor
-out, until the lifetime Google gives it runs out; the app never logs it and
-never puts it in a URL. What telly reads from YouTube is saved in the visitor's
-own browser, in IndexedDB, under a key carrying their account's channel id.
-Signing out revokes the grant at Google and removes that account's saved copy.
+player. The access token is kept in the tab's own session storage, so that
+reloading the page does not sign the visitor out, until the lifetime Google
+gives it runs out; the app never logs it and never puts it in a URL. What telly
+reads from YouTube is saved in the visitor's own browser, in IndexedDB, under a
+key carrying their account's channel id. Signing out revokes the grant at
+Google and removes that account's saved copy.
 
 ## The one idea
 

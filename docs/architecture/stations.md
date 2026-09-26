@@ -17,7 +17,7 @@ nothing.
 | Call | Parts | What it gives |
 |---|---|---|
 | `channels.list` | `contentDetails,topicDetails,statistics` | the uploads playlist, the channel's topics, its subscriber count |
-| `videos.list` | `contentDetails,status,snippet,statistics,liveStreamingDetails` | duration, age rating, made-for-kids, category, tags, views |
+| `videos.list` | `contentDetails,status,snippet,statistics,liveStreamingDetails` | duration, age rating, made-for-kids, category, views |
 
 `topicDetails.topicCategories` is the important one. It is YouTube's own
 judgement of what a whole channel is about, as a list of Wikipedia URLs, and it

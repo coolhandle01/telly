@@ -149,7 +149,7 @@ account signs out, or the browser's data for the site is cleared or evicted.
 
 What is stored is the pool: the subscribed channels' ids, names, topics and
 subscriber counts, and up to twenty uploads from each, with titles, durations,
-dates, categories, tags, view counts and flags. No token ever reaches it.
+dates, categories, view counts and flags. No token ever reaches it.
 
 **The key names whose data it is.** `CachedPoolSourceOptions.scope` is joined to
 the key, and `createPoolSource` passes `() => live.ownerId()`, so the record is

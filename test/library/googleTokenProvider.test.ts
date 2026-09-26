@@ -339,7 +339,7 @@ describe('GoogleTokenProvider', () => {
 
       expect(said).toEqual([
         'resume: this tab held no token, so it starts at the button',
-        'resume: the held token was past its hour',
+        'resume: the held token was past its time',
         'resume: took up the token this tab held',
       ])
     })

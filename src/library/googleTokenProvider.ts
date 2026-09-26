@@ -4,8 +4,8 @@ import type { AccessTokenProvider } from './tokenProvider'
  * Sign-in, via Google Identity Services.
  *
  * GIS hands a browser a short-lived access token and no refresh token, which
- * is the right shape for a page with no backend: the token is good for an hour
- * and a new one is asked for when that hour is up. It is never logged and
+ * is the right shape for a page with no backend: the token is good for a time
+ * and a new one is asked for when that time is up. It is never logged and
  * never put in a URL. It is held in `sessionStorage` for the life of the tab,
  * which is what carries a session across a reload.
  *
@@ -42,11 +42,11 @@ export const GRANT_KEY = 'telly.google.granted'
  * GIS holds a token in the page and nowhere else, and the only way to ask for
  * another is a popup window, which the browser refuses without a gesture
  * behind it. A reload that keeps nothing therefore lands on the sign-in button
- * with an hour of grant still unspent. Writing the token here is what makes a
+ * with a time of grant still unspent. Writing the token here is what makes a
  * refresh keep the session.
  *
  * `sessionStorage`, so the record goes when the tab does, and what it holds
- * is a bearer token Google already limits to an hour.
+ * is a bearer token Google already limits to a time.
  */
 export const TOKEN_KEY = 'telly.google.token'
 
@@ -83,7 +83,7 @@ export class SignInError extends Error {
 /** What a failure that never reached Google is reported as. */
 export const UNAVAILABLE = 'unavailable'
 
-/** What a session whose hour has run out is reported as. */
+/** What a session whose time has run out is reported as. */
 export const EXPIRED = 'expired'
 
 /**
@@ -253,7 +253,7 @@ const IDENTIFY_TIMEOUT_MS = 5_000
  */
 export type Diagnostic =
   | 'resume: this tab held no token, so it starts at the button'
-  | 'resume: the held token was past its hour'
+  | 'resume: the held token was past its time'
   | 'resume: took up the token this tab held'
   | 'identify: this build of the library offers no id namespace'
   | 'identify: nothing came back before the timeout'
@@ -431,7 +431,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
   }
 
   /**
-   * Follows this along its whole life (the sign-in, the hour expiring, the
+   * Follows this along its whole life (the sign-in, the time expiring, the
    * sign-out) so the screen shows the session that exists rather than the
    * outcome of the last click.
    */
@@ -451,7 +451,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
    * What crosses the reload is the token itself, read back from the tab's own
    * storage.
    *
-   * A record whose hour is up is dropped rather than adopted, so the screen
+   * A record whose time is up is dropped rather than adopted, so the screen
    * shows the sign-in button and the next token comes from a click.
    */
   resume(): Promise<boolean> {
@@ -465,7 +465,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
 
     if (this.#now() >= held.expiresAtMs - EXPIRY_MARGIN_MS) {
       rememberToken(this.#session, undefined)
-      this.#diagnose('resume: the held token was past its hour')
+      this.#diagnose('resume: the held token was past its time')
       return Promise.resolve(false)
     }
 
@@ -566,7 +566,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
 
   /**
    * Resolves only when Google answers that the grant is gone. Any other
-   * answer rejects: Google refuses a token past its hour, and then the grant
+   * answer rejects: Google refuses a token past its time, and then the grant
    * is still standing.
    */
   #revoke(token: string): Promise<void> {
@@ -659,7 +659,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
    * GIS refreshes nothing by itself, so noticing the expiry is this class's
    * job. Renewing needs `requestAccessToken`, which needs a popup, which needs
    * a click, and there is no click behind a request for programmes. So the
-   * hour running out ends the session here: the token goes, everyone watching
+   * time running out ends the session here: the token goes, everyone watching
    * is told, and the screen puts the button back that starts the next one.
    */
   getAccessToken(): Promise<string> {
@@ -729,7 +729,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
       return
     }
 
-    // A response that says nothing about its life is treated as the hour GIS
+    // A response that says nothing about its life is treated as the time GIS
     // issues, and a garbled one as already over, so `isSignedIn` stays false
     // and the next call renews.
     const lifetimeSec = Number(response.expires_in ?? 3600)

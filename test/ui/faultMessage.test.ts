@@ -96,10 +96,10 @@ describe('signOutMessage', () => {
   it('sends the viewer to Google when the grant is the half that survived', () => {
     const message = failure(false, true)
 
-    expect(message).toMatch(/still granted at Google/i)
+    expect(message).toMatch(/did not confirm/i)
     expect(message).toMatch(/account permissions/i)
     // The list is gone, so it must not be named as something still to deal with.
-    expect(message).not.toMatch(/still holds|would not clear/i)
+    expect(message).not.toMatch(/still hold|would not clear/i)
   })
 
   it('sends the viewer to their site data when the list is the half that survived', () => {
@@ -113,8 +113,8 @@ describe('signOutMessage', () => {
   it('names both when neither happened', () => {
     const message = failure(false, false)
 
-    expect(message).toMatch(/still granted at Google/i)
-    expect(message).toMatch(/still holds/i)
+    expect(message).toMatch(/did not confirm/i)
+    expect(message).toMatch(/may still hold/i)
   })
 
   // An error from somewhere else says nothing about which half ran, so the
@@ -122,8 +122,8 @@ describe('signOutMessage', () => {
   it('assumes nothing from an error it does not recognise', () => {
     const message = signOutMessage(new Error('something else entirely'))
 
-    expect(message).toMatch(/still granted at Google/i)
-    expect(message).toMatch(/still holds/i)
+    expect(message).toMatch(/did not confirm/i)
+    expect(message).toMatch(/may still hold/i)
   })
 })
 

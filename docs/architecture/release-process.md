@@ -68,7 +68,8 @@ Three workflows run on `push` to `main`, on `pull_request`, and on
 `workflow_call`. The last is how `release.yml` re-runs the same workflows
 against a tagged commit rather than a copy of them. Every job in `tests.yml` and
 `analysers.yml` checks out, sets up Node from `.nvmrc` and installs with
-`npm ci`; the CodeQL jobs do neither, since `build-mode` is `none`. Every action
+`npm ci`; the CodeQL jobs check out but neither set up Node nor install, since
+`build-mode` is `none`. Every action
 used is pinned to a commit SHA, a tag being a moving pointer somebody else
 controls.
 
@@ -102,7 +103,7 @@ threshold is configured in `vite.config.ts`, so coverage never fails a build.
 
 ## Versioning
 
-`commit-and-tag-version` 13.2.0, driven by `bumpversion.yml` on every push to
+`commit-and-tag-version` (`^13.2.1` in `package.json`), driven by `bumpversion.yml` on every push to
 `main`, with `concurrency: bump` and `cancel-in-progress: false`.
 
 The job is skipped when the head commit message starts with `chore(release):`,
@@ -129,9 +130,10 @@ The push is authenticated with a GitHub App installation token from
 `actions/create-github-app-token`, using `vars.COMMITLINT_CLIENT_ID` and
 `secrets.COMMITLINT_CLIENT_SECRET` on the `commitlint` environment, and the job
 sets `git user.name` and `user.email` from the App slug and installation id.
-That token is load-bearing rather than a preference: GitHub does not fire
-workflows for pushes made with the default `GITHUB_TOKEN`, so a bump
-authenticated that way would push the tag and `release.yml` would never run.
+The workflow's header records why that token is load-bearing rather than a
+preference: GitHub does not fire workflows for pushes made with the default
+`GITHUB_TOKEN`, so a bump authenticated that way would push the tag and
+`release.yml` would never run.
 
 ## Tag, release, deploy
 
@@ -223,20 +225,23 @@ registrar: host `telly`, value `coolhandle01.github.io.`. Settings, Pages,
 Custom domain has to hold the same name for GitHub to issue the certificate.
 Tick **Enforce HTTPS** once its check passes.
 
-The domain is a Google requirement rather than a hosting one. Authorised
-domains are verified in Search Console as a Domain property over DNS TXT, and
-that is impossible for `*.github.io` because you do not control its DNS. So
-`na-n.xyz` is verified at the registrar, `telly.na-n.xyz` is the homepage, and
-`https://telly.na-n.xyz` is the one authorised JavaScript origin on the OAuth
-client. Once the custom domain is set GitHub redirects the `github.io` address
-to it, so there is no second origin to keep in step.
+The domain is a Google requirement rather than a hosting one. Google's
+brand-verification page says to "Verify the ownership of your authorized domains
+using the Google Search Console", and that "The privacy policy must be visible
+to users, hosted within the same domain as your application's home page, and
+linked to on the OAuth consent screen". `telly.na-n.xyz` is the homepage and
+the privacy policy's domain. Sign-in runs from `https://telly.na-n.xyz` and from
+the development server at `http://localhost:5173`, which the README's setup
+adds to the OAuth client's authorised JavaScript origins.
 
-No response headers are set. GitHub Pages offers no control over them, and here
-that costs nothing: the default `Cross-Origin-Opener-Policy` is `unsafe-none`,
-which is what the sign-in popup needs. Setting `same-origin` from a generic
-hardening checklist nulls `window.opener` in the popup and the callback never
-arrives, silently, with no console error. A host with a `_headers` file is the
-move if headers ever become necessary; nothing here requires them.
+The live response carries no `Content-Security-Policy`,
+`Cross-Origin-Opener-Policy`, `Cross-Origin-Embedder-Policy` or
+`Strict-Transport-Security` header (checked 26 September 2026), so the page has
+MDN's default `Cross-Origin-Opener-Policy`, `unsafe-none`, and sign-in works on
+it. Google's setup guide warns that, when FedCM is disabled, "Failing to set the
+proper header breaks communication between windows, leading to a blank pop-up
+window or similar bugs", so a `same-origin` value from a generic hardening
+checklist is the one to avoid.
 
 ## Not verifiable from this repository
 
@@ -255,6 +260,12 @@ and no file here proves their state:
   `vars.COMMITLINT_CLIENT_ID`, `secrets.COMMITLINT_CLIENT_SECRET`. Their values
   are not in the repository and must not be.
 - **GitHub Pages settings**: the source, the custom domain, and HTTPS
-  enforcement, plus the DNS record behind `telly.na-n.xyz`.
+  enforcement, plus the DNS record behind `telly.na-n.xyz`. On 26 September 2026
+  the Pages API reported `cname: telly.na-n.xyz`, `https_enforced: true` and
+  `build_type: workflow`, and DNS answered `telly.na-n.xyz` with a CNAME to
+  `coolhandle01.github.io`.
+- **The OAuth client**: its authorised JavaScript origins and authorised
+  domains, which are set in Google Cloud Console, and the Search Console
+  verification of the domain.
 - **CodeQL default setup being off**, which `codeql.yml` requires and which is a
   repository setting.

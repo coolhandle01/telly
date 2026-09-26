@@ -5,14 +5,16 @@
 > already in progress and show a test card when nothing is on. You do not pick
 > what to watch; you switch the set on, press a preset, and see what is on.
 
-telly is a browser-only single-page app — no backend, no database, no server of
-any kind. It signs in with Google Identity Services, reads the visitor's own
-subscriptions with the `youtube.readonly` scope, and plays them in YouTube's
-own embedded player. The access token lives for its hour in the tab's own
-session storage, so that reloading the page does not sign the visitor out, and
-it is never logged and never put in a URL. The schedule data is cached in the
-visitor's own browser, in IndexedDB, under a key carrying their account's
-channel id; signing out revokes the grant at Google and empties that store.
+telly is a browser-only single-page app, served as static files from GitHub
+Pages, with no backend, no server and no server-side database of its own. It
+signs in with Google Identity Services, reads the visitor's own subscriptions
+with the `youtube.readonly` scope, and plays them in YouTube's own embedded
+player. The access token is kept in the
+tab's own session storage, so that reloading the page does not sign the visitor
+out, until the lifetime Google gives it runs out; the app never logs it and
+never puts it in a URL. What telly reads from YouTube is saved in the visitor's
+own browser, in IndexedDB, under a key carrying their account's channel id.
+Signing out revokes the grant at Google and removes that account's saved copy.
 
 ## The one idea
 
@@ -40,7 +42,7 @@ the afternoon, and a fifth never closes down at all.
 
 The television itself is drawn, not photographed: the teak cabinet, the
 bakelite keys and the aluminium fascia are SVG filters, so there are no image
-assets. The controls work — volume, six channel presets, and five trimmers
+assets. The controls work: volume, six channel presets, and five trimmers
 behind the flap. V and H are the frame and line oscillators, and turning either
 off its lock rolls or tears the picture. B is black level, C is saturation, and
 T is the tuner, which loses the colour before it loses the picture. Two presets
@@ -49,7 +51,7 @@ station on it at all.
 
 ## Source
 
-- [Privacy policy](/privacy/): what telly reads, and why there is nowhere for it to go.
+- [Privacy policy](/privacy/): what telly reads, where it is kept, and how to remove it.
 - [Terms of service](/terms/): the terms for using it.
 - [Repository](https://github.com/coolhandle01/telly): MIT licensed.
 - [Architecture](https://github.com/coolhandle01/telly/tree/main/docs/architecture): how it is built and why.

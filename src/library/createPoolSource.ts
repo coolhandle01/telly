@@ -53,6 +53,8 @@ export function createPoolSource(config: PoolSourceConfig = {}): PoolSource | un
     tokens: config.tokens,
     videosPerChannel: config.videosPerChannel,
   })
+  // A session that ends without a sign-out forgets whose it was as well (T36).
+  config.tokens.subscribe?.((signedIn) => { if (!signedIn) void live.forget() })
 
   return new CachedPoolSource(live, config.store ?? openPoolStore(), {
     // What is kept on this machine is filed under whose it is: the signed-in

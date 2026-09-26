@@ -17,7 +17,7 @@ flowchart LR
 
 Neither reads a clock of its own. `plan` is handed the day to plan and `tune`
 is handed the instant to answer for, which is what makes a whole broadcast day
-provable in a millisecond.
+testable without waiting for it.
 
 ## The broadcast day
 
@@ -31,7 +31,7 @@ and no `Date` in it. `broadcastDayStart(now)` snaps an instant to its day's
 in instants.
 
 A day is **usually** `SECONDS_PER_DAY` = 86,400 seconds, and `assertCoversDay`
-proves a planned day is contiguous and gapless — no overlaps, no holes, first
+proves a planned day is contiguous and gapless: no overlaps, no holes, first
 item at 0, last ending at the day's true length.
 
 ### Twice a year it is not 86,400
@@ -132,13 +132,13 @@ One rule turns the packer from a matter of taste into a defined problem, and it
 is what being taken off air to go over to the news feels like.
 
 Note the asymmetry: a junction is only guaranteed to *start* on time. It may
-itself overrun into the next non-junction daypart — which is precisely what news
+itself overrun into the next non-junction daypart, which is precisely what news
 does.
 
 ## Classification
 
 `src/schedule/classify.ts` answers one question: *how well does this video suit
-each daypart?* — as `Affinities`, a **partial** map of `DaypartId -> 0..1`.
+each daypart?*, as `Affinities`, a **partial** map of `DaypartId -> 0..1`.
 
 Partial on purpose. An absent daypart means "no judgement", which a caller
 cannot confuse with a confident zero. That distinction stops a scoring bug from
@@ -152,32 +152,33 @@ finished.
 
 That last one matters more than it looks. A stream that has ended drops its
 `liveBroadcastContent` back to `none` while YouTube is still processing the
-recording, and in that window it plays as YouTube's own *"this live event has
-ended"* card: inside the iframe, with no error event, which is the failure mode
-this app is built around. So liveness is read from two places. Anything
-carrying `liveStreamingDetails` without an `actualEndTime` has not finished,
-whatever the snippet says. The part costs no extra quota, because parts are
-free within a call.
+recording, and in that window it has been seen to play as YouTube's own *"this
+live event has ended"* card: inside the iframe, with no error event, which is
+the failure mode this app is built around. So liveness is read from two places.
+Anything carrying `liveStreamingDetails` without an `actualEndTime` has not
+finished, whatever the snippet says. YouTube documents a `videos.list` call as
+1 unit, so asking for the extra part costs no extra quota.
 
 `HeuristicClassifier` works cheapest-signal-first:
 
 1. **Duration.** The strongest signal, because a duration tells you what a video
-   is *for*. Each daypart has a band — breakfast 1–5 min, afternoon 60–150 min,
-   late night 60–240 min — with the fit falling linearly to zero across a
+   is *for*. Each daypart has a band (breakfast 1–5 min, afternoon 60–150 min,
+   late night 60–240 min), with the fit falling linearly to zero across a
    10-minute margin either side. Closedown has no band and therefore never takes
    a programme.
 2. **Category.** YouTube's News & Politics (`25`) is a hard gate into the two
    news dayparts; a news video keeps only a quarter of its affinity elsewhere.
-3. **Title keywords**, word-bounded on purpose — "mixture" is not a mix and
+3. **Title keywords**, word-bounded on purpose: "mixture" is not a mix and
    "Newsdesk" is not news.
 4. **Channel habit.** A channel with at least three schedulable uploads gets a
-   median duration, and videos that match their channel's habit get a bonus.
+   median duration, and its videos get a bonus in every daypart whose band that
+   median fits.
 
 **Duration is a gate, not just a score.** A video whose length does not fit a
 daypart at all gets no affinity for it, and no keyword or channel habit can put
 it there. Without the gate, a thirty-second short with the word "live" in its
-title scores 0.2 for late night — nothing from its duration, all of it from the
-word — and goes out between two feature-length programmes.
+title scores 0.2 for late night (nothing from its duration, all of it from the
+word) and goes out between two feature-length programmes.
 
 `Classifier` is an interface. `OverridingClassifier` decorates any
 implementation with per-channel pins, and `StationClassifier`
@@ -213,21 +214,22 @@ is not where the arithmetic would put it.
 
 Candidates are ranked on affinity, adjusted by:
 
-- **Recency** — a 7-day half-life, so today's uploads outweigh last month's. An
-  upload whose date will not parse is treated as a year old: old, but not
-  disqualified.
-- **Junction marks** — an ending near :00, :15, :30 or the next :00 is worth up
+- **Recency**: the weight is `1 / (1 + age / 7 days)`, so it halves at seven
+  days and today's uploads outweigh last month's. An upload whose date will not
+  parse is treated as a year old: old, but not disqualified.
+- **Junction marks**: an ending near :00, :15, :30 or the next :00 is worth up
   to 35% more. Television ends on the quarter hour; this is why the schedule
   *feels* right even when nothing forces it to.
-- **Overrun** — appeal decays as the overrun grows, and anything over ten
+- **Overrun**: appeal decays as the overrun grows, and anything over ten
   minutes past its daypart is not offered at all. Real schedules run over; they
   do not run over by half an hour.
-- **Jitter** — seeded (`DEFAULT_SEED = 1967`), so it breaks ties between equally
+- **Jitter**: seeded (`DEFAULT_SEED = 1967`), so it breaks ties between equally
   good programmes without breaking determinism.
-- **Freshness** — a second showing is worth a fifth of a first. A programme may
-  go out twice in a day, at least four hours apart, and only once nothing new
-  will fit; the second is marked `repeat`. Two uploads of one channel with the
-  same name count as one programme whatever their ids say.
+- **Freshness**: a second showing is scored at a fifth of a first. A programme
+  may go out at most twice in a day, at least four hours apart, and goes out
+  again only when nothing new scores higher; the second is marked `repeat`. Two
+  uploads of one channel with the same name are held four hours apart like one
+  programme, whatever their ids say.
 
 Whatever is left over becomes filler, and the vocabulary is three words wide:
 card, ident, closedown. A gap of three minutes or less is the station's ident,
@@ -240,7 +242,7 @@ both the honest outcome and the thematically correct one.
 
 `tune(schedule, now)` (`src/broadcast/tune.ts`) binary-searches the items for
 the half-open interval `[startSec, endSec)` containing the instant, and returns
-what is on air — including how far into it we are:
+what is on air, including how far into it we are:
 
 ```ts
 offsetSec: content.videoStartSec + (sec - item.startSec)

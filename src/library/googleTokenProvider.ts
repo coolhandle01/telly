@@ -23,20 +23,6 @@ export const GIS_SCRIPT_URL = 'https://accounts.google.com/gsi/client'
 export const YOUTUBE_READONLY_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly'
 
 /**
- * Where this browser records which account granted, as Google's own `sub` for
- * it under this client id.
- *
- * Not a credential and not a token: it is the value `login_hint` takes, and a
- * silent request cannot resolve an account without one. It also says a grant
- * was made from this browser, which is what makes the request worth sending
- * at all. The token itself stays in memory.
- */
-export const ACCOUNT_KEY = 'telly.google.account'
-
-/** The boolean an earlier version wrote here. Removed, never read. */
-export const GRANT_KEY = 'telly.google.granted'
-
-/**
  * Where the token and the moment it dies are kept, so a reload keeps them.
  *
  * GIS holds a token in the page and nowhere else, and the only way to ask for
@@ -61,22 +47,11 @@ export const TOKEN_KEY = 'telly.google.token'
 export class SignInError extends Error {
   /** GIS's `error_callback` type, or the token response's `error`. */
   readonly reason: string
-  /**
-   * True when Google answered and the answer was no.
-   *
-   * A token response carrying an `error` is Google speaking about the grant.
-   * An `error_callback` is the browser or the network speaking about the
-   * attempt: a popup it would not open, a request that never arrived. Both
-   * reach the same `catch` and mean opposite things, so the one place that
-   * acts on a refusal is told which it is holding.
-   */
-  readonly answered: boolean
 
-  constructor(reason: string, answered = false) {
+  constructor(reason: string) {
     super(`YouTube sign-in failed: ${reason}`)
     this.name = 'SignInError'
     this.reason = reason
-    this.answered = answered
   }
 }
 
@@ -85,14 +60,6 @@ export const UNAVAILABLE = 'unavailable'
 
 /** What a session whose time has run out is reported as. */
 export const EXPIRED = 'expired'
-
-/**
- * What GIS reports when a silent request arrived without a `login_hint`.
- *
- * It is a complaint about the request rather than a verdict on the grant,
- * which is why it does not make the stored account go.
- */
-export const NO_LOGIN_HINT = 'no_login_hint'
 
 /** Only the slice of GIS we actually use. */
 export interface TokenResponse {
@@ -123,43 +90,11 @@ export interface RevocationResponse {
 export type TokenPrompt = '' | 'none' | 'consent' | 'select_account'
 
 export interface TokenClient {
-  /**
-   * `login_hint` is an email address or an ID token's `sub`. GIS documents
-   * that a successful one skips account selection, which is what a request
-   * that may show nothing needs in order to resolve an account at all.
-   */
-  requestAccessToken(overrides?: { prompt?: TokenPrompt; login_hint?: string }): void
-}
-
-/** The ID token GIS hands back, as a base64 JWT. */
-export interface CredentialResponse {
-  credential?: string
+  requestAccessToken(overrides?: { prompt?: TokenPrompt }): void
 }
 
 export interface GoogleIdentityServices {
   accounts: {
-    /**
-     * Sign In With Google, which is where an account identifier comes from.
-     *
-     * The token client returns an access token and says nothing about whose
-     * it is. This half returns an ID token, and the `sub` claim inside it is
-     * one of the two values `login_hint` accepts.
-     */
-    id?: {
-      initialize(config: {
-        client_id: string
-        callback: (response: CredentialResponse) => void
-        auto_select?: boolean
-        itp_support?: boolean
-      }): void
-      /** Shows One Tap, or the browser's own credential manager. */
-      prompt(): void
-      /**
-       * Recorded by GIS when the viewer signs out, so the next visit does not
-       * sign them straight back in.
-       */
-      disableAutoSelect(): void
-    }
     oauth2: {
       initTokenClient(config: {
         client_id: string
@@ -232,15 +167,6 @@ export function loadGoogleIdentityServices(): Promise<GoogleIdentityServices> {
 const EXPIRY_MARGIN_MS = 60_000
 
 /**
- * How long to wait for Sign In With Google to say who this is.
- *
- * It answers only when the browser has a session it can offer without asking,
- * so a viewer it cannot place leaves the callback unfired. Waiting for ever
- * would hold the sign-in behind a question nobody is going to answer.
- */
-const IDENTIFY_TIMEOUT_MS = 5_000
-
-/**
  * What a developer is told about a page load that did not restore a session.
  *
  * The viewer is told nothing: the screen says what it always says, which is
@@ -255,66 +181,6 @@ export type Diagnostic =
   | 'resume: this tab held no token, so it starts at the button'
   | 'resume: the held token was past its time'
   | 'resume: took up the token this tab held'
-  | 'identify: this build of the library offers no id namespace'
-  | 'identify: nothing came back before the timeout'
-  | 'identify: the credential carried no usable account'
-  | 'identify: account learned'
-
-/**
- * Reads and writes the grant flag.
- *
- * Both are wrapped because a browser with site data blocked throws on the
- * property access itself, before any key is named: a private window in Safari
- * and Firefox's strict mode both do it.
- */
-function rememberAccount(storage: Storage | undefined, account: string | undefined): void {
-  try {
-    if (account !== undefined) storage?.setItem(ACCOUNT_KEY, account)
-    else storage?.removeItem(ACCOUNT_KEY)
-    // Written by an earlier version of this app under a key it no longer
-    // reads. Taken out here so it does not outlive the thing that put it
-    // there.
-    storage?.removeItem(GRANT_KEY)
-  } catch {
-    // Resuming is the only thing this buys, and the button is still there.
-  }
-}
-
-function storedAccount(storage: Storage | undefined): string | undefined {
-  try {
-    return storage?.getItem(ACCOUNT_KEY) ?? undefined
-  } catch {
-    return undefined
-  }
-}
-
-/**
- * The `sub` claim out of an ID token, without trusting the token.
- *
- * The value is used as a `login_hint` and for nothing else, so a wrong one
- * costs a failed silent request and a sign-in button, which is where the
- * viewer would be anyway. Verifying the signature would need a key fetch and
- * would protect nothing this app decides.
- */
-export function accountFromCredential(credential: string | undefined): string | undefined {
-  const payload = credential?.split('.')[1]
-  if (!payload) return undefined
-  try {
-    const claims: unknown = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
-    const sub = (claims as { sub?: unknown }).sub
-    return typeof sub === 'string' && sub.length > 0 ? sub : undefined
-  } catch {
-    return undefined
-  }
-}
-
-function browserStorage(): Storage | undefined {
-  try {
-    return globalThis.localStorage
-  } catch {
-    return undefined
-  }
-}
 
 function browserSession(): Storage | undefined {
   try {
@@ -333,7 +199,7 @@ export interface HeldToken {
 /**
  * Reads and writes the held token.
  *
- * Wrapped for the same reason the account is: a browser with site data
+ * Wrapped because a browser with site data
  * blocked throws on the property access itself, before any key is named.
  */
 function rememberToken(session: Storage | undefined, held: HeldToken | undefined): void {
@@ -380,12 +246,10 @@ export interface GoogleTokenProviderOptions {
   loadGis?: GisLoader
   /** Injected so token lifetime is testable. */
   now?: () => number
-  /** Injected so a test can drive the grant flag without a browser. */
-  storage?: Storage
   /**
    * Where the reason a page load stayed signed out is reported.
    *
-   * Every failure path in `resume` and `identify` ends in the same thing on
+   * Every failure path in `resume` ends in the same thing on
    * screen, a sign-in button, so without this the reason is lost at the
    * moment it is known. Injected rather than logged from here, so a test
    * reads it and production is given nothing.
@@ -400,7 +264,6 @@ export class GoogleTokenProvider implements AccessTokenProvider {
   readonly #scope: string
   readonly #loadGis: GisLoader
   readonly #now: () => number
-  readonly #storage: Storage | undefined
   readonly #diagnose: (event: Diagnostic, detail?: string) => void
   readonly #session: Storage | undefined
 
@@ -420,7 +283,6 @@ export class GoogleTokenProvider implements AccessTokenProvider {
     this.#scope = options.scope ?? YOUTUBE_READONLY_SCOPE
     this.#loadGis = options.loadGis ?? loadGoogleIdentityServices
     this.#now = options.now ?? (() => Date.now())
-    this.#storage = options.storage ?? browserStorage()
     this.#diagnose = options.diagnose ?? (() => undefined)
     this.#session = options.session ?? browserSession()
   }
@@ -477,65 +339,6 @@ export class GoogleTokenProvider implements AccessTokenProvider {
   }
 
   /**
-   * Learn which account this is, as Google's `sub` for it.
-   *
-   * `login_hint` takes an email address or that `sub`, and a request that
-   * shows nothing has no way to ask which account it is for, so without one
-   * a silent page-load request has nothing to resolve. The token client never
-   * says whose token it returned. Sign In With Google does, in the ID token,
-   * so it is asked once and the answer kept for later loads.
-   *
-   * Every failure here is quiet. It costs the next load its silent start,
-   * which is the sign-in button, and that is where the viewer already is.
-   */
-  async #identify(): Promise<void> {
-    if (storedAccount(this.#storage) !== undefined) return
-
-    let gis: GoogleIdentityServices
-    try {
-      gis = await this.#loadGis()
-    } catch {
-      return
-    }
-
-    const id = gis.accounts.id
-    if (!id) {
-      this.#diagnose('identify: this build of the library offers no id namespace')
-      return
-    }
-
-    let answered = false
-    const account = await new Promise<string | undefined>((resolve) => {
-      const done = setTimeout(() => resolve(undefined), IDENTIFY_TIMEOUT_MS)
-      id.initialize({
-        client_id: this.#clientId,
-        auto_select: true,
-        itp_support: true,
-        callback: (response) => {
-          clearTimeout(done)
-          answered = true
-          resolve(accountFromCredential(response.credential))
-        },
-      })
-      id.prompt()
-    })
-
-    if (account !== undefined) {
-      rememberAccount(this.#storage, account)
-      this.#diagnose('identify: account learned')
-      return
-    }
-
-    // Two different failures, and the screen cannot tell them apart. Nothing
-    // came back at all, or something came back that carried no account.
-    this.#diagnose(
-      answered
-        ? 'identify: the credential carried no usable account'
-        : 'identify: nothing came back before the timeout',
-    )
-  }
-
-  /**
    * Hand the token back to Google and forget it here.
    *
    * `revoke` drops every scope the viewer granted this app, which is what the
@@ -545,17 +348,6 @@ export class GoogleTokenProvider implements AccessTokenProvider {
    */
   async signOut(): Promise<void> {
     const token = this.#token
-    rememberAccount(this.#storage, undefined)
-
-    try {
-      // GIS records the sign-out on its own side, which is what stops the
-      // next visit signing the viewer straight back in.
-      const gis = await this.#loadGis()
-      gis.accounts.id?.disableAutoSelect()
-    } catch {
-      // An unreachable script cannot be told, and the viewer is still signed
-      // out of this page: the account is already forgotten above.
-    }
 
     try {
       if (token !== undefined) await this.#revoke(token)
@@ -640,16 +432,12 @@ export class GoogleTokenProvider implements AccessTokenProvider {
       throw error instanceof SignInError ? error : new SignInError(UNAVAILABLE)
     }
 
-    // The hint names the account that granted before, so a viewer signing in
-    // again is not asked to pick it out of the list a second time.
-    const hint = storedAccount(this.#storage)
-
-    if (this.#client) return this.#requestSynchronously('consent', hint).catch(asSignInError)
+    if (this.#client) return this.#requestSynchronously('consent').catch(asSignInError)
 
     // Not ready: ask anyway, and the popup may well be blocked. Better to
     // report that than to silently do nothing.
     return this.prepare()
-      .then(() => this.#requestToken('consent', hint))
+      .then(() => this.#requestToken('consent'))
       .catch(asSignInError)
   }
 
@@ -680,28 +468,28 @@ export class GoogleTokenProvider implements AccessTokenProvider {
   }
 
   /** Opens the popup in the caller's own task: no await before the request. */
-  #requestSynchronously(prompt: TokenPrompt, login_hint?: string): Promise<string> {
+  #requestSynchronously(prompt: TokenPrompt): Promise<string> {
     const client = this.#client
     if (!client) return Promise.reject(new Error('YouTube sign-in is not ready yet'))
 
     this.#pending ??= new Promise<string>((resolve, reject) => {
       this.#settle = { resolve, reject }
-      client.requestAccessToken({ prompt, login_hint })
+      client.requestAccessToken({ prompt })
     }).finally(() => {
       this.#pending = undefined
     })
     return this.#pending
   }
 
-  #requestToken(prompt: TokenPrompt, login_hint?: string): Promise<string> {
+  #requestToken(prompt: TokenPrompt): Promise<string> {
     // One flight at a time: two callers must not open two popups.
-    this.#pending ??= this.#openFlight(prompt, login_hint).finally(() => {
+    this.#pending ??= this.#openFlight(prompt).finally(() => {
       this.#pending = undefined
     })
     return this.#pending
   }
 
-  async #openFlight(prompt: TokenPrompt, login_hint?: string): Promise<string> {
+  async #openFlight(prompt: TokenPrompt): Promise<string> {
     const gis = await this.#loadGis()
 
     return new Promise<string>((resolve, reject) => {
@@ -714,18 +502,13 @@ export class GoogleTokenProvider implements AccessTokenProvider {
         error_callback: (error) => this.#fail(error.type ?? 'dismissed'),
       })
 
-      this.#client.requestAccessToken({ prompt, login_hint })
+      this.#client.requestAccessToken({ prompt })
     })
   }
 
   #onResponse(response: TokenResponse): void {
     if (response.error !== undefined || response.access_token === undefined) {
-      // A response usually carries Google's verdict on the grant. One of them
-      // does not: the silent path reports `no_login_hint` when the request
-      // arrived without one, which is this app failing to say which account
-      // it meant. Treating that as a verdict would throw away the very value
-      // whose absence caused it, and the next load would have nothing to send.
-      this.#fail(response.error ?? 'no token returned', response.error !== NO_LOGIN_HINT)
+      this.#fail(response.error ?? 'no token returned')
       return
     }
 
@@ -744,17 +527,11 @@ export class GoogleTokenProvider implements AccessTokenProvider {
     this.#settle = undefined
     settle?.resolve(response.access_token)
     this.#announce(true)
-
-    // A token says nothing about whose it is, so which account granted is
-    // asked separately and kept for the next page load. It runs after the
-    // viewer has their television, because nothing on the screen waits on it.
-    void this.#identify()
   }
 
-  /** `answered` is true only when the reason came back from Google. */
-  #fail(reason: string, answered = false): void {
+  #fail(reason: string): void {
     const settle = this.#settle
     this.#settle = undefined
-    settle?.reject(new SignInError(reason, answered))
+    settle?.reject(new SignInError(reason))
   }
 }

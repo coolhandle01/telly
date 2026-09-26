@@ -9,9 +9,9 @@ anywhere in the picture.
 | Thing | Where it lives | Notes |
 |---|---|---|
 | OAuth **client ID** | inlined into the bundle at build time | Public by design. It identifies the app, it does not authorise anything. |
-| **Access token** | this tab's `sessionStorage`, key `telly.google.token`, with the moment it expires | Kept there so that reloading the page does not sign you out. It lasts the lifetime Google gives it in `expires_in`, which Google describes as short-lived. Closing the tab clears it, though a browser that restores the tab restores it too; an expired one is dropped rather than used. The app never logs it and never puts it in a URL. It is sent in an `Authorization` header to YouTube's data service, and handed to Google's sign-in script to revoke on sign-out. |
+| **Access token** | this tab's `sessionStorage`, key `telly.google.token`, with the moment it expires | Kept there so that reloading the page does not sign you out. It lasts the lifetime Google gives it in `expires_in`, which Google describes as short-lived. Closing the tab clears it, though a browser that restores the tab restores it too, and duplicating the tab copies it; an expired one is dropped rather than used. The app never logs it and never puts it in a URL. It is sent in an `Authorization` header to YouTube's data service, and handed to Google's sign-in script to revoke on sign-out. |
 | **Refresh token** | does not exist | Google Identity Services' token model issues none: Google's comparison of the two flows lists it as "Refresh token issued: No". |
-| Your **subscription list** and video metadata | IndexedDB on your machine | Database `testcard`, store `pools`, key `pool:<your own channel id>`. The subscribed channels' ids, names, topics and subscriber counts, and up to twenty uploads from each with titles, durations, dates, categories, tags, view counts and flags. No credentials. Used for 24 hours, and kept until a fresh load replaces it, you sign out, you clear this site's data, or the browser evicts it. **Sign out** removes your record; clearing site data removes every record. |
+| Your **subscription list** and video metadata | IndexedDB on your machine | Database `testcard`, store `pools`, key `pool:<your own channel id>`. The subscribed channels' ids, names, topics and subscriber counts, and up to twenty uploads from each with titles, durations, dates, categories, tags, view counts and flags. No credentials. A load uses it while it is under 24 hours old, and it is kept until a fresh load replaces it, you sign out, you clear this site's data, or the browser evicts it. **Sign out** removes your record; clearing site data removes every record. |
 
 There is no client secret. A browser application cannot keep one, so it does
 not have one.
@@ -39,7 +39,8 @@ cannot be established, the page says so.
 
 The held token goes with it, whatever either half
 answers, so the tab is signed out even where the revocation never reached
-Google.
+Google. Another telly tab keeps its own token, and until the revocation takes
+effect it can go on reading and save a new record.
 
 Google answers a revocation through its callback. The page treats any answer
 other than success as unconfirmed, and says so. That includes `invalid_token`,

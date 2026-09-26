@@ -12,8 +12,6 @@ anywhere in the picture.
 | **Access token** | this tab's `sessionStorage`, key `telly.google.token`, with the moment it expires | Kept there so that reloading the page does not sign you out. It lasts the lifetime Google gives it in `expires_in`, which Google describes as short-lived. Closing the tab clears it, though a browser that restores the tab restores it too; an expired one is dropped rather than used. The app never logs it and never puts it in a URL. It is sent in an `Authorization` header to YouTube's data service, and handed to Google's sign-in script to revoke on sign-out. |
 | **Refresh token** | does not exist | Google Identity Services' token model issues none: Google's comparison of the two flows lists it as "Refresh token issued: No". |
 | Your **subscription list** and video metadata | IndexedDB on your machine | Database `testcard`, store `pools`, key `pool:<your own channel id>`. The subscribed channels' ids, names, topics and subscriber counts, and up to twenty uploads from each with titles, durations, dates, categories, tags, view counts and flags. No credentials. Used for 24 hours, and kept until a fresh load replaces it, you sign out, you clear this site's data, or the browser evicts it. **Sign out** removes your record; clearing site data removes every record. |
-| **Which account signed in** | `localStorage`, key `telly.google.account` | The `sub` from the ID token Sign In With Google returns, which Google describes as "The unique ID of the user's Google Account". It is passed as `login_hint` when you sign in again, so you are not asked to pick your account out of a list. Not the token. Removed on sign-out. |
-| **Google's sign-in state** | cookie `g_state`, written by Google's sign-in script | On sign-out the app calls `disableAutoSelect()`, which Google documents as recording the status in cookies. On 26 September 2026 that set `g_state` to last six months. Its contents are Google's; the app neither reads nor writes cookies itself. |
 
 There is no client secret. A browser application cannot keep one, so it does
 not have one.
@@ -24,10 +22,6 @@ not have one.
 the token client. Google describes it as "View your YouTube account". The app
 uses it to read your subscriptions and their uploads, and makes no request that
 posts, comments, subscribes, unsubscribes or deletes.
-
-Separately, Sign In With Google returns an ID token, which can carry your name,
-email address and picture as well as the account identifier. The app keeps the
-identifier and nothing else from it.
 
 The scope also covers reading your own channel id, from a `channels.list` call
 with `mine=true`. That id is what the cached data is filed under, so two
@@ -43,7 +37,7 @@ throwing it away would cost them a full fetch. Clearing this site's data
 removes every record. If the browser refuses, or the account behind the record
 cannot be established, the page says so.
 
-The held token and the account identifier go with it, whatever either half
+The held token goes with it, whatever either half
 answers, so the tab is signed out even where the revocation never reached
 Google.
 

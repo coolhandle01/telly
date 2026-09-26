@@ -39,9 +39,7 @@ flowchart TB
     ytpool("YouTubePoolSource")
     cached("CachedPoolSource")
     idb[("IndexedDB · testcard / pools")]
-    accountid[("localStorage · telly.google.account")]
     token[("sessionStorage · telly.google.token")]
-    gstate[("cookie · g_state")]
     player("YouTubeIframePlayer")
 
     subgraph scripts["B7 · fetched remote, runs as first-party code here"]
@@ -72,14 +70,12 @@ flowchart TB
   session -->|"forget"| cached
 
   provider ==>|"B1 · load GIS, ask for a token"| accounts
-  provider -->|"revoke and disableAutoSelect, on sign-out"| gsi
+  provider -->|"revoke, on sign-out"| gsi
   gsi ==>|"B1 · revoke"| oauth2
   accounts -.->|"the script itself"| gsi
-  accounts ==>|"B1 · consent, access token, ID token"| gsi
-  gsi -->|"access token, ID token"| provider
-  gsi <==>|"B6 · its own state, written on sign-out"| gstate
+  accounts ==>|"B1 · consent, access token"| gsi
+  gsi -->|"access token"| provider
   provider -->|"token, in memory"| ytpool
-  provider <==>|"B6 · the sub from the ID token"| accountid
   provider <==>|"B6 · the token, for the life of the tab"| token
 
   ytpool ==>|"B2 · Bearer reads, and whose account this is"| api
@@ -104,13 +100,10 @@ flowchart TB
   and **the two remote scripts that execute as first-party code in this origin**.
 - **Data stores**: the IndexedDB pool
   ([src/library/indexedDbPoolStore.ts](../../src/library/indexedDbPoolStore.ts)),
-  keyed per account; the account identifier in `localStorage`, which the app
-  uses only as a sign-in hint; the access token in the tab's `sessionStorage`,
-  which is a credential; the `g_state` cookie that the GIS script writes in
-  this origin; the published bundle on Pages, the CI environments
+  keyed per account; the access token in the tab's `sessionStorage`,
+  which is a credential; the published bundle on Pages, the CI environments
   `github-pages` and `commitlint`.
-- **Data flows**: consent and token; the ID token Sign In With Google returns,
-  of which only `sub` is kept; the revocation that hands the grant back; API
+- **Data flows**: consent and token; the revocation that hands the grant back; API
   requests carrying `Authorization: Bearer`; API metadata back; the owner id
   that keys the cache; the cached pool; the bundle; the tag that triggers a
   release.
@@ -119,12 +112,12 @@ flowchart TB
 
 | | Line | What crosses it |
 |---|---|---|
-| **B1** | browser origin ↔ `accounts.google.com` and `oauth2.googleapis.com` | the GIS script, the consent popup, the access token, the ID token, and the revocation that hands the grant back, which the GIS script posts to `oauth2.googleapis.com/revoke` |
+| **B1** | browser origin ↔ `accounts.google.com` and `oauth2.googleapis.com` | the GIS script, the consent popup, the access token, and the revocation that hands the grant back, which the GIS script posts to `oauth2.googleapis.com/revoke` |
 | **B2** | browser origin ↔ `www.googleapis.com` | bearer-authenticated reads of subscriptions, channels, playlist items and videos |
 | **B3** | browser origin ↔ `www.youtube.com` | the IFrame API script, and the player frame that plays the programme, on an origin `frame-src` permits |
 | **B4** | browser ↔ GitHub Pages | the bundle itself, over HTTPS, at `https://telly.na-n.xyz` |
 | **B5** | repository ↔ GitHub Actions | a `v*` tag, workflow tokens, the release App's private key, and the artefact that becomes the site |
-| **B6** | page session ↔ browser storage | the subscription pool in IndexedDB, filed under `pool:<owner id>`, used for 24 hours and kept until a fresh load replaces it, that account signs out, or the browser's data for the site is cleared or evicted; the account identifier in `localStorage`; the access token in this tab's `sessionStorage`, which is what carries a session across a reload; and the `g_state` cookie the GIS script writes |
+| **B6** | page session ↔ browser storage | the subscription pool in IndexedDB, filed under `pool:<owner id>`, used for 24 hours and kept until a fresh load replaces it, that account signs out, or the browser's data for the site is cleared or evicted; and the access token in this tab's `sessionStorage`, which is what carries a session across a reload |
 | **B7** | this code ↔ the two remote scripts | `accounts.google.com/gsi/client` and `www.youtube.com/iframe_api` run **inside** the token-holding origin, unversioned and therefore without an integrity hash ([index.html:5-6](../../index.html)) |
 
 B7 is the sharpest of them, because it is the only boundary the same-origin
@@ -137,12 +130,11 @@ origin, and everything on the far side of B7 is this one.
 
 | # | Element · STRIDE | Attacker capability | Impact | CWE | Response | Where it lives |
 |---|---|---|---|---|---|---|
-| T1 | Viewer identity · **S** | none | The app authenticates nobody. Identity is the Google session in the browser, and authorisation is a consent the viewer grants to a scope. The app learns two identifiers: `ownerId()`, the signed-in account's own channel id from `channels.list` with `mine=true`, which keys the cache; and the `sub` in the ID token Sign In With Google returns, which is kept as a sign-in hint (T32). | CWE-287 | **Transfer**: to Google Identity Services | `GoogleTokenProvider` in [googleTokenProvider.ts](../../src/library/googleTokenProvider.ts), `YouTubePoolSource.ownerId` in [youTubePoolSource.ts](../../src/library/youTubePoolSource.ts) |
+| T1 | Viewer identity · **S** | none | The app authenticates nobody. Identity is the Google session in the browser, and authorisation is a consent the viewer grants to a scope. The app learns one identifier: `ownerId()`, the signed-in account's own channel id from `channels.list` with `mine=true`, which keys the cache. | CWE-287 | **Transfer**: to Google Identity Services | `GoogleTokenProvider` in [googleTokenProvider.ts](../../src/library/googleTokenProvider.ts), `YouTubePoolSource.ownerId` in [youTubePoolSource.ts](../../src/library/youTubePoolSource.ts) |
 | T2 | Consent flow · **S** | Hosts a page that presents the same public client ID | A consent granted on an attacker's page yields a token to that page. The client ID is public by design; the authorised-JavaScript-origins list on the OAuth client is what refuses the request. Sign-in runs from both `https://telly.na-n.xyz` and the development server at `http://localhost:5173`, which the README's setup adds to that list, so a page served from `http://localhost:5173` on a viewer's machine passes the check as well. | CWE-346 | **Transfer**: to Google's origin check on the OAuth client | [tokens.md](tokens.md), [release-process.md](release-process.md#the-domain-and-the-headers-it-does-not-set) |
 | T3 | GIS script flow · **T** | Sits on the network between the browser and `accounts.google.com` | Arbitrary JavaScript in the origin that holds the token. The script URL is `https://` and fixed, and `script-src` names the host. | CWE-494 | **Mitigate** | `GIS_SCRIPT_URL` in [googleTokenProvider.ts](../../src/library/googleTokenProvider.ts), CSP at [index.html:10](../../index.html) |
 | T4 | Token in the page · **I** | Runs any script in this origin | Read of the viewer's YouTube account until the token expires, at the lifetime Google gives it in `expires_in`. Google describes the scope as "View your YouTube account", and the token model issues no refresh token. `connect-src` permits only `'self'`, `https://oauth2.googleapis.com`, `https://www.googleapis.com` and `https://accounts.google.com`, which closes `fetch`, `fetchLater`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `sendBeacon` and `<a ping>` to every other host. Apart from `form-action 'none'`, the policy sets nothing on navigation, so a script in this origin can still carry the token out in a URL by navigating or opening a window. The token's lifetime and its scope are what bound this threat; the policy narrows it. An expired token is dropped rather than kept as a fallback, and the app obtains a new one only from a click on the sign-in button. | CWE-522 | **Mitigate** | `#token`, `EXPIRY_MARGIN_MS`, `GoogleTokenProvider.getAccessToken` and `signOut` in [googleTokenProvider.ts](../../src/library/googleTokenProvider.ts); [index.html:14](../../index.html) |
 | T35 | Token at rest · **I** | Has the unlocked machine, or runs code in this origin | The token is written to this tab's `sessionStorage` under `telly.google.token`, with the moment it expires, so that a reload keeps the session: the app obtains tokens only from a click on the sign-in button, and holding the token in memory alone signed the viewer out on every refresh. What is exposed is a bearer token for `youtube.readonly`, good until the lifetime Google gave it in `expires_in` runs out, readable by anything already running in this origin, which is the same reach it has over the token in the page (T4). Closing the tab clears the record, though a browser that restores the tab restores it too; a restored token past its expiry is dropped rather than adopted, and signing out removes it whatever the revocation answers. | CWE-522 | **Accept**: in this design the token is what carries a session across a reload; the window is the token's lifetime, or the tab's life if that ends first | `TOKEN_KEY`, `rememberToken`, `storedToken`, `resume` and `#discard` in [googleTokenProvider.ts](../../src/library/googleTokenProvider.ts), [tokens.md](tokens.md) |
-| T37 | ID token · **I** | Runs any script in this origin at the moment of sign-in | Sign In With Google hands the page an ID token. Google's reference shows it carrying the account's `sub`, and able to carry its name, email address, picture and Google Workspace domain. `accountFromCredential` takes `sub` and nothing else; nothing else from the token is stored, shown or sent. A script already running in this origin sees what the callback sees. | CWE-359 | **Accept**: the same capability already holds the access token (T4) | `#identify` and `accountFromCredential` in [googleTokenProvider.ts](../../src/library/googleTokenProvider.ts) |
 | T5 | GIS loader · **D** | Blocks the script: an extension, a firewall, an outage | Sign-in is impossible. The loader rejects instead of hanging, the failure is reported under the cabinet, and a failed `prepare()` does not stop the set coming on: signed out, it has no programmes to show and says so on the card. | CWE-703 | **Mitigate** | `loadGoogleIdentityServices` in [googleTokenProvider.ts](../../src/library/googleTokenProvider.ts), `sessionError` and the signed-out `source` in [Channel.tsx](../../src/ui/Channel.tsx), the `prepare()` effect in [App.tsx](../../src/App.tsx) |
 
 ### B2: the YouTube Data API
@@ -199,11 +191,9 @@ origin, and everything on the far side of B7 is this one.
 | T26 | IndexedDB pool · **I** | Has the unlocked machine, or runs code in this origin | The saved pool, filed under the owner's channel id: the subscribed channels' ids, names, topics and subscriber counts, and up to twenty uploads from each, with titles, durations, dates, categories, tags, view counts and flags. What is written is the pool and only the pool; no token reaches it, and a browser that offers no store gets television without a cache. Signing out removes that account's record. Without a sign-out the record stays until a fresh load replaces it or the browser's data for the site is cleared or evicted: the 24-hour TTL decides when a record is used, not when it is deleted. | CWE-312 | **Accept**: reading it requires the machine or the origin already, and it holds the subscription list and no credential | `toStored` in [cachedPoolSource.ts](../../src/library/cachedPoolSource.ts), `IndexedDbPoolStore` and `openPoolStore` in [indexedDbPoolStore.ts](../../src/library/indexedDbPoolStore.ts) |
 | T27 | IndexedDB pool · **T** | Writes the origin's `pools` store | A forged schedule: titles and video IDs the viewer never subscribed to, played in the embed for up to a day. The forged fields reach the same escaped text sinks as T7, and a record stamped in the future with a number is distrusted. A record the store cannot read at all is a cache miss rather than a fault, and so is a record whose `videos` or `channels` is not an array. The items inside those arrays are not checked, so a forged record can make the day unplannable. That now costs one day's listings, not the receiver: `planStations` runs in a render, so the call is wrapped and a throw leaves the set on the air showing the card instead of reaching the root boundary. | CWE-20 | **Accept**: writing this store requires already running in this origin or holding the machine, at which point the pool is the smaller prize | `#isFresh` and `toPool` in [cachedPoolSource.ts](../../src/library/cachedPoolSource.ts), the `listings` memo in [Channel.tsx](../../src/ui/Channel.tsx), [FaultBoundary.tsx](../../src/ui/FaultBoundary.tsx) |
 | T29 | The client as a whole · **R** | The account holder | Nothing here records what was read: the app keeps no log and there is no server to keep one. Any record of what a token did is Google's. Consent is revocable from the Google account's permissions page. | CWE-778 | **Accept**: every YouTube request the app makes is a read under `youtube.readonly`, so it takes no action on the account worth disputing | `YOUTUBE_READONLY_SCOPE` in [googleTokenProvider.ts](../../src/library/googleTokenProvider.ts), `YouTubePoolSource#getOnce` in [youTubePoolSource.ts](../../src/library/youTubePoolSource.ts) |
-| T32 | Account identifier · **I** · **T** | Has the unlocked machine, or runs code in this origin | `localStorage` holds `telly.google.account`: the `sub` from the ID token Sign In With Google returns to this client ID, read out of the token without checking its signature. Google describes `sub` as "The unique ID of the user's Google Account" and as "unique among all Google Accounts and never reused"; its documentation does not say whether other client IDs receive the same value. Its presence discloses that this Google account has signed in to telly on this browser. The app uses it for one thing: it is passed as `login_hint` on the next sign-in, which Google documents as skipping account selection when successful. Writing a different value changes only the hint the next sign-in sends. Removing it means the next sign-in may ask which account to use. Reads and writes are wrapped in `try`/`catch`, so a storage access that throws costs only the hint. | CWE-359 | **Accept**: anyone able to read it can read the saved pool beside it (T26) as well | `ACCOUNT_KEY`, `rememberAccount`, `storedAccount`, `accountFromCredential` and `GoogleTokenProvider.signIn` in [googleTokenProvider.ts](../../src/library/googleTokenProvider.ts) |
 | T33 | Two accounts, one browser · **I** | Signs in as a second account on a machine where another has used the set | Reading a cached pool under a shared key would serve the second viewer the first viewer's subscription list. The key now carries whose it is: `CachedPoolSourceOptions.scope` is joined to it and `createPoolSource` passes `() => live.ownerId()`, so the record is `pool:<owner channel id>`. A scope that cannot be established is not a key at all: there is no read and no write, rather than a fall back to the bare `pool`. `YouTubePoolSource.forget()` drops the memoised owner id whenever the session ends, by sign-out or otherwise (T36), so the next account to sign in is keyed as itself. | CWE-488 | **Mitigate** | `#keyFor` in [cachedPoolSource.ts](../../src/library/cachedPoolSource.ts), `ownerId` and `forget` in [youTubePoolSource.ts](../../src/library/youTubePoolSource.ts), the `scope` option in [createPoolSource.ts](../../src/library/createPoolSource.ts) |
 | T36 | Two accounts, one page · **I** · **T** | Signs in as a second account on a page where the first account's session ended without a sign-out | `ownerId()` memoises the owner id. Kept past a session that ended because the token expired or YouTube refused it, it would file a second account that then signs in on the same page, without a reload, under the first account's key, and the first account would be shown the second account's pool if it signed in again while that record was fresh. Reproduced on 26 September 2026 by driving `createPoolSource` through a token change without a sign-out. `createPoolSource` subscribes to the token provider and calls `forget()` whenever the session ends, so the owner id goes with the session however it ends. | CWE-488 | **Mitigate** | `ownerId` and `forget` in [youTubePoolSource.ts](../../src/library/youTubePoolSource.ts), the `subscribe` call in [createPoolSource.ts](../../src/library/createPoolSource.ts) |
 | T34 | Sign-out · **R** | Is offline, or has the GIS script blocked, at the moment the viewer signs out | Half a sign-out. `googleSession.signOut` runs both halves under `Promise.allSettled`, so a revocation that never reaches Google does not stop this account's record being removed, and a record that will not go does not stop the revocation. `#revoke` rejects on any answer without `successful: true`. That includes `invalid_token`, which Google's reference describes as "Token is already expired or revoked before revoke method is called. In most cases, you can regard the grant associated with the accessToken is revoked." `GoogleTokenProvider.signOut` drops the local token whatever `revoke` answers, so this page is signed out either way. `SignOutError` carries which half did not complete, and the viewer is told which: a revocation Google did not confirm is reported as not confirmed, never as the grant still standing, and the viewer is sent to their account permissions to check. When the revocation request cannot reach Google, the GIS script calls back with `successful: true` (observed 26 September 2026 with the request blocked), so that half is reported as done and the viewer is told nothing. Consent is revocable from the Google account's permissions page at any time. | CWE-613 | **Accept**: the grant is Google's to hold and the account's permissions page revokes it; what the page can see did not complete is shown on screen | `signOut` in [googleTokenProvider.ts](../../src/library/googleTokenProvider.ts) and [session.ts](../../src/library/session.ts), `onSignOut` in [Channel.tsx](../../src/ui/Channel.tsx) |
-| T38 | `g_state` cookie · **I** | Has the unlocked machine, or runs code in this origin | On sign-out the app calls `disableAutoSelect()`, which Google's reference says records the status in cookies. On the live site that call set a `g_state` cookie in this origin, due to expire six months later (observed 26 September 2026). Its contents are Google's; the app's own code neither reads nor writes cookies. | CWE-359 | **Transfer**: to Google, whose script writes and reads it | `signOut` in [googleTokenProvider.ts](../../src/library/googleTokenProvider.ts) |
 
 ## The accepted risks, collected
 
@@ -223,14 +213,10 @@ than an omission:
 - **T26**, **T27**: the cached pool is readable and writable by anyone who
   already holds the machine or the origin, and it holds no credential.
 - **T29**: there is no log, and every YouTube request the app makes is a read.
-- **T32**: the account identifier is readable only by someone who can already
-  read the saved pool beside it.
 - **T35**: the token is at rest in the tab's own session storage, because in
   this design it is what carries a session across a reload. It is a bearer
   token for `youtube.readonly`, good for the lifetime Google gives it, exposed
   to what is already running in this origin.
-- **T37**: the ID token is seen only by code that can already read the access
-  token.
 - **T34**: a sign-out whose revocation is not confirmed may leave the grant with
   Google, where the account's permissions page withdraws it, and the viewer is
   told which half did not complete, except when the revocation never reached

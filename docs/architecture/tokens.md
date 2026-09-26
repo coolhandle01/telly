@@ -16,7 +16,7 @@ secret on, and none is issued, so there is none to leak.
 | Lifetime | set by Google and given in `expires_in`; Google describes it as short-lived. Nothing renews it: the next one comes from a click |
 | Client secret | none exists |
 | Refresh token | none issued |
-| Kept in storage | the account identifier, and the token for the life of the tab |
+| Kept in storage | the token for the life of the tab |
 
 The token **is held in `sessionStorage` for the life of the tab**, and that is
 what carries a signed-in session across a reload. It is never logged and never
@@ -123,7 +123,7 @@ good.
 | Moment | Method | What GIS is asked for | What `subscribe` is told |
 |---|---|---|---|
 | Page load, this tab held a token | `resume()` | nothing is asked of Google | `true` where the held token has time left, `false` where it does not |
-| The button | `signIn()` | `requestAccessToken({ prompt: 'consent', login_hint })`, popup | `true` on a token. A refusal says nothing, and the click's own rejected promise carries it |
+| The button | `signIn()` | `requestAccessToken({ prompt: 'consent' })`, popup | `true` on a token. A refusal says nothing, and the click's own rejected promise carries it |
 | The token runs out, noticed when it is next asked for | `getAccessToken()` | nothing is asked of Google | `false`: the token goes and the sign-in button comes back |
 | YouTube answers 401 | `reject(token)` | nothing is asked of Google | `false`, if the refused token is the one held |
 | The way out | `signOut()` | `oauth2.revoke(token, done)` | `false`, from `#discard` dropping the token |
@@ -150,27 +150,6 @@ gave it.
 - Every read and write is wrapped in `try`/`catch`, so a storage access that
   throws costs only the resume. Without the store the set still works, and the
   viewer presses the button after each reload.
-
-### The account identifier
-
-`localStorage`, key `ACCOUNT_KEY` (`telly.google.account`), holding the `sub`
-from the ID token Sign In With Google returns.
-
-Google describes `sub` as "The unique ID of the user's Google Account" and as
-"unique among all Google Accounts and never reused". Its documentation does not
-say whether other client IDs receive the same value. What the app uses it for
-is `login_hint` on the next sign-in, which Google documents as skipping account
-selection when successful, so a returning viewer is not asked to pick their
-account out of a list.
-
-It comes from Sign In With Google rather than from YouTube. The token client
-returns an access token and says nothing about whose it is, so `#identify` asks
-the identity half after a sign-in, once the viewer already has their
-television, unless an identifier is already stored. It keeps the `sub` out of
-the ID token and nothing else. If nothing comes back within five seconds
-(`IDENTIFY_TIMEOUT_MS`), or what comes back carries no `sub`, nothing is stored,
-and the next sign-in goes without a `login_hint`, so Google may ask the viewer
-to pick from a list.
 
 ### Resuming
 
@@ -203,10 +182,8 @@ ends the session.
 
 ### Signing out is two operations
 
-`GoogleTokenProvider.signOut()` first forgets the account identifier and asks
-GIS to `disableAutoSelect()`, which Google's reference says records the status
-in cookies (the `g_state` cookie, [threat-model.md](threat-model.md) T38). Then
-it calls `google.accounts.oauth2.revoke(token, done)`, which Google's reference
+`GoogleTokenProvider.signOut()` calls
+`google.accounts.oauth2.revoke(token, done)`, which Google's reference
 says "revokes all of the scopes that the user granted to the app", and drops the
 token from memory and from the tab's storage. `revoke` needs a valid token, so
 it goes before the token is dropped; the local state is cleared whatever it

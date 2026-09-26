@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.0.7](https://github.com/coolhandle01/telly/compare/v0.0.6...v0.0.7) (2026-09-26)
+
+### Fixes
+
+* make .claude/settings.json valid JSON ([#12](https://github.com/coolhandle01/telly/issues/12)) ([9d4c88c](https://github.com/coolhandle01/telly/commit/9d4c88c526d3ea52ebf4a93cf468fedc9f65b0a9))
+
 ## [0.0.6](https://github.com/coolhandle01/telly/compare/v0.0.5...v0.0.6) (2026-09-26)
 
 ### Fixes

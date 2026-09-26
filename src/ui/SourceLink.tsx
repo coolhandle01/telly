@@ -1,5 +1,5 @@
 export interface SourceLinkProps {
-  /** Where the source lives. Absent and no link is drawn. */
+  /** Where the source lives. */
   href: string
 }
 

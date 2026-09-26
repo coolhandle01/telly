@@ -207,8 +207,8 @@ describe('ControlPanel', () => {
     it('draws only the controls that work as controls', () => {
     mount()
 
-      // Six drawn presets, five drawn tuning buttons, three lamps — and not
-      // one of them a button anybody can reach.
+      // Six presets that are radios, five trimmers, three lamps, and not
+      // one of them a button.
       expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Power'])
       expect(screen.queryByRole('button', { name: '1' })).toBeNull()
     })

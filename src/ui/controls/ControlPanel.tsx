@@ -19,10 +19,7 @@ export interface ControlPanelProps {
    * needs explaining belongs outside the cabinet, not stamped into it.
    */
   faulted?: boolean
-  /**
-   * Lights the green lamp: the set has a source of programmes. Off means it
-   * is running on whatever it came with.
-   */
+  /** Lights the green lamp: the set has a source of programmes. */
   signedIn?: boolean
   /**
    * The five trimmers behind the preset flap, by what each one adjusts.
@@ -45,9 +42,9 @@ export interface TrimmerControl {
 }
 
 /**
- * The channel presets. One station broadcasts; the other five are tuned in and
- * empty, and show what an empty preset showed — snow. The second number is how
- * worn each cap is, because nobody ever pressed 6.
+ * The channel presets. Five carry a station each; the sixth was never
+ * allocated and shows what an empty preset showed, snow. The second number is
+ * how worn each cap is, because nobody ever pressed 6.
  */
 const PRESETS: readonly [number, number][] = [
   [1, 0.22],
@@ -62,8 +59,8 @@ const PRESETS: readonly [number, number][] = [
  * The tuning adjusters. On a G8-chassis set the six presets hinged open to
  * expose these, and they are not buttons at all: they are small slotted
  * trimmers, set once by the engineer and then left alone. The angle is where
- * each one was left — vertical, horizontal, brightness, colour, tone — and
- * they are all in different places because nobody ever set five trimmers to
+ * each one was left: vertical, horizontal, brightness, colour, tuning. They
+ * are all in different places because nobody ever set five trimmers to
  * the same mark.
  */
 interface Trimmer {
@@ -170,10 +167,6 @@ const CSS = `
   lip — and the rebate is what the shadows describe. Light from the upper left,
   as everywhere else on this set: the wood shades the top and left of the
   plate, and the plate's own lower edge is what catches.
-
-  It is as tall as what is mounted on it and no taller; the floor below keeps
-  a little bare metal round the controls on a tall cabinet, which is right,
-  where a column of it would not be.
 */
 .tv-fascia__plate {
   position: relative;
@@ -413,8 +406,6 @@ const CSS = `
   gap: 0.28rem;
   align-self: center;
   justify-content: center;
-  /* Pushed to the foot of the plate: the space this leaves between the knob
-     and the lamps is the point — a fascia is mostly empty metal. */
   margin-top: auto;
   padding: 0.26rem 0.3rem;
   border-radius: 0.1rem;
@@ -441,7 +432,6 @@ const CSS = `
 .tv-fascia__lamp--signal { background-color: #57c163; }
 .tv-fascia__lamp--signal[data-lit='true'] { box-shadow: 0 0 0.4rem #6fe07a; }
 
-/* The cream lip along the very bottom edge of the cabinet. */
 .tv-fascia__lip {
   margin: auto -0.42rem 0;
   height: 0.5rem;
@@ -515,9 +505,9 @@ const CSS = `
  * The fascia: the tall control column down the right-hand side of a wooden
  * console set — a linished silver plate let into teak veneer, which is what
  * a Philips colour set of 1972–76 actually wore. Everything that works is a
- * real control; the presets are a preset bank, and the trimmer row, the badge
- * and the lamps are cabinetry, hidden from the accessibility tree so nobody
- * tabs into furniture.
+ * real control; the presets are a preset bank, and an unwired trimmer, the
+ * badge and the lamps are cabinetry, hidden from the accessibility tree so
+ * nobody tabs into furniture.
  */
 export function ControlPanel({
   on,
@@ -848,7 +838,7 @@ export function ControlPanel({
 
         {/*
         The loudspeaker. A console set of this period fired forward through a
-        perforated panel under the controls, which is both what the reference
+        slotted panel under the controls, which is both what the reference
         sets did and what stops the plate reading as a half-empty sheet.
       */}
       <div className="tv-fascia__grille" aria-hidden="true" />
@@ -863,7 +853,7 @@ export function ControlPanel({
                   by looking at the screen. A card at 3am is closedown; a card
                   at 8pm with the amber lit is a programme that would not play.
           green   a source. Lit once the set has somewhere to get programmes
-                  from, dark while it is running on what it came with.
+                  from.
 
         The amber is the only one that is dark in normal service, which is
         what a warning lamp is for.

@@ -5,10 +5,10 @@ import { render, screen } from '../../support/render'
 import { Knob } from '@/ui/controls/Knob'
 
 /**
- * The knob is a controlled input, so every test drives it through a holder
- * that feeds the new value straight back — the same way the set does. Reading
- * `aria-valuenow` afterwards therefore proves two things at once: the right
- * number came out, and the dial redrew to it.
+ * The knob is a controlled input, so the tests that turn it drive it through a
+ * holder that feeds the new value straight back, the same way the set does.
+ * Reading `aria-valuenow` afterwards therefore proves two things at once: the
+ * right number came out, and the dial redrew to it.
  */
 function Holder({
   initial = 0.5,

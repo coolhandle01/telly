@@ -19,8 +19,6 @@ const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
  */
 export function VolumeOverlay({ volume, segments = DEFAULT_SEGMENTS }: VolumeOverlayProps) {
   const level = clamp01(volume)
-  // Rounded, not truncated: at nine-tenths of the way up the last bar should
-  // be lit, and at a hair above silence the first one should be.
   const litCount = Math.round(level * segments)
 
   return (

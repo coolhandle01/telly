@@ -98,9 +98,9 @@ export function siemensStarWedges(count: number): StarWedge[] {
 
 /**
  * The star itself: one stroke per wedge, laid along the wedge's bisector and
- * weighted so that neighbouring wedges meet at the rim. Inside that the strokes
- * overprint, which is the point of the thing — the radius at which the wedges
- * stop resolving is the measurement.
+ * weighted so that neighbouring wedges meet halfway out to the rim. Inside that
+ * the strokes overprint, which is the point of the thing: the radius at which
+ * the wedges stop resolving is the measurement.
  */
 function siemensStar(centre: { x: number; y: number }, radius: number): LineShape[] {
   const strokeWidth = (Math.PI * radius) / STAR_WEDGES

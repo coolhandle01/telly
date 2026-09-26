@@ -41,10 +41,7 @@ A **Sign in with Google** button then appears. Until it does, the set shows the
 fault card: `.env.local` is deliberately not in the repository, so a fresh
 clone on a second machine has no client ID and therefore nothing to sign in to.
 
-Signing in again is not needed on every visit: the browser records that consent
-was given here, and a later page load takes the grant up without a screen.
-Google expires the grant itself after a week while the app is unverified, so
-the button comes back about that often. **Sign out** hands the grant back to
+**Sign out** hands the grant back to
 Google and empties the schedule data this browser saved.
 
 Security posture, and what is stored where, is in [SECURITY.md](SECURITY.md).

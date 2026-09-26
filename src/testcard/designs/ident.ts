@@ -20,8 +20,7 @@ import type { CircleShape, LineShape, RectShape, Shape, TestCardModel, TestCardS
  *
  * The least technical card of the set. Nobody lined a set up against this one
  * — it went out between programmes to look smart — so it carries no line-up
- * signals at all, only the marks that say *which* channel you are watching,
- * inside the same castellated border as the rest of the rotation.
+ * signals at all, only the marks that say *which* channel you are watching.
  *
  * Pure: a spec of plain values in, a plain-data model out.
  */

@@ -63,7 +63,7 @@ describe('assign', () => {
     for (const station of STATIONS) {
       const mine = lineupFor(station.id, subscriptions, lineup)
       const favourite = [...subscriptions].sort((a, b) => fitFor(station, b) - fitFor(station, a))[0]
-      // Either it got the one it wanted most, or something it wants as much.
+      // Either it got the one it wanted most, or something it wants nearly as much.
       const best = Math.max(...mine.map((entry) => fitFor(station, entry)))
       expect(best).toBeGreaterThanOrEqual(fitFor(station, favourite) - 0.2)
     }

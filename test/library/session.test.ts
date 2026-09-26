@@ -37,25 +37,6 @@ function fakeGis(options: { revokeThrows?: boolean; revokeRefused?: boolean } = 
   return { revoked, load: () => Promise.resolve(gis) }
 }
 
-/** A `Storage` this test owns, so it inherits no other test's grant flag. */
-function fakeStorage(): Storage {
-  const entries = new Map<string, string>()
-  return {
-    get length() {
-      return entries.size
-    },
-    clear: () => entries.clear(),
-    getItem: (key) => entries.get(key) ?? null,
-    key: (index) => [...entries.keys()][index] ?? null,
-    removeItem: (key) => {
-      entries.delete(key)
-    },
-    setItem: (key, value) => {
-      entries.set(key, value)
-    },
-  }
-}
-
 function countingSource(options: { forgetFails?: boolean } = {}) {
   const calls = { load: 0, forget: 0 }
   const source: PoolSource = {
@@ -80,7 +61,7 @@ function build(
     revokeThrows: options.revokeThrows,
     revokeRefused: options.revokeRefused,
   })
-  const tokens = new GoogleTokenProvider('client-1', { loadGis: load, storage: fakeStorage() })
+  const tokens = new GoogleTokenProvider('client-1', { loadGis: load })
   const { source, calls } = countingSource({ forgetFails: options.forgetFails })
   return { tokens, source, calls, revoked, session: googleSession(tokens, source) }
 }
@@ -149,8 +130,8 @@ describe('googleSession', () => {
     })
 
     // Google answers a revocation through its callback, and a refusal is an
-    // answer: `successful: false`, as it gives for a token past its hour. The
-    // grant is still standing, so the viewer is told it is.
+    // answer: `successful: false`. The grant is still standing, so the viewer
+    // is told it is.
     it('reports the grant as standing when Google refuses to take it back', async () => {
       const { session, calls, revoked } = build({ revokeRefused: true })
       await session.signIn()
@@ -178,7 +159,7 @@ describe('googleSession', () => {
 
     it('finishes over a source that keeps nothing of its own', async () => {
       const { load } = fakeGis()
-      const tokens = new GoogleTokenProvider('client-1', { loadGis: load, storage: fakeStorage() })
+      const tokens = new GoogleTokenProvider('client-1', { loadGis: load })
       const session = googleSession(tokens, { load: async () => EMPTY_POOL })
       await session.signIn()
 

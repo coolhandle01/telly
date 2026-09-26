@@ -11,8 +11,8 @@ import type { OnAir, Schedule } from '../domain'
  * system; the on-air item itself is derived during render, so there is no
  * cascading state to keep in step.
  *
- * `undefined` means the schedule does not cover this instant — which is how the
- * screen learns the broadcast day has rolled over and it needs a new one.
+ * `undefined` means there is no schedule, or the schedule does not cover this
+ * instant.
  */
 export function useOnAir(schedule: Schedule | undefined, clock: Clock): OnAir | undefined {
   const [now, setNow] = useState(() => clock.now())

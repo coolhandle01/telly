@@ -100,9 +100,8 @@ export class WebAudioSound implements Sound {
   /** Where the volume knob is, 0..1. */
   #fraction = 1
   /**
-   * Which slice of the noise the next knock is cut from. A counter rather than
-   * a random draw: two presses in a row must not sound identical, and nothing
-   * in this app is allowed to be unrepeatable.
+   * Which slice of the noise the next knock is cut from, stepped on every
+   * knock so two presses in a row do not sound identical.
    */
   #knocks = 0
 

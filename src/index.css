@@ -108,7 +108,7 @@ body {
 
 /*
   Not the Google button, which is sized to Google's specification and must stay
-  that way. Everything else down here is a plain control, and a plain control
+  that way. Everything else in the corner is a plain control, and a plain control
   on a phone needs a thumb-sized target rather than the browser's default
   twenty-one pixels.
 */

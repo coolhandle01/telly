@@ -23,7 +23,6 @@ export type DaypartId =
 
 export interface Daypart {
   id: DaypartId
-  /** As it appears in continuity and the now/next caption. */
   name: string
   /** Minutes from the 06.00 anchor. */
   startMin: number

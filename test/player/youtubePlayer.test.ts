@@ -109,9 +109,9 @@ const mounted = (players: FakeYouTubePlayer[]): Promise<FakeYouTubePlayer> =>
   }, POLL)
 
 describe('YouTubeIframePlayer', () => {
-  // Regression: the API replaces the host with an iframe of its own, so a
-  // missing size gave YouTube's 640x390 default marooned in the corner of the
-  // stage — which on a television is indistinguishable from nothing on at all.
+  // Regression: a missing size gave YouTube's 640x390 default marooned in the
+  // corner of the stage, which on a television is indistinguishable from
+  // nothing on at all.
   it('fills its frame rather than taking the default 640x390', async () => {
     const { player, players } = driver()
 
@@ -394,10 +394,6 @@ describe('when a video mounts but no picture ever arrives', () => {
   })
 })
 
-// Found on a real evening: the news slot failed (news channels routinely
-// disable embedding), the card went up correctly — and then nothing played
-// again until the page was refreshed. A YouTube player that has errored stays
-// errored; loadVideoById on it does nothing at all.
 // Found by switching the set off and on again: the surface removes the host
 // from the document when it unmounts, and an iframe that moves in the DOM
 // reloads — severing the player object from its frame.

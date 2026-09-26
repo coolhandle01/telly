@@ -21,9 +21,7 @@ const LEGS = ['near-left', 'near-right']
 
 const CSS = `
 /*
-  The set's width, defined once and read by the page's layout too — the void
-  either side of the cabinet is whatever this leaves, and the guide lives in
-  it. Zero specificity, so a page may override it.
+  The set's width. Zero specificity, so a page may override it.
 */
 :where(:root) { --set-w: min(72rem, calc(137vh - 16rem)); }
 

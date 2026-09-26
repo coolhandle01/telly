@@ -10,7 +10,7 @@ import { EXPIRED, SignInError, SignOutError, UNAVAILABLE, YouTubeApiError } from
  * this is the whole of what a viewer is shown.
  */
 
-const SIGN_IN_AGAIN = 'Your YouTube sign-in has run out. Sign in again to see your subscriptions.'
+const SIGN_IN_AGAIN = 'YouTube no longer accepts this sign-in. Sign in again to see your subscriptions.'
 const DAILY_LIMIT = "Today's allowance of YouTube requests is spent. Programmes return tomorrow."
 const TOO_FAST = 'YouTube is asking for fewer requests. Programmes return in a minute or two.'
 const REFUSED = 'YouTube would not answer for this account.'
@@ -40,11 +40,11 @@ function isQuota(error: YouTubeApiError): boolean {
  * permissions, and a list still on the machine goes with the site's data.
  */
 const BOTH_FAILED =
-  'Signing out did not finish. Your access is still granted at Google, and this browser still holds its saved programme list.'
+  'Signing out did not finish. Google did not confirm that your access is withdrawn, and this browser may still hold its saved programme list.'
 const GRANT_STANDS =
-  'Signed out here, and the saved programme list is gone. Your access is still granted at Google: withdraw it in your Google account permissions.'
+  'Signed out here, and the saved programme list is gone. Google did not confirm that your access is withdrawn: check your Google account permissions.'
 const LIST_REMAINS =
-  'Signed out, and your access is withdrawn at Google. This browser would not clear its saved programme list: clearing this site data removes it.'
+  'Signed out, and your access is withdrawn at Google. The saved programme list is still in this browser: clearing this site data removes it.'
 
 export function signOutMessage(error: unknown): string {
   if (!(error instanceof SignOutError)) return BOTH_FAILED
@@ -65,7 +65,7 @@ const REFUSED_SCOPE =
   'Google did not grant access to your subscriptions. Signing in again asks for it once more.'
 const NO_SIGN_IN =
   "Google's sign-in could not be loaded. An extension or a network filter may be blocking accounts.google.com."
-const SESSION_OVER = 'This sign-in has run its hour. Sign in again to carry on watching.'
+const SESSION_OVER = 'This sign-in has expired. Sign in again to carry on watching.'
 
 export function signInMessage(error: unknown): string {
   if (!(error instanceof SignInError)) return NO_SIGN_IN

@@ -6,10 +6,7 @@ export interface Programme {
   videoId: string
   title: string
   channelId: string
-  /**
-   * Seconds into the *video* at which this item begins. Normally 0; non-zero
-   * when a junction cut the front off, or a repeat starts partway.
-   */
+  /** Seconds into the *video* at which this item begins. */
   videoStartSec: number
   /**
    * Shown earlier the same day. A station with a handful of suppliers and

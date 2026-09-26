@@ -141,11 +141,6 @@ describe('CachedPoolSource', () => {
       expect(pool.channels.size).toBe(1)
     })
 
-    // Widened: the original modelled corruption as *absence*, which is exactly
-    // what `stored.videos ?? []` at cachedPoolSource.ts:97-98 was written for:
-    // it exercised the guard instead of probing past it. A record written by
-    // anything other than this app has fields that are present and the wrong
-    // type, and `??` cannot see those at all.
     it.each([
       ['has lost its arrays', () => ({ savedAt: clock })],
       ['has a videos field that is not an array', () => ({ savedAt: clock, videos: 7, channels: [] })],
@@ -156,12 +151,8 @@ describe('CachedPoolSource', () => {
 
       const loading = new CachedPoolSource(countingSource(poolOf('a')), store, { now, key: 'pool' }).load()
 
-      // Nothing here may take the channel off the air (indexedDbPoolStore.ts:9).
       await expect(loading).resolves.toBeDefined()
       const pool = await loading
-      // The old assertions only checked the two `?? []` defaults. They never
-      // asked whether what came back was a usable Pool at all, which is the
-      // property the render downstream depends on.
       expect(Array.isArray(pool.videos)).toBe(true)
       expect(pool.channels).toBeInstanceOf(Map)
     })
@@ -179,11 +170,6 @@ describe('CachedPoolSource', () => {
       expect(store.entries.get('pool')?.savedAt).toBe(clock)
     })
 
-    // Widened: the original's "corrupt record" was still a *number*, just a
-    // wrong one, so the subtraction at cachedPoolSource.ts:73 always succeeded
-    // and only the comparison was ever exercised. That arithmetic runs outside
-    // the file's only try/catch (:60-65), so a stamp of the wrong type is not a
-    // cache miss: it is a rejected load, on every visit, until site data goes.
     it.each([
       ['stamped in the future', () => clock + 10 * 24 * HOUR],
       ['stamped with something that is not a number', () => 'the day before yesterday'],
@@ -309,6 +295,24 @@ describe('CachedPoolSource', () => {
       expect(pool.videos.map((each) => each.id)).toEqual(['a'])
       expect(store.writes).toBe(0)
       expect(store.entries.size).toBe(0)
+    })
+
+    it('files a load under the account it was fetched for, whoever holds the token when it lands', async () => {
+      const store = inMemoryStore()
+      let owner = 'UC-alice'
+      let release: ((pool: Pool) => void) | undefined
+      const slow: PoolSource = {
+        load: () => new Promise<Pool>((resolve) => { release = resolve }),
+      }
+      const cached = new CachedPoolSource(slow, store, { now, key: 'pool', scope: async () => owner })
+
+      const loading = cached.load()
+      await until(() => release !== undefined)
+      owner = 'UC-bob'
+      release!(poolOf('alice-1'))
+      await loading
+
+      expect([...store.entries.keys()]).toEqual(['pool:UC-alice'])
     })
 
     it('files a source with no scope under the bare key, as it always did', async () => {
@@ -539,28 +543,6 @@ describe('CachedPoolSource', () => {
       await cached.forget()
 
       expect([...store.entries.keys()]).toEqual(['pool:UC-bob'])
-    })
-
-    // Signing out must not need the network: the token is being revoked in the
-    // same breath, and the account was already established when the pool was
-    // read or written.
-    it('removes the record without asking who the account is again', async () => {
-      const store = inMemoryStore()
-      let scopeCalls = 0
-      const cached = new CachedPoolSource(countingSource(poolOf('a')), store, {
-        now,
-        scope: async () => {
-          scopeCalls += 1
-          return 'UC-alice'
-        },
-      })
-      await cached.load()
-      const asked = scopeCalls
-
-      await cached.forget()
-
-      expect(scopeCalls).toBe(asked)
-      expect(store.entries.size).toBe(0)
     })
 
     // A key that cannot be established means nothing is known to remove, and

@@ -1,7 +1,7 @@
 /**
- * The only source of "now". Everything downstream takes a `Clock` rather than
- * calling `Date.now()`, so a test can run a whole broadcast day in a
- * millisecond and the card never depends on when the suite happened to run.
+ * The broadcast takes a `Clock` rather than calling `Date.now()`, so a test
+ * can run a whole broadcast day in a millisecond and the card never depends on
+ * when the suite happened to run.
  */
 export interface Clock {
   now(): Date

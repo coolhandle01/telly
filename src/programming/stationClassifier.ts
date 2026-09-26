@@ -22,7 +22,6 @@ export class StationClassifier implements Classifier {
   constructor(
     station: Station,
     profiles: ReadonlyMap<string, Subscription>,
-    /** Any instant in the broadcast day being planned. */
     dayStart: Date,
   ) {
     this.#station = station
@@ -48,8 +47,6 @@ export class StationClassifier implements Classifier {
 
       const slot = SLOTS[daypart.id]
       const length = lengthFit(slot, format)
-      // Length is the gate, not a preference. Nothing else may put a
-      // ninety-second item in the nine o'clock slot.
       if (length === 0) continue
 
       let score = wantOf(slot, subscription.genre) * length

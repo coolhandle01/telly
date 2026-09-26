@@ -38,7 +38,6 @@ export interface ChannelProps {
   /** The element the player draws into. Omit and the picture is a blank frame. */
   playerHost?: HTMLElement
   sound?: Sound
-  /** Must be stable across renders — it feeds a memo that must not churn. */
   planOptions?: Partial<PlanOptions>
   /**
    * The viewer's Google session. Present only when a client ID is configured;
@@ -178,13 +177,11 @@ export function Channel({
   // re-trigger the tuner effect and spin for ever.
   const [planOptionsAtMount] = useState(() => planOptions)
 
-  // The session outlives any click on it: the token's hour runs out on its own
+  // The session outlives any click on it: the token runs out on its own
   // and the corner has to follow, or the set offers a way out of a session
   // that ended without it.
   useEffect(() => session?.subscribe(setSignedIn), [session])
 
-  // Google's token model takes a token at page load as well as from a gesture,
-  // and that is what carries a viewer across a refresh.
   useEffect(() => {
     if (!session) return
     let live = true
@@ -318,8 +315,7 @@ export function Channel({
     } catch {
       // This runs in a render, so a throw here reaches the root boundary and
       // the whole receiver goes to a fault card that never clears. A day that
-      // cannot be planned is one day; the set stays on and shows the card,
-      // and tomorrow is planned from tomorrow's pool.
+      // cannot be planned is one day; the set stays on and shows the card.
       return undefined
     }
   }, [pool, dayStartMs, planOptionsAtMount])
@@ -339,7 +335,7 @@ export function Channel({
     said it was ready before it was would be a lie by exactly that much.
 
     A failed load is not programming either, and neither is a pool that arrived
-    and could not be planned. Both end up on the card and in the footer;
+    and could not be planned. Both end up on the card;
     leaving the button counting for ever would be the one outcome that tells
     the viewer nothing at all.
   */
@@ -460,10 +456,9 @@ export function Channel({
   const lit = phase !== 'off'
 
   // An empty preset is snow, and it is snow whatever the picture controls are
-  // set to: there is no carrier for them to work on. A fault card is the set
-  // talking to whoever deployed it, so it is not buried under noise. And a set
-  // that is off shows nothing at all — not even the tuner's own snow, which is
-  // made by a beam that is no longer lit.
+  // set to: there is no carrier for them to work on. And a set that is off
+  // shows nothing at all, not even the tuner's own snow, which is made by a
+  // beam that is no longer lit.
   const noSignal = !fault && !carrier
   const shown = !lit
     ? undefined
@@ -504,6 +499,7 @@ export function Channel({
           <GoogleSignInButton
             onClick={() => {
               setSessionError(undefined)
+              setPoolError(undefined)
               // Straight from the click: an await here would lose the user
               // gesture and the consent popup would be blocked.
               session.signIn().then(

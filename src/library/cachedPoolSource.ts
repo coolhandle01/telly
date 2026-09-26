@@ -4,8 +4,8 @@ import type { PoolStore, StoredPool } from './poolStore'
 
 /**
  * A cache over any other source. The pool changes about as often as your
- * subscriptions upload, so it is refetched once a day — at closedown, when
- * nothing is on air anyway — and served from storage in between.
+ * subscriptions upload, so a saved copy is served until it is a day old and
+ * refetched on the next load after that.
  *
  * Storage is best-effort by design: a browser that cannot give us a database
  * (private window, storage blocked, a corrupt object store) gets television
@@ -17,7 +17,6 @@ import type { PoolStore, StoredPool } from './poolStore'
  * their own television, and neither is shown the other's.
  */
 
-/** Closedown to closedown. */
 export const DEFAULT_POOL_TTL_MS = 24 * 60 * 60 * 1000
 
 export const DEFAULT_POOL_KEY = 'pool'
@@ -46,8 +45,6 @@ export class CachedPoolSource implements PoolSource {
   readonly #ttlMs: number
   readonly #now: () => number
   readonly #scope: (() => Promise<string>) | undefined
-  /** The last key this source resolved, so signing out needs no network. */
-  #lastKey: string | undefined
   /** One fetch, however many callers ask at once. */
   #inFlight: Promise<Pool> | undefined
   /** Everyone watching the fetch in flight. Emptied when it settles. */
@@ -63,7 +60,10 @@ export class CachedPoolSource implements PoolSource {
   }
 
   async load(onProgress?: LoadProgress): Promise<Pool> {
-    const hit = await this.#readFresh()
+    // Settled before the fetch, so the pool is filed under the account it was
+    // fetched for, whoever holds the token when it lands.
+    const key = this.#store ? await this.#keyFor() : undefined
+    const hit = await this.#readFresh(key)
     // A cache hit did no work, so there was no progress to watch. Say so
     // anyway: a caller that hid a button until the fraction reached 1 would
     // otherwise hide it for ever on the fastest path there is.
@@ -75,7 +75,7 @@ export class CachedPoolSource implements PoolSource {
     // One fetch however many callers ask at once, so a second caller watches
     // the first one's progress rather than starting a second load to watch.
     if (onProgress) this.#listeners.add(onProgress)
-    this.#inFlight ??= this.#fetchAndStore().finally(() => {
+    this.#inFlight ??= this.#fetchAndStore(key).finally(() => {
       this.#inFlight = undefined
       this.#listeners.clear()
     })
@@ -97,7 +97,7 @@ export class CachedPoolSource implements PoolSource {
     // Resolved before anything is torn down. The inner source is about to
     // forget which account this was, and the token it would ask with is about
     // to be revoked, so the key is settled while both still exist.
-    const key = this.#lastKey ?? (await this.#keyFor())
+    const key = await this.#keyFor()
 
     // Both halves are attempted whatever the other does. A database that will
     // not open would otherwise leave the source still keyed to the account
@@ -122,8 +122,7 @@ export class CachedPoolSource implements PoolSource {
    *
    * A record belongs to the account that signed in for it. Someone signing
    * out has asked to be forgotten, which is not the same as asking for
-   * everybody else at this machine to be forgotten too, and a record thrown
-   * away costs its owner the whole day's quota to fetch again.
+   * everybody else at this machine to be forgotten too.
    */
   async #remove(key: string | undefined): Promise<void> {
     if (!this.#store) return
@@ -141,19 +140,16 @@ export class CachedPoolSource implements PoolSource {
    * until the account is known.
    */
   async #keyFor(): Promise<string | undefined> {
-    if (!this.#scope) return (this.#lastKey = this.#key)
+    if (!this.#scope) return this.#key
     try {
-      return (this.#lastKey = `${this.#key}:${await this.#scope()}`)
+      return `${this.#key}:${await this.#scope()}`
     } catch {
       return undefined
     }
   }
 
-  async #readFresh(): Promise<Pool | undefined> {
-    if (!this.#store) return undefined
-
-    const key = await this.#keyFor()
-    if (key === undefined) return undefined
+  async #readFresh(key: string | undefined): Promise<Pool | undefined> {
+    if (!this.#store || key === undefined) return undefined
 
     let stored: StoredPool | undefined
     try {
@@ -169,8 +165,8 @@ export class CachedPoolSource implements PoolSource {
 
   /**
    * A stamp from the future means a moved clock or a corrupt record: distrust
-   * it. The type check comes first because this runs outside the try/catch at
-   * :60, and IndexedDB stores a BigInt happily: `number - bigint` throws.
+   * it. The type check comes first because this runs outside the try/catch in
+   * `#readFresh`, and IndexedDB stores a BigInt happily: `number - bigint` throws.
    */
   #isFresh(savedAt: unknown): boolean {
     if (typeof savedAt !== 'number' || !Number.isFinite(savedAt)) return false
@@ -183,13 +179,12 @@ export class CachedPoolSource implements PoolSource {
     for (const listener of this.#listeners) listener(fraction)
   }
 
-  async #fetchAndStore(): Promise<Pool> {
+  async #fetchAndStore(key: string | undefined): Promise<Pool> {
     const pool = await this.#inner.load(this.#report)
 
-    if (this.#store) {
+    if (this.#store && key !== undefined) {
       try {
-        const key = await this.#keyFor()
-        if (key !== undefined) await this.#store.write(key, toStored(pool, this.#now()))
+        await this.#store.write(key, toStored(pool, this.#now()))
       } catch {
         // Failing to save is not failing to load.
       }

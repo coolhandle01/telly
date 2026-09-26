@@ -76,8 +76,7 @@ const TOPICS: Readonly<Record<string, Topic>> = {
   Animated_cartoon: { genre: 'film', specificity: LEAF },
   Humour: { genre: 'comedy', specificity: LEAF },
 
-  // Music, by genre. All of them land in the same place; the schedule cares
-  // that it is music, and the persona cares which station likes music.
+  // Music, by genre.
   Christian_music: { genre: 'music', specificity: LEAF },
   Classical_music: { genre: 'music', specificity: LEAF },
   Country_music: { genre: 'music', specificity: LEAF },

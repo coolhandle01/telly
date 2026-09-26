@@ -629,7 +629,6 @@ describe('YouTubePoolSource', () => {
         durationSec: 3723,
         publishedAt: '2026-09-08T22:00:00Z',
         categoryId: '25',
-        tags: ['politics', 'bulletin'],
         viewCount: 48210,
         ageRestricted: false,
         madeForKids: false,
@@ -755,7 +754,6 @@ describe('YouTubePoolSource', () => {
         durationSec: 0,
         publishedAt: '',
         categoryId: undefined,
-        tags: undefined,
         viewCount: undefined,
         // Absent means unrated and not declared for children, which is what
         // the API means by leaving them out.
@@ -779,12 +777,8 @@ describe('YouTubePoolSource', () => {
       expect((await new YouTubePoolSource({ fetch, tokens }).load()).videos).toEqual([])
     })
 
-    // The termination test at :168 scripts a peer that volunteers a last page
-    // with no token, so it measures the peer's good manners rather than a bound
-    // in #listSubscriptions: a sane value sat in the one field that controls
-    // that loop. A peer that keeps handing back the token it just issued is the
-    // hostile one, and nothing in the code stops it. The fake caps itself so a
-    // loop with no cap fails as an assertion here instead of hanging the run.
+    // The fake caps itself so a loop with no cap fails as an assertion here
+    // instead of hanging the run.
     it('stops when the peer keeps handing back the same nextPageToken', async () => {
       const PEER_GIVES_UP_AFTER = 20
       const { fetch, callsTo } = fakeYouTube({
@@ -796,7 +790,7 @@ describe('YouTubePoolSource', () => {
 
       // A token already followed once is a peer that is not paging. Following
       // it again spends quota the 24h cache cannot give back, because a load
-      // that never finishes is never cached (cachedPoolSource.ts:77-88).
+      // that never finishes is never cached.
       expect(callsTo('subscriptions').length).toBeLessThanOrEqual(2)
     })
 
@@ -1097,7 +1091,7 @@ describe('YouTubePoolSource, two hundred subscriptions', () => {
     return { fetch: wrapped, seen }
   }
 
-  /** Thirty subscriptions: more than one batch of channels, plenty of playlists. */
+  /** Thirty subscriptions: plenty of playlists. */
   const channelIds = ids(30, 'UC')
   const uploadsOf = (id: string) => `UU${id.slice(2)}`
   const videoOf = (id: string) => `v${id.slice(2)}`

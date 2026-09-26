@@ -15,7 +15,10 @@ test runner, a linter, or release tooling. None of them is in the shipped
 bundle.
 
 That is the architectural fact this page exists to make obvious. The browser
-loads the bundle, React, and three Google endpoints. Nothing else.
+loads the bundle, which includes React, and the app itself calls three Google
+services. Google's and YouTube's scripts make requests of their own beyond
+those, such as the revocation GIS sends to `oauth2.googleapis.com` and the
+player frame.
 
 ```mermaid
 flowchart TB
@@ -32,11 +35,11 @@ flowchart TB
     vite["vite 8.3.0"]
     plugin["@vitejs/plugin-react 6.1.1"]
     ts["typescript 6.0.3"]
-    vitest["vitest 5.0.0 + @vitest/coverage-v8"]
-    jsdom["jsdom 30.0.1 + @testing-library/*"]
-    oxlint["oxlint 1.82.0"]
+    vitest["vitest 5.0.1 + @vitest/coverage-v8"]
+    jsdom["jsdom 30.1.0 + @testing-library/*"]
+    oxlint["oxlint 1.83.0"]
     stryker["@stryker-mutator/core 10.0.0"]
-    release["commit-and-tag-version 13.2.0 + @commitlint/cli 21.2.2"]
+    release["commit-and-tag-version 13.2.1 + @commitlint/cli 21.2.2"]
   end
 
   subgraph runtime["fetched by the browser at runtime"]
@@ -62,16 +65,17 @@ flowchart TB
 | | |
 |---|---|
 | TypeScript | 6.0.3 installed, `~6.0.2` asked for |
-| Configured by | `tsconfig.json`, `tsconfig.app.json`, `tsconfig.node.json` |
+| Configured by | `tsconfig.json`, `tsconfig.app.json`, `tsconfig.test.json`, `tsconfig.node.json` |
 | Gate | `npm run typecheck` (`tsc -b --noEmit`), the `tsc` job in `analysers.yml` |
 
 `tsconfig.json` is solution style: it has `"files": []` and references the other
-two. `tsconfig.app.json` covers `src` (`target`/`lib` ES2023 plus DOM,
+three. `tsconfig.app.json` covers `src` (`target`/`lib` ES2023 plus DOM,
 `module: esnext`, `moduleResolution: bundler`, `jsx: react-jsx`, `strict`,
 `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`,
-`noFallthroughCasesInSwitch`, `types: ["vite/client", "vitest/globals"]`).
-`tsconfig.node.json` covers `vite.config.ts` alone, with `module: nodenext` and
-`types: ["node"]`.
+`noFallthroughCasesInSwitch`, `types: ["vite/client"]`). `tsconfig.test.json`
+extends it for `test`, with `types: ["vite/client", "vitest/globals"]` and the
+`@/*` path. `tsconfig.node.json` covers `vite.config.ts` alone, with
+`module: nodenext` and `types: ["node"]`.
 
 Because the root config is solution style, the gate has to be `tsc -b`. The
 reasoning is argued in [testing.md](testing.md).
@@ -92,14 +96,14 @@ The `engines` range is the floor and it is the same range the installed
 since they all read the Node version from that file. So the repository supports
 20.19 or 22.12 upwards, and is built and tested on 24 only.
 
-`@types/node` (24.13.4 installed) describes the runtime rather than following
+`@types/node` (24.13.5 installed) describes the runtime rather than following
 it, so the `tsc` job in `analysers.yml` carries a step, `the node types match
 the pinned node`, which compares the major in `.nvmrc` with the major of the
 `@types/node` range and fails the job if they differ. Dependabot is told not to
 open a major on `@types/node` for the same reason.
 
 One further floor, visible only in the installed package rather than in this
-repository's manifests: `vitest@5.0.0` declares
+repository's manifests: `vitest@5.0.1` declares
 `engines: ^22.12.0 || ^24.0.0 || >=26.0.0`. The test runner therefore will not
 run on Node 20.19, even though `engines` here permits it. Everything CI does is
 on Node 24, so nothing exercises that gap.
@@ -126,20 +130,21 @@ Vite 8.3.0 (`^8.3.0`), configured by `vite.config.ts`:
   static host answers and therefore how `/privacy/` and `/terms/` behave
   locally.
 - `index.html` is the entry. It carries the Content Security Policy as a
-  `<meta http-equiv>`, because GitHub Pages sets no response headers.
+  `<meta http-equiv>`; the live site's responses carry no
+  `Content-Security-Policy` header.
 
 `npm run build` is `npm run typecheck && vite build`. Vite strips types without
 checking them, so the build is not a type gate and the typecheck runs first.
 
 ## Test runner
 
-Vitest 5.0.0 with `@vitest/coverage-v8` 5.0.0. The test configuration shares
+Vitest 5.0.1 with `@vitest/coverage-v8` 5.0.1. The test configuration shares
 `vite.config.ts` with the build, so a test cannot pass against a module graph
 the bundle will not produce: same aliases, same plugins.
 
 | | |
 |---|---|
-| Environment | `jsdom` (jsdom 30.0.1) |
+| Environment | `jsdom` (jsdom 30.1.0) |
 | Globals | on, `describe`/`it`/`expect` without imports |
 | Tests | `include: ['test/**/*.test.{ts,tsx}']` |
 | Setup | `test/support/setup.ts` |
@@ -151,7 +156,7 @@ No coverage thresholds are configured. Coverage is measured and reported; it
 does not fail a run.
 
 The clocks-change suite has a second config, `vite.dst.config.ts`, which spreads
-the base config and replaces `include` with `src/**/*.dst.test.ts`, replaces
+the base config and replaces `include` with `test/**/*.dst.test.ts`, replaces
 `exclude`, and disables coverage. It is run by `npm run test:dst`, which sets
 `TZ=Europe/London`.
 
@@ -161,7 +166,7 @@ posture, the seams and jsdom's blind spot are in [testing.md](testing.md).
 
 ## Linter
 
-oxlint 1.82.0 (`^1.79.0`), configured by `.oxlintrc.json`: plugins `react`,
+oxlint 1.83.0 (`^1.83.0`), configured by `.oxlintrc.json`: plugins `react`,
 `typescript` and `oxc`; `react/rules-of-hooks` as an error;
 `react/only-export-components` as a warning with `allowConstantExport`; and
 `.stryker-tmp/**`, `reports/**` and `dist/**` ignored. Run by `npm run lint` and
@@ -185,7 +190,7 @@ all. See [release-process.md](release-process.md).
 
 ## Release tooling
 
-`commit-and-tag-version` 13.2.0 with `.versionrc.json`, and `@commitlint/cli`
+`commit-and-tag-version` 13.2.1 with `.versionrc.json`, and `@commitlint/cli`
 21.2.2 with `@commitlint/config-conventional` 21.2.2 and `commitlint.config.js`.
 Both are described in [release-process.md](release-process.md).
 
@@ -202,7 +207,7 @@ anything of ours, because there is nothing of ours to proxy through.
 
 GIS hands the page a short-lived access token for the scope
 `https://www.googleapis.com/auth/youtube.readonly` and no refresh token; the
-token stays in memory. The Data API is called with `channels.list`,
+token is held in memory and in the tab's `sessionStorage`. The Data API is called with `channels.list`,
 `subscriptions.list`, `playlistItems.list` and `videos.list`, batched 50 ids at
 a time. The IFrame API is loaded once and creates the player in an iframe.
 
@@ -213,7 +218,8 @@ expiry, [google.md](google.md) for the Data API pipeline and its quota,
 The set of origins the browser may reach is fixed in `index.html` by the CSP
 meta tag: `script-src` allows `'self'`, `https://accounts.google.com` and
 `https://www.youtube.com`; `connect-src` allows `'self'`,
-`https://www.googleapis.com` and `https://accounts.google.com`; `frame-src`
+`https://oauth2.googleapis.com`, `https://www.googleapis.com` and
+`https://accounts.google.com`; `frame-src`
 allows `https://www.youtube.com`, `https://www.youtube-nocookie.com` and
 `https://accounts.google.com`; `default-src` is `'none'`.
 
@@ -224,15 +230,15 @@ keyed to whose data it is. See [google.md](google.md).
 
 GitHub Pages, at `telly.na-n.xyz`. The custom domain is `public/CNAME`, which
 holds that name and is published with the site. `base: './'` in `vite.config.ts`
-keeps asset paths relative. GitHub Pages offers no control over response
-headers, which is why the CSP is a meta tag; the reasoning, including why the
-default `Cross-Origin-Opener-Policy` is the one the sign-in popup needs, is in
+keeps asset paths relative. The live site's responses carry no security
+headers, so the CSP is a meta tag; the headers, and why the default
+`Cross-Origin-Opener-Policy` is left alone, are in
 [release-process.md](release-process.md#the-domain-and-the-headers-it-does-not-set).
 
 The DNS record, the Pages custom-domain setting and the HTTPS enforcement are
-GitHub and registrar settings rather than files here. They are described in
-[release-process.md](release-process.md#the-domain-and-the-headers-it-does-not-set)
-and cannot be verified from the repository.
+GitHub and registrar settings rather than files here. What they were on 26
+September 2026 is recorded in
+[release-process.md](release-process.md#not-verifiable-from-this-repository).
 
 ## Build-time configuration
 
@@ -242,7 +248,7 @@ One variable, `VITE_YOUTUBE_CLIENT_ID`, documented in `.env.example`.
 therefore public**: anyone who views source can read it. A client ID is a public
 identifier by design, so it may live there. A client secret or an API key must
 never be given a `VITE_` name, and an access token is never configured at all:
-it is fetched at runtime and kept in memory.
+it is fetched at runtime and kept in memory and in the tab's `sessionStorage`.
 
 `.env.example` is the only env file in the repository. `.gitignore` excludes
 `.env` and `.env.*` with `!.env.example` as the one exception, so a real
@@ -282,4 +288,6 @@ setting and is not in the repository.
 - The DNS record for `telly.na-n.xyz`, the Pages custom-domain setting, and
   whether HTTPS enforcement is on.
 - The Google Cloud project: which APIs are enabled, the OAuth client's
-  authorised JavaScript origins, the consent screen and its test users.
+  authorised JavaScript origins, the consent screen and its test users. Sign-in
+  has run from `https://telly.na-n.xyz` and `http://localhost:5173`, so both
+  are on the origins list.

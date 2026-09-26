@@ -127,7 +127,6 @@ interface VideoListResponse {
       channelId?: string
       publishedAt?: string
       categoryId?: string
-      tags?: readonly string[]
       liveBroadcastContent?: string
     }
   }[]
@@ -226,9 +225,6 @@ export class YouTubePoolSource implements PoolSource {
    * no name, no address, nothing the app has not already been granted. It
    * exists to key the cache: two accounts on one browser must not be able to
    * read each other's pool.
-   *
-   * Held for the life of the source, which is the life of a signed-in
-   * session, so it costs its one unit once.
    */
   async ownerId(): Promise<string> {
     this.#owner ??= this.#fetchOwnerId().catch((error: unknown) => {
@@ -489,7 +485,6 @@ export class YouTubePoolSource implements PoolSource {
           durationSec: parseIso8601Duration(item.contentDetails?.duration ?? ''),
           publishedAt: item.snippet?.publishedAt ?? '',
           categoryId: item.snippet?.categoryId,
-          tags: item.snippet?.tags,
           viewCount: countOf(item.statistics?.viewCount),
           // The watershed, as a field. YouTube has already made this judgement
           // and it is the only one of its kind we get for free.

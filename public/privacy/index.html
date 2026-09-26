@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Privacy policy · telly</title>
-<meta name="description" content="What telly reads from your YouTube account, where that information goes, how long it is kept, and how to remove it.">
+<meta name="description" content="What telly receives from your Google and YouTube accounts, how it is used and protected, how long it is kept, and how to remove it.">
 <style>
   :root {
     color-scheme: light dark;
@@ -67,193 +67,108 @@
 <body>
 <main>
 <h1>Privacy policy</h1>
-<p class="lede">telly &middot; last updated 24 September 2026</p>
+<p class="lede">telly &middot; last updated 26 September 2026</p>
 
-<p>telly builds a day&rsquo;s television schedule out of the YouTube channels you
-subscribe to, and plays the programmes in YouTube&rsquo;s own player. This policy
-covers the version of telly published at telly.na-n.xyz. It explains what telly
-reads from your YouTube account, what we do and do not do with it, where it
-goes, how long it is kept, and how to remove it.</p>
+<p>telly builds a day&rsquo;s television schedule out of the YouTube channels you subscribe to, and plays the programmes in YouTube&rsquo;s own player. This policy covers the version of telly published at telly.na-n.xyz. It explains what telly receives from your Google and YouTube accounts, what it does with it, how it is protected, how long it is kept, and how to remove it.</p>
 
 <h2>Who is responsible for telly</h2>
-<p>telly is made and published by one person as a hobby project. There is no
-company behind it, no telly account to create, and no server of telly&rsquo;s own.
-telly runs inside your browser. The person who publishes telly receives none of
-the information described in this policy.</p>
+<p>telly is made and published by one person as a hobby project. There is no company behind it, no telly account to create, and no server of telly&rsquo;s own. telly runs inside your browser. The person who publishes telly receives none of the information described in this policy.</p>
 
-<h2>What we undertake</h2>
+<h2>In short</h2>
 <ul>
-<li>We use what telly reads from your YouTube account for one purpose: building
-the schedule you watch. We put it to no other use.</li>
-<li>We do not sell it.</li>
-<li>We do not share it with, or transfer it to, anyone beyond the companies
-named in this policy.</li>
-<li>We ask Google for one permission, the one named below, and for no
-other.</li>
-<li>telly loads no analytics software, no tracking software and no
-advertising.</li>
-<li>telly sets no cookie of its own.</li>
+<li>telly asks Google for one permission: to read your YouTube account. It cannot change anything there. It also uses Google&rsquo;s sign-in to recognise which account you used.</li>
+<li>What it reads goes from Google to your browser and stays there. telly has no server, so nothing is sent to us, and we hold no copy of anything.</li>
+<li>It is used only to build the schedule you watch and to recognise your account when you sign in again.</li>
+<li>We do not sell it, share it, or use it for advertising.</li>
+<li>Signing out hands the permission back to Google and removes what telly saved on your device.</li>
 </ul>
 
 <h2>The permission you give</h2>
 <p>When you sign in, Google asks you to grant telly one permission:</p>
 <p class="permission">https://www.googleapis.com/auth/youtube.readonly</p>
-<p>It is read-only. It allows telly to read the channels you subscribe to and
-the videos those channels have uploaded. It does not allow telly to post,
-comment, subscribe, unsubscribe or delete anything, and it does not give telly
-your name, your email address or your watch history.</p>
+<p>It is read-only. telly uses it to read the channels you subscribe to and the videos those channels have uploaded. It does not allow telly to post, comment, subscribe, unsubscribe or delete anything. Apart from Google&rsquo;s sign-in, described below, telly asks Google for nothing else.</p>
 
 <h2>What telly reads from your YouTube account</h2>
 <ul>
-<li>An identifier YouTube uses for your account.</li>
-<li>The channels you subscribe to, and their names.</li>
-<li>For each of those channels: the topics YouTube files it under, and its
-subscriber count where the channel publishes one.</li>
-<li>For each of those channels, its twenty most recent uploads: the title, how
-long it runs, when it was published, the category and tags it was uploaded
-with, its view count, whether YouTube has age-restricted it, whether it is
-declared as made for children, whether it can be played outside YouTube, and
-whether it is live.</li>
+<li>Your account&rsquo;s channel identifier, so that telly can tell whose schedule is whose.</li>
+<li>The channels you subscribe to, up to 1,000 of them, and their names.</li>
+<li>For each of those channels: the topics YouTube files it under, and its subscriber count where the channel publishes one.</li>
+<li>For each of those channels, its twenty most recent uploads: the title, how long it runs, when it was published, the category and tags it was uploaded with, its view count, whether YouTube has age-restricted it, whether it is declared as made for children, whether it can be played outside YouTube, and whether it is live.</li>
 </ul>
-<p>telly reads nothing else from your account.</p>
+<p>Apart from the list of channels you subscribe to and your channel identifier, all of this is public information about channels and videos, the same for everyone. YouTube&rsquo;s answers also carry some details telly does not use, such as video descriptions and like counts. telly discards those without saving them. It reads nothing else from your account, and it does not read your watch history.</p>
 
-<h2>What telly does with it</h2>
-<p>telly sorts the channels you subscribe to between five stations, and gives
-each station a day of programmes. What it reads decides which station a channel
-belongs to, and what time of day its uploads go out. The schedule is built in
-your browser and shown to you, and that is the whole of what the information is
-used for.</p>
-<p>telly keeps no record of what you watch or of what it read, and there is no
-server of ours to keep one. Google keeps its own record of the requests telly
-makes with your permission.</p>
+<h2>What telly receives from Google&rsquo;s sign-in</h2>
+<p>To remember which Google account you used, telly also uses Google&rsquo;s own sign-in. It does this after you grant the permission, whenever telly does not already have your account recorded on this browser. Depending on your browser and your Google session, Google may answer straight away or show you its sign-in prompt first.</p>
+<p>Google answers by handing the page a short statement about your account. It contains Google&rsquo;s identifier for your account, and it also contains your name, your email address, the address of your profile picture and, for a work or school account, the organisation&rsquo;s domain. telly takes the account identifier from it and nothing else. Your name, email address and picture are not saved, not shown and not sent anywhere, and the page discards the statement once it has the identifier.</p>
+<p>If you close Google&rsquo;s prompt, telly works as before. The only difference is that the next time you sign in, Google may ask you to choose your account from a list.</p>
 
-<h2>Where that information goes</h2>
-<p>It goes from YouTube to your browser, and stays there. telly has no server to
-send it to and no database of its own to put it in. No copy of it reaches the
-person who publishes telly. None of it is sent to any company other than the
-ones named in this policy.</p>
+<h2>How telly uses it</h2>
+<p>telly sorts the channels you subscribe to between five stations, and gives each station a day of programmes. What it reads decides which station a channel belongs to, and what time of day its uploads go out. The schedule is built in your browser and shown to you. The account identifier from Google&rsquo;s sign-in is used only so that signing in again does not ask you to pick your account out of a list. That is the whole of what the information is used for.</p>
+<p>telly keeps no record of what you watch. There is no profiling, no advertising, and nothing is used to train any model.</p>
+
+<h2>Who it is shared with</h2>
+<p>Nobody. It goes from Google to your browser and stays there. telly has no server to send it to and no database of its own to put it in, so no copy reaches the person who publishes telly, and none of it is sold or passed to anyone. The companies involved in running telly at all are listed under &ldquo;Other companies involved&rdquo;, below.</p>
 
 <h2>What is kept on your device, and for how long</h2>
 <ul>
-<li><strong>The schedule.</strong> What telly reads from your account is saved
-in your browser&rsquo;s storage on this device, so that switching the set on again
-does not have to fetch it all from YouTube a second time. It is kept for up to
-24 hours. After that telly stops using it. The copy stays on your device until
-telly replaces it, you sign out, or you clear this site&rsquo;s data.</li>
-<li><strong>Your sign-in.</strong> Google gives telly a pass that lets it read
-your subscriptions for about an hour. telly keeps that pass in this tab&rsquo;s
-own storage, so that reloading the page does not sign you out. It is sent to
-nobody, and it goes when you close the tab. When the hour is up the pass stops
-working, telly returns to its signed-out state, and you sign in again.</li>
-<li><strong>Which account signed in here.</strong> telly records in your
-browser an identifier Google gives it for your account, so that signing in
-again does not ask you to pick your account out of a list. The identifier is
-Google&rsquo;s own, it is different for every app, and it is not your name, your
-email address or a password. telly reads it from the sign-in itself and never
-asks YouTube for it. It is removed when you sign out.</li>
+<li><strong>The saved schedule.</strong> What telly reads from YouTube is saved in this site&rsquo;s storage in your browser, so that switching the set on again does not have to fetch it all a second time. telly uses it for up to 24 hours. After that, the next time you use telly it fetches a fresh copy, which replaces it. If you do not come back, it stays on your device until you sign out or clear this site&rsquo;s data, which both remove it.</li>
+<li><strong>Your sign-in.</strong> Google gives telly a pass that lets it read your YouTube account for about an hour. telly keeps it in this tab&rsquo;s own storage, so that reloading the page does not sign you out. It goes when you close the tab, although a browser that reopens closed tabs may bring it back with the tab; telly will not use it once its hour is up. When the hour is up the pass stops working. telly notices the next time it asks YouTube for something, or when the page is reloaded, and returns to its signed-out state then. Until that happens the page can go on showing you as signed in after the pass has run out.</li>
+<li><strong>Which account signed in here.</strong> telly records in your browser the account identifier it takes from Google&rsquo;s sign-in. It is Google&rsquo;s own identifier. It is not your name, your email address or a password, and it cannot be used to sign in as you, but it is the same identifier Google gives every site you sign in to with that account. It is removed when you sign out or clear this site&rsquo;s data.</li>
 </ul>
-<p>telly puts nothing else on your device. Your browser keeps its own copy of
-the page, as it does for any site.</p>
+<p>telly puts nothing else on your device and sets no cookie of its own. Your browser keeps its own copy of the page, as it does for any site.</p>
 
-<h2>Who else can read what is on your device</h2>
-<p>telly does not encrypt any of it, and asks you for nothing before reading it,
-so anyone who can use your device and open this site can see it. The saved
-schedule holds the names of the channels you subscribe to and the titles of
-their recent uploads. It holds no password. While the tab is open, the pass
-Google gives telly can be read the same way, and of the three things telly
-keeps it is the only one that grants anything: it reads your subscriptions from
-your account until its hour is up. The account identifier grants nothing and
-cannot be used to sign in as you, and it is meaningless to any app but this one,
-but it does say that this Google account has used telly on this device. Signing
-out removes all three, and so does clearing this site&rsquo;s data.</p>
-
-<h2>How to remove it</h2>
+<h2>How your information is protected</h2>
 <ul>
-<li><strong>Sign out in the page.</strong> This does two things: it hands your
-permission back to Google, and it removes the saved schedule belonging to your
-account. If someone else has signed in to telly on this device, their saved
-schedule is left alone. Either half can fail, and the page tells you which one
-did: a permission that could not be handed back is one you withdraw at Google,
-and a saved schedule that could not be removed goes with this site&rsquo;s
-data.</li>
-<li><strong>Clear this site&rsquo;s data in your browser.</strong> This removes
-everything telly has put on your device, including schedules saved by other
-accounts. It does not hand your permission back to Google.</li>
+<li><strong>Nothing leaves your device for us.</strong> telly has no server and no database, so there is no central copy of anyone&rsquo;s information to be lost or broken into.</li>
+<li><strong>Encrypted in transit.</strong> The page, and every request telly makes to Google and YouTube, travel over HTTPS, which encrypts them between your browser and the other end. A plain http:// address for this site is redirected to the HTTPS one.</li>
+<li><strong>The least permission that works.</strong> The one permission telly asks for is read-only, so even a stolen pass could not change anything in your account.</li>
+<li><strong>A short-lived pass.</strong> Google&rsquo;s pass lasts about an hour, and Google issues telly no longer-lasting way to renew it. telly sends it only to Google, and only inside the request itself, never in a web address. It is never written to a log, and it is kept in storage that belongs to this one tab.</li>
+<li><strong>Kept apart from other sites.</strong> What telly saves is held in the storage your browser gives this site alone. Browsers do not let other websites read it.</li>
+<li><strong>Kept apart from other accounts.</strong> The saved schedule is filed under your account&rsquo;s own identifier. If someone else signs in to telly on the same browser, they get their own and cannot read yours, and signing out removes yours only.</li>
+<li><strong>Limits on what the page can load and contact.</strong> The page tells your browser to run software only from telly&rsquo;s own address, Google and YouTube, and to exchange data only with telly&rsquo;s own address and Google. The browser blocks anything else.</li>
+<li><strong>Open to inspection.</strong> telly&rsquo;s code, and the security review that describes what it protects against and how, are public in the repository linked under &ldquo;Contact&rdquo;.</li>
 </ul>
-<p>Neither reaches anything held by Google or YouTube. Google&rsquo;s privacy
-policy, linked below, is where to ask about that.</p>
+<p>There are limits, and you should know them:</p>
+<ul>
+<li>telly does not encrypt what it saves on your device. It is protected by your device and your browser: anyone who can use your browser can open this site&rsquo;s storage and see the names of the channels you subscribe to, the titles of their recent uploads and, while the tab is open, the pass. The pass could be used to read your YouTube account until its hour is up. Your device&rsquo;s own protections, such as its lock screen and disk encryption, apply to all of it.</li>
+<li>Google&rsquo;s sign-in software and YouTube&rsquo;s player software run as part of the page, with the same reach over it as telly&rsquo;s own code, including the pass and the saved schedule. Google and YouTube decide what their software does, and telly cannot check it before it runs.</li>
+<li>The account identifier grants nothing, but it does say that this Google account has used telly on this device, and because Google gives other sites the same identifier, someone who holds it could match it against theirs.</li>
+</ul>
+
+<h2>Deleting your information</h2>
+<p>We hold no copy of your information, so there is nothing for you to ask us to delete. Everything telly keeps is on your own device, and you can remove it yourself:</p>
+<ul>
+<li><strong>Sign out in the page.</strong> This does two things: it hands your permission back to Google, and it removes your saved schedule, the pass and the account identifier from your browser.</li>
+<li><strong>If part of signing out fails</strong>, the page tells you which part. Each part is carried out regardless of the others, so you are always signed out of the page, and your saved schedule is removed even if Google does not take the permission back. If Google cannot be reached, or does not confirm that it has taken the permission back, you can withdraw it at Google, as described below. If your browser will not delete the saved schedule, clearing this site&rsquo;s data removes it.</li>
+<li><strong>After the hour is up.</strong> Once the page has returned to its signed-out state, your permission still stands at Google, and there is no sign-out control to press. To hand it back from the page, sign in and then sign out, or withdraw it at Google.</li>
+<li><strong>Clear this site&rsquo;s data in your browser.</strong> This removes everything telly has put on your device, including schedules saved by other accounts. It does not hand your permission back to Google.</li>
+</ul>
+<p>None of this reaches anything held by Google or YouTube. Google&rsquo;s privacy policy, linked below, is where to ask about that.</p>
 
 <h2>Taking the permission back at Google</h2>
-<p>You can withdraw telly&rsquo;s permission from your Google account at any time, at
-<a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.
-telly can then no longer read your subscriptions, and the page returns to its
-signed-out state. Doing this does not remove the schedule already saved on your
-device. Signing out in the page does that, and so does clearing this site&rsquo;s
-data.</p>
+<p>You can withdraw telly&rsquo;s permission from your Google account at any time, at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. telly can then no longer read your YouTube account. The page returns to its signed-out state the next time telly asks YouTube for something and is refused, which it does each time the page is loaded. Doing this does not remove the schedule saved on your device, or the account identifier. Signing out in the page does that, and so does clearing this site&rsquo;s data.</p>
 
 <h2>When you are not signed in</h2>
-<p>telly shows no programmes. It reads nothing from any YouTube account,
-and asks YouTube for none of your data. The
-page does load Google&rsquo;s sign-in software when it opens, so Google receives a
-request from your browser at that point, as it would on any page offering a
-Google sign-in button.</p>
+<p>telly shows no programmes, reads nothing from any YouTube account, and asks YouTube for none of your data. The page does load Google&rsquo;s sign-in software when it opens, so Google receives a request from your browser at that point, as it would on any page offering a Google sign-in button.</p>
 
 <h2>Other companies involved</h2>
 <ul>
-<li><strong>Google and YouTube.</strong> Signing in, and reading your
-subscriptions, happen directly between your browser and Google.
-<a href="https://policies.google.com/privacy">Google&rsquo;s privacy policy</a>
-covers what Google does with those requests.</li>
-<li><strong>YouTube&rsquo;s player.</strong> Programmes play in YouTube&rsquo;s own
-embedded player. When a programme starts, telly tells YouTube which video to
-play. That player belongs to YouTube, and it sets its own cookies and records
-what you watch, as it does on YouTube itself. telly cannot see or control
-this. The
-<a href="https://www.youtube.com/t/terms">YouTube Terms of Service</a> apply to
-that part of using telly.</li>
-<li><strong>GitHub.</strong> telly&rsquo;s pages are hosted on GitHub Pages. Like
-any web host, GitHub receives each request for the page, and its documentation
-states that visitors&rsquo; IP addresses are logged and kept for security purposes.
-What GitHub does with that is covered by the
-<a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub
-Privacy Statement</a>.</li>
+<li><strong>Google and YouTube.</strong> Signing in, and reading your YouTube account, happen directly between your browser and Google. <a href="https://policies.google.com/privacy">Google&rsquo;s privacy policy</a> covers what Google does with those requests.</li>
+<li><strong>YouTube&rsquo;s player.</strong> Programmes play in YouTube&rsquo;s own embedded player. When a programme starts, telly tells YouTube which video to play. That player belongs to YouTube, and it sets its own cookies and records what you watch, as it does on YouTube itself. telly cannot see or control this. The <a href="https://www.youtube.com/t/terms">YouTube Terms of Service</a> apply to that part of using telly.</li>
+<li><strong>GitHub.</strong> telly&rsquo;s pages are hosted on GitHub Pages. Like any web host, GitHub receives each request for the page, and its documentation states that visitors&rsquo; IP addresses are logged and kept for security purposes. What GitHub does with that is covered by the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub Privacy Statement</a>. Your YouTube information does not pass through GitHub.</li>
 </ul>
-<p>Your subscriptions do not pass through GitHub. They go between your browser
-and Google.</p>
-
-<h2>Software the page loads from Google and YouTube</h2>
-<p>Two pieces of software come from outside telly and run as part of the page:
-Google&rsquo;s sign-in software, which the page loads when it opens, and
-YouTube&rsquo;s player software, which it loads when a programme starts. Both run
-with the same reach over the page as telly&rsquo;s own code, which includes the pass
-Google issues and the schedule saved on your device. Google and YouTube each
-decide what their software does, and telly cannot check it before it runs. The
-page loads software from telly&rsquo;s own address, from Google and from YouTube,
-and from nowhere else.</p>
-
-<h2>The connection</h2>
-<p>The pages telly serves, and the requests it makes to Google, use HTTPS. A
-plain http:// address for this site is redirected to the HTTPS one, which means
-such a request leaves your browser before it is redirected.</p>
 
 <h2>Google API Services User Data Policy</h2>
-<p>telly&rsquo;s use of information received from Google APIs adheres to the
-<a href="https://developers.google.com/terms/api-services-user-data-policy">Google
-API Services User Data Policy</a>, including the Limited Use requirements.</p>
+<p>telly&rsquo;s use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
 
 <h2>Children</h2>
-<p>telly is not directed at children, and requires a Google account to sign in
-to. telly asks for no profile information, and reads no name, email address or
-date of birth.</p>
+<p>telly is not directed at children, and requires a Google account to sign in to. It asks for no date of birth. Google&rsquo;s sign-in hands the page a name and an email address, as described above, and telly keeps neither.</p>
 
 <h2>Changes to this policy</h2>
-<p>When this policy changes, the date at the top changes with it. Every previous
-version of it stays public in the repository linked below, so you can see what
-changed and when.</p>
+<p>When this policy changes, the date at the top changes with it. Every previous version of it stays public in the repository linked below, so you can see what changed and when.</p>
 
 <h2>Contact</h2>
-<p>Raise anything, including a privacy question, as an issue at
-<a href="https://github.com/coolhandle01/telly">github.com/coolhandle01/telly</a>.</p>
+<p>Raise anything, including a privacy question, as an issue at <a href="https://github.com/coolhandle01/telly">github.com/coolhandle01/telly</a>.</p>
 
 <footer><a href="../index.html">telly</a> &middot; <a href="../terms/index.html">Terms of service</a></footer>
 </main>

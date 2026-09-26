@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.0.6](https://github.com/coolhandle01/telly/compare/v0.0.5...v0.0.6) (2026-09-26)
+
+### Fixes
+
+* make sign-out revoke at Google, and a privacy policy that says how data is protected ([#11](https://github.com/coolhandle01/telly/issues/11)) ([2dc29cd](https://github.com/coolhandle01/telly/commit/2dc29cd026231c7b8306e44598abe46328f734f3))
+
 ## [0.0.5](https://github.com/coolhandle01/telly/compare/v0.0.4...v0.0.5) (2026-09-25)
 
 ### Features

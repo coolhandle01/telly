@@ -2,7 +2,6 @@
     "permissions": {
         "blockReadsOutsideWorkingDirectories": true,
         "allow": [
-            // React
             "Bash(npm install)",
             "Bash(npm audit)",
             "Bash(npm audit --fix)",
@@ -15,7 +14,6 @@
             "Bash(npm run lint)",
             "Bash(npm run build)",
             "Bash(npm run preview)",
-            // Playwright, driving Brave
             "mcp__playwright-brave__browser_navigate",
             "mcp__playwright-brave__browser_evaluate",
             "mcp__playwright-brave__browser_snapshot",
@@ -25,7 +23,6 @@
             "mcp__playwright-brave__browser_wait_for",
             "mcp__playwright-brave__browser_network_requests",
             "mcp__playwright-brave__browser_console_messages",
-            // Playwright, driving Edge
             "mcp__playwright-edge__browser_navigate",
             "mcp__playwright-edge__browser_evaluate",
             "mcp__playwright-edge__browser_snapshot",
@@ -35,8 +32,6 @@
             "mcp__playwright-edge__browser_wait_for",
             "mcp__playwright-edge__browser_network_requests",
             "mcp__playwright-edge__browser_console_messages",
-
-            // Web Resources
             "WebFetch(domain:developers.google.com)",
             "WebFetch(domain:support.google.com)",
             "WebFetch(domain:code.claude.com)",
@@ -48,5 +43,9 @@
             "Read(.browser/)",
             "Read(.env)"
         ]
-    }
+    },
+    "enabledMcpjsonServers": [
+        "playwright-brave",
+        "playwright-edge"
+    ]
 }

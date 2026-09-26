@@ -504,6 +504,7 @@ export function Channel({
           <GoogleSignInButton
             onClick={() => {
               setSessionError(undefined)
+              setPoolError(undefined)
               // Straight from the click: an await here would lose the user
               // gesture and the consent popup would be blocked.
               session.signIn().then(

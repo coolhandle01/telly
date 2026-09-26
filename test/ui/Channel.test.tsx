@@ -495,6 +495,29 @@ describe('Channel', () => {
       await waitFor(() => expect(signInButton()).toBeInTheDocument())
     })
 
+    // The refusal belonged to the session that ended. Signing in again takes
+    // it off the screen, rather than leaving it up while the next load runs.
+    it('clears the last session\'s load error when signing in again', async () => {
+      let loads = 0
+      const { session, announce } = fakeSession({ resume: async () => true })
+      const refusedThenHeld: PoolSource = {
+        load: async () => {
+          loads += 1
+          if (loads > 1) return new Promise(() => {})
+          throw new YouTubeApiError(401, 'authError', 'youtube subscriptions failed: 401')
+        },
+      }
+      const view = render_(session, refusedThenHeld)
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/no longer accepts this sign-in/i))
+      act(() => announce(false))
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+
+      await view.user.click(signInButton()!)
+
+      await waitFor(() => expect(loads).toBe(2))
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+
     it('starts programming as soon as someone is signed in, with the set still off', async () => {
       let loads = 0
       const counting: PoolSource = {

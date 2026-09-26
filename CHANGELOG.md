@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.0.8](https://github.com/coolhandle01/telly/compare/v0.0.7...v0.0.8) (2026-09-26)
+
+### Fixes
+
+* correct the privacy policy; forget the account when a session ends ([#13](https://github.com/coolhandle01/telly/issues/13)) ([0e960d9](https://github.com/coolhandle01/telly/commit/0e960d962696483acb5d1ee8ae5730f261c40039))
+
 ## [0.0.7](https://github.com/coolhandle01/telly/compare/v0.0.6...v0.0.7) (2026-09-26)
 
 ### Fixes

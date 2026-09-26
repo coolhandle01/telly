@@ -99,7 +99,7 @@ describe('signOutMessage', () => {
     expect(message).toMatch(/did not confirm/i)
     expect(message).toMatch(/account permissions/i)
     // The list is gone, so it must not be named as something still to deal with.
-    expect(message).not.toMatch(/still hold|would not clear/i)
+    expect(message).not.toMatch(/still hold|still in this browser/i)
   })
 
   it('sends the viewer to their site data when the list is the half that survived', () => {
@@ -108,6 +108,10 @@ describe('signOutMessage', () => {
     expect(message).toMatch(/withdrawn at Google/i)
     expect(message).toMatch(/site data/i)
     expect(message).not.toMatch(/still granted/i)
+    // The list can stay because telly could not tell whose it was, not only
+    // because the browser refused, so the browser is not named as the cause.
+    expect(message).toMatch(/still in this browser/i)
+    expect(message).not.toMatch(/browser would not/i)
   })
 
   it('names both when neither happened', () => {

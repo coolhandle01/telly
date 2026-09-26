@@ -44,7 +44,7 @@ const BOTH_FAILED =
 const GRANT_STANDS =
   'Signed out here, and the saved programme list is gone. Google did not confirm that your access is withdrawn: check your Google account permissions.'
 const LIST_REMAINS =
-  'Signed out, and your access is withdrawn at Google. This browser would not clear its saved programme list: clearing this site data removes it.'
+  'Signed out, and your access is withdrawn at Google. The saved programme list is still in this browser: clearing this site data removes it.'
 
 export function signOutMessage(error: unknown): string {
   if (!(error instanceof SignOutError)) return BOTH_FAILED

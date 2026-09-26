@@ -426,7 +426,7 @@ the viewer has left to do.
 | Which half survived | What the viewer is told |
 |---|---|
 | Google did not confirm the revocation | `Signed out here, and the saved programme list is gone. Google did not confirm that your access is withdrawn: check your Google account permissions.` |
-| The list is still here | `Signed out, and your access is withdrawn at Google. This browser would not clear its saved programme list: clearing this site data removes it.` |
+| The list is still here | `Signed out, and your access is withdrawn at Google. The saved programme list is still in this browser: clearing this site data removes it.` |
 | Neither happened, or the error is not a `SignOutError` | Both are named. |
 
 Naming the wrong half sends somebody to fix a thing that is not broken while

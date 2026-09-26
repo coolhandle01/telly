@@ -629,7 +629,6 @@ describe('YouTubePoolSource', () => {
         durationSec: 3723,
         publishedAt: '2026-09-08T22:00:00Z',
         categoryId: '25',
-        tags: ['politics', 'bulletin'],
         viewCount: 48210,
         ageRestricted: false,
         madeForKids: false,
@@ -755,7 +754,6 @@ describe('YouTubePoolSource', () => {
         durationSec: 0,
         publishedAt: '',
         categoryId: undefined,
-        tags: undefined,
         viewCount: undefined,
         // Absent means unrated and not declared for children, which is what
         // the API means by leaving them out.

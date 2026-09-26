@@ -10,18 +10,18 @@ classifier. `programming/` supplies all three, five times over.
 
 ## What the API is asked for
 
-Three calls were already being made. Parts are free within a call — the quota
-cost is per call, not per part — so the fields the policy needs come for
+Three calls were already being made. YouTube documents each list call as 1
+unit, whatever parts it asks for, so the fields the policy needs come for
 nothing.
 
 | Call | Parts | What it gives |
 |---|---|---|
 | `channels.list` | `contentDetails,topicDetails,statistics` | the uploads playlist, the channel's topics, its subscriber count |
-| `videos.list` | `contentDetails,status,snippet,statistics,liveStreamingDetails` | duration, age rating, made-for-kids, category, tags, views |
+| `videos.list` | `contentDetails,status,snippet,statistics,liveStreamingDetails` | duration, age rating, made-for-kids, category, views |
 
 `topicDetails.topicCategories` is the important one. It is YouTube's own
 judgement of what a whole channel is about, as a list of Wikipedia URLs, and it
-is steadier than any single video's category — an uploader picks a category per
+is steadier than any single video's category: an uploader picks a category per
 upload, but a channel filed under `Humour` is a comedy channel every week of
 the year. Only the last path segment is kept, percent-decoded:
 `https://en.wikipedia.org/wiki/Video_game_culture` becomes
@@ -96,7 +96,7 @@ with it.
   is a strip, across the week. `weekly` is a strand, on one night of it.
   `occasional` fills in. Median rather than mean, so one holiday or one day a
   channel posted four times does not change what the channel is.
-- **Format** — the median duration, as a slot — says how long. `short` under
+- **Format** (the median duration, as a slot) says how long. `short` under
   65 seconds, then `segment`, `half-hour`, `hour`, `feature`. These are slots
   and not running times: a half-hour has never held thirty minutes, so a
   thirty-four minute programme is a half-hour and a seventy-minute one has
@@ -142,7 +142,7 @@ gantt
 
 Grey is off air. Each station's `dayparts` tile its own day exactly, those
 hours included, so the axis is the same 06.00 to 06.00 for all five. Five never
-closes down, which is why the clip show exists: everything under a minute in
+closes down, which is why the clip show exists: everything under 65 seconds in
 the whole subscription list goes out between two and half past four.
 
 | | Taste | Cards | Tuner |
@@ -179,7 +179,7 @@ quarter: the packer looks ahead to the next junction mark, and reaches for it
 whenever it is within three minutes. More than that is a real gap, which is the
 card's job.
 
-The five marks are five mechanisms rather than five colours of one — a sphere
+The five marks are five mechanisms rather than five colours of one: a sphere
 whose meridians sweep, a numeral turning into its rule, a chevron assembling, a
 figure gathering out of four blocks, an orbit of dots. That is what made an
 ident recognisable in the second before the name appeared. None reproduces any
@@ -200,7 +200,7 @@ It is a draft, not an auction. Settling the keenest claims first sounds fair
 and is not: two stations a tenth of a point apart on a genre are not equally
 served by it, and the keener one takes every channel of that genre before the
 other gets a look in. Each station picks in turn instead, in an order that
-snakes — 1,2,3,4,5 then 5,4,3,2,1 — so picking last in one round is picking
+snakes (1,2,3,4,5 then 5,4,3,2,1), so picking last in one round is picking
 first in the next.
 
 Two rules sit around the draft:
@@ -240,7 +240,7 @@ On top of that:
   a habit.
 - **Strands.** A weekly supplier of hours or features gets one night and one
   slot, dealt round the week so four strands are four different nights. It is
-  worth a great deal in its own slot and little outside it — without the second
+  worth a great deal in its own slot and little outside it; without the second
   half it goes out on the first day of the week with room for it and stops
   being a series.
 
@@ -257,11 +257,12 @@ afternoon repeat of last night's documentary was the schedule rather than a
 failure of it.
 
 `plan()` allows a programme two showings a day, at least four hours apart, and
-only once nothing new will fit. The second is marked `repeat` and the listings
-print `(R)`.
+scores the second at a fifth of the first, so it goes out again only when
+nothing new scores higher. The second is marked `repeat` and the listings print
+`(R)`.
 
-Two uploads of one channel with the same name count as one programme, whatever
-their ids say. Two channels sharing a name is a coincidence and is left alone.
+Two uploads of one channel with the same name are held four hours apart like
+one programme, whatever their ids say. Two channels sharing a name is a coincidence and is left alone.
 
 ## Determinism
 

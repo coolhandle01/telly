@@ -2,7 +2,7 @@
  * The hole the OAuth flow will fill.
  *
  * Google Identity Services' `initTokenClient` hands the browser a short-lived
- * access token, and whatever implements this holds it for its one-hour life.
+ * access token, and whatever implements this holds it for its lifetime.
  * Nothing downstream knows or cares where the token came from, and nothing
  * downstream may store, log or print it.
  *
@@ -17,6 +17,7 @@ export interface AccessTokenProvider {
    * again.
    */
   reject?(token: string): void
+  subscribe?(listener: (signedIn: boolean) => void): () => void
 }
 
 /**

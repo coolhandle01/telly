@@ -127,7 +127,6 @@ interface VideoListResponse {
       channelId?: string
       publishedAt?: string
       categoryId?: string
-      tags?: readonly string[]
       liveBroadcastContent?: string
     }
   }[]
@@ -489,7 +488,6 @@ export class YouTubePoolSource implements PoolSource {
           durationSec: parseIso8601Duration(item.contentDetails?.duration ?? ''),
           publishedAt: item.snippet?.publishedAt ?? '',
           categoryId: item.snippet?.categoryId,
-          tags: item.snippet?.tags,
           viewCount: countOf(item.statistics?.viewCount),
           // The watershed, as a field. YouTube has already made this judgement
           // and it is the only one of its kind we get for free.

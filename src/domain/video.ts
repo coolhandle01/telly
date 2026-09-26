@@ -8,8 +8,6 @@ export interface Video {
   publishedAt: string
   /** YouTube category; '25' is News & Politics. */
   categoryId?: string
-  /** The uploader's own keywords. Thin on some videos, rich on others. */
-  tags?: readonly string[]
   /** Views as reported. Absent where the uploader hides their statistics. */
   viewCount?: number
   /**

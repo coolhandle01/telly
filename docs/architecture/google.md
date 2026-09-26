@@ -12,7 +12,7 @@ the same one as below.
 flowchart TB
   load(["CachedPoolSource.load"]) --> owner["ownerId · channels.list part=id mine=true · 1 unit"]
   owner --> read[("PoolStore.read · key pool:UC…")]
-  read -->|"a record saved inside the day-long TTL"| pool(["Pool"])
+  read -->|"a record saved inside the 24-hour TTL"| pool(["Pool"])
   read -->|"miss, stale, or unreadable"| subs
 
   subgraph pipeline["YouTubePoolSource.load"]
@@ -33,14 +33,16 @@ flowchart TB
 The owner id is established **before** the read, because the key is made out of
 it (`#keyFor`), so a warm cache still costs that one unit.
 
-**The two 50s are load-bearing.** `channels.list` and `videos.list` both accept
-up to 50 IDs per call, and batching them is the difference between the cost
-below and blowing the 10,000-unit daily allowance before breakfast. A loop that
-fetches one ID at a time works perfectly in development and dies on contact with
-a real subscription list.
+**The two 50s are load-bearing.** `channels.list` and `videos.list` take a
+comma-separated list of IDs, and the app sends at most 50 a call
+(`MAX_IDS_PER_CALL`); YouTube documents `maxResults` as 1 to 50 and states no
+maximum for `id`. Batching them is the difference between the cost below and
+thousands of units against YouTube's documented default of 10,000 a day. A loop
+that fetches one ID at a time works in development and fails on a real
+subscription list.
 
-A list call costs one unit whatever parts it asks for, so the cost is the number
-of calls:
+YouTube documents each of these list calls as costing 1 unit, so the cost is
+the number of calls:
 
 | call | per | 200 subs, 20 videos each |
 |---|---|---|
@@ -61,8 +63,9 @@ things the classifier needs) so the last hop is not optional.
 `mine=true` answers for whoever the token belongs to, so this is an identity
 the `youtube.readonly` scope already covers: no profile scope, no name, no
 address. It exists to key the cache, and the memo lives as long as the source,
-which is the life of a signed-in session. `forget()` drops it, so the account
-that signs in next is keyed as itself.
+which is the life of the page. `forget()`, on sign-out, drops it, so an account
+that signs in after a sign-out is keyed as itself. A session that ends without a
+sign-out does not drop it ([threat-model.md](threat-model.md) T36).
 
 **`playlistItems.list` is the one that cannot be batched**, so it is one call
 per subscription: two hundred subscriptions is two hundred calls, and made one
@@ -107,7 +110,7 @@ flowchart TB
 
 A **404 playlist is skipped, not fatal.** Any subscription list that has been
 around a while contains channels that have been deleted or gone private, and
-that should cost you those channels — not the other two hundred. This was a real
+that should cost you those channels, not the other two hundred. This was a real
 bug: one dead playlist took the whole load down.
 
 A **401, 403 or 429** is about our credentials or our allowance, so it will fail
@@ -138,98 +141,108 @@ here: the endpoint, the status and Google's own wording stay in the `Error`. See
 
 ## Caching
 
-`CachedPoolSource` persists to IndexedDB with a **day-long TTL** — the same
-life as a broadcast day — and degrades to calling straight through when there is
-no usable store, so a private window still gets television.
+`CachedPoolSource` persists to IndexedDB with a **24-hour TTL**, and degrades
+to calling straight through when there is no usable store, so a browser that
+gives it no store still gets television. The TTL decides when a record is used,
+not when it is deleted: a record stays until a fresh load replaces it, its
+account signs out, or the browser's data for the site is cleared or evicted.
 
-What is stored is subscription metadata: titles, durations, IDs. No token ever
-reaches it.
+What is stored is the pool: the subscribed channels' ids, names, topics and
+subscriber counts, and up to twenty uploads from each, with titles, durations,
+dates, categories, view counts and flags. No token ever reaches it.
 
 **The key names whose data it is.** `CachedPoolSourceOptions.scope` is joined to
 the key, and `createPoolSource` passes `() => live.ownerId()`, so the record is
 filed under `pool:<the account's own channel id>`. Two accounts on one browser
-each get their own record and neither can read the other's.
+each get their own record, except in the case in
+[threat-model.md](threat-model.md) T36.
 
 A scope that cannot be established is **not** a key. `#keyFor` returns
 `undefined`, and there is then no read and no write at all, because reading
 under the bare `pool` key would serve whoever was here last. A source that holds
 nobody's data passes no scope: the fixture is the same pool for everyone.
 
-`forget()` empties the store and forwards to the inner source, attempting both
-whatever the other answers, and reporting a failure rather than swallowing it.
-It is what signing out does to the copy held on this machine, and
-`PoolStore.clear()`
-empties **every** key rather than one account's: a viewer asking a browser to
-forget them means the browser, and a set in a hall or a library has had more
-than one person signed into it.
+`forget()` removes this account's record (`PoolStore.remove(key)`) and forwards
+to the inner source, attempting both whatever the other answers, and reporting
+a failure rather than swallowing it. It is what signing out does to the copy
+held on this machine. It removes one key, not every key: a set in a hall or a
+library has had more than one person signed into it, and the one leaving does
+not get to remove the others' records. Clearing the site's data removes them
+all.
 
 ## Brand compliance
 
 Verification aside, Google's sign-in branding guidelines constrain the button
 itself, and the constraints are not the ones you would guess.
 
-**The wording is a closed set.** "Sign in with Google", "Sign up with Google",
-"Continue with Google", or "Sign in" on the icon-only variant, plus the
-personalised "Sign in as …" / "Continue as …" forms. Localisation is the only
-permitted deviation.
+**The wording is a closed set.** The guidelines name "Sign in with Google",
+"Sign up with Google" and "Continue with Google", and say "Localization of this
+text to match the language of your app or website is permitted and encouraged".
 
-A wording like "Use my subscriptions" is more honest about what happens — telly
+A wording like "Use my subscriptions" is more honest about what happens (telly
 does not authenticate anyone, it asks an already-signed-in user to authorise a
-read scope — but it is not on the list. Whether the closed set binds an
-authorisation-only button is genuinely unclear. Assume it does: brand review
-looks at the UI that triggers consent, and a rejection on wording costs a
-multi-week round trip.
+read scope), but it is not on the list. Whether the closed set binds an
+authorisation-only button is unclear. Assume it does: brand review looks at the
+UI that triggers consent, and a rejection on wording costs a round trip.
 
-**None of the app's self-imposed constraints are a problem.** Google ships the
-four-colour G as **inline SVG**, not an image file, and its own CSS declares
-`font-family: 'Google Sans', arial, sans-serif` — so a build with no image
-assets and no web fonts is Google's own published behaviour, not a compromise
-against it. What fails review is wording, logo treatment and prominence.
+**The font is the one constraint the app does not meet exactly.** The
+guidelines say "The button font is Google Sans Medium." The button declares
+`'Google Sans', Roboto, arial, sans-serif` at weight 500 and loads no web font,
+so it shows Google Sans only where the viewer's machine has it installed.
+Google provides the button images "in PNG and SVG formats".
 
-`src/ui/GoogleSignInButton.tsx` therefore draws the mark by hand, and its tests
-are compliance tests rather than UI tests — each pins a rule a sympathetic edit
-would quietly break, far from the submission it would fail:
+`src/ui/GoogleSignInButton.tsx` draws the mark by hand, and its tests are
+compliance tests rather than UI tests: each pins a rule a sympathetic edit would
+quietly break, far from the submission it would fail:
 
 - permitted wording as the accessible name;
 - the mark `aria-hidden`, so the label alone names the button;
-- `viewBox="0 0 48 48"` with equal width and height, which makes distorting the
-  logo structurally impossible rather than merely discouraged;
-- the four brand colours pinned exactly — recolouring the G to match a teak
-  cabinet is precisely the sympathetic change brand review rejects.
+- `viewBox="0 0 48 48"` with equal width and height, which keeps the logo's
+  aspect ratio: the guidelines allow scaling the button "but you must preserve
+  the aspect ratio so that the Google logo is not stretched";
+- the four brand colours pinned exactly: the guidelines require "the standard
+  color version (the standard color gradient super G logo)".
 
-Two further rules apply if the theme ever changes: on `filled_blue` and
-`filled_black` the G must sit on a **white tile** (36px, 3px radius, the 18px
-glyph centred), which is the most commonly missed rule; and the button must be
-sized to its content so the label never ellipsises. The light theme is used here
-partly because it sidesteps the tile entirely.
+One further rule applies if the theme ever changes: the guidelines say the G
+must "appear on a white background", so on a filled theme it needs a white
+background of its own. The light theme is used here partly because the button
+is already white.
 
 The button sits **off the cabinet**, in `.set__corner`. A 1975 television had no
 button for authorising a read scope, and the anachronism does less harm down
 there.
 
 **The way out carries no Google mark.** The guidelines cover the button that
-starts the consent flow; every other use of the marks needs written permission.
+starts the consent flow, and say "Use of Google brands in ways not expressly
+covered by this document is not allowed without prior written consent from
+Google".
 So the sign-out control in the same corner is the set's own plain button, it
 says `Sign out`, and it names Google nowhere. Neither control is rendered at all
 while a page-load resume is still in flight ([tokens.md](tokens.md)).
 
 ## Verification
 
-`youtube.readonly` is a **sensitive** scope, not a **restricted** one, so the
-third-party security assessment (CASA) — which is triggered only by restricted
-scopes — does not apply. For a television on one person's sofa, staying in
-Testing costs one extra sign-in a week, which is cheaper than verification.
+`youtube.readonly` is a **sensitive** scope. Google's sensitive-scope
+verification page says "if your app is in the development, testing, or staging
+phases, verification isn't required", and that page does not mention a
+security assessment.
 
-If that ever stops being true: the homepage and privacy policy must live on a
-domain verified in Search Console as a **Domain property** via DNS TXT, by the
-same Google account that is Owner or Editor on the Cloud project. Authorised
-JavaScript origins are *not* domain-verified, so development on a free
-subdomain is fine indefinitely.
+For verification, Google's pages say: "Verify ownership of your project's
+authorized domains within the Google Search Console. Use a Google Account
+that's associated with your API Console project as an Owner or an Editor."
+"The **Authorized domains** section also needs to include the redirect URIs or
+JavaScript origins authorized in your 'Web application' OAuth client types."
+And: "The privacy policy must be visible to users, hosted within the same
+domain as your application's home page, and linked to on the OAuth consent
+screen."
 
 One trap worth recording because it fails **silently**: never set
-`Cross-Origin-Opener-Policy: same-origin` on the hosting. It nulls
-`window.opener` in the consent popup, the callback never arrives, and sign-in
-hangs with no console error. `same-origin-allow-popups` is the value that works;
-doing nothing at all is also safe, since the default is `unsafe-none`. Never set
-`Cross-Origin-Embedder-Policy: require-corp` either — cross-origin isolation
-blocks `accounts.google.com/gsi/client` outright.
+`Cross-Origin-Opener-Policy: same-origin` on the hosting. Google's setup guide
+says that when FedCM is disabled, "Failing to set the proper header breaks
+communication between windows, leading to a blank pop-up window or similar
+bugs." The site sets no such header, so the page has MDN's default,
+`unsafe-none`, and sign-in works on it. `Cross-Origin-Embedder-Policy:
+require-corp` has not been tried: MDN documents that under it a cross-origin
+resource loads only in `cors` mode or with a `Cross-Origin-Resource-Policy`
+that allows it, and whether `accounts.google.com/gsi/client` qualifies was not
+checked.

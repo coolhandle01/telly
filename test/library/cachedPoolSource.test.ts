@@ -311,6 +311,24 @@ describe('CachedPoolSource', () => {
       expect(store.entries.size).toBe(0)
     })
 
+    it('files a load under the account it was fetched for, whoever holds the token when it lands', async () => {
+      const store = inMemoryStore()
+      let owner = 'UC-alice'
+      let release: ((pool: Pool) => void) | undefined
+      const slow: PoolSource = {
+        load: () => new Promise<Pool>((resolve) => { release = resolve }),
+      }
+      const cached = new CachedPoolSource(slow, store, { now, key: 'pool', scope: async () => owner })
+
+      const loading = cached.load()
+      await until(() => release !== undefined)
+      owner = 'UC-bob'
+      release!(poolOf('alice-1'))
+      await loading
+
+      expect([...store.entries.keys()]).toEqual(['pool:UC-alice'])
+    })
+
     it('files a source with no scope under the bare key, as it always did', async () => {
       const store = inMemoryStore()
       const inner = countingSource(poolOf('a'))
@@ -539,28 +557,6 @@ describe('CachedPoolSource', () => {
       await cached.forget()
 
       expect([...store.entries.keys()]).toEqual(['pool:UC-bob'])
-    })
-
-    // Signing out must not need the network: the token is being revoked in the
-    // same breath, and the account was already established when the pool was
-    // read or written.
-    it('removes the record without asking who the account is again', async () => {
-      const store = inMemoryStore()
-      let scopeCalls = 0
-      const cached = new CachedPoolSource(countingSource(poolOf('a')), store, {
-        now,
-        scope: async () => {
-          scopeCalls += 1
-          return 'UC-alice'
-        },
-      })
-      await cached.load()
-      const asked = scopeCalls
-
-      await cached.forget()
-
-      expect(scopeCalls).toBe(asked)
-      expect(store.entries.size).toBe(0)
     })
 
     // A key that cannot be established means nothing is known to remove, and

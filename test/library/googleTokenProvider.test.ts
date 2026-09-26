@@ -1,11 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  accountFromCredential,
-  ACCOUNT_KEY,
   GIS_SCRIPT_URL,
   GoogleTokenProvider,
-  GRANT_KEY,
-  NO_LOGIN_HINT,
   TOKEN_KEY,
   loadGoogleIdentityServices,
   YOUTUBE_READONLY_SCOPE,
@@ -23,31 +19,29 @@ function idToken(sub: string): string {
 /**
  * Stands in for Google's script. No test may reach the real one.
  *
- * `identity` is what Sign In With Google answers with. `undefined` is a
- * browser that cannot place the viewer without asking, which is the case that
- * leaves the callback unfired.
- *
  * `revocation` is what Google answers a revocation with.
  */
 function fakeGis(
   respond: (prompt: string) => TokenResponse | 'silent',
-  identity?: string,
   revocation: RevocationResponse = { successful: true },
 ) {
   const prompts: string[] = []
-  const hints: (string | undefined)[] = []
+  const requests: unknown[] = []
   const configs: { client_id: string; scope: string }[] = []
   const revoked: string[] = []
-  let autoSelectDisabled = false
-  const gis: GoogleIdentityServices = {
+  const idCalls: string[] = []
+  const gis = {
     accounts: {
       id: {
-        initialize: (config) => {
-          if (identity !== undefined) config.callback({ credential: identity })
+        initialize: (config: { callback: (response: { credential?: string }) => void }) => {
+          idCalls.push('initialize')
+          config.callback({ credential: idToken('sub-alice') })
         },
-        prompt: () => undefined,
+        prompt: () => {
+          idCalls.push('prompt')
+        },
         disableAutoSelect: () => {
-          autoSelectDisabled = true
+          idCalls.push('disableAutoSelect')
         },
       },
       oauth2: {
@@ -57,7 +51,7 @@ function fakeGis(
             requestAccessToken: (overrides) => {
               const prompt = overrides?.prompt ?? ''
               prompts.push(prompt)
-              hints.push(overrides?.login_hint)
+              requests.push(overrides)
               const reply = respond(prompt)
               if (reply === 'silent') config.error_callback?.({ type: 'popup_closed' })
               else config.callback(reply)
@@ -70,19 +64,19 @@ function fakeGis(
         },
       },
     },
-  }
+  } as GoogleIdentityServices
   return {
     gis,
     prompts,
-    hints,
+    requests,
     configs,
     revoked,
-    autoSelect: () => !autoSelectDisabled,
+    idCalls,
     load: vi.fn(() => Promise.resolve(gis)),
   }
 }
 
-/** A `Storage` each test owns, so none inherits another's grant flag. */
+/** A `Storage` each test owns, so none inherits another's token. */
 function fakeStorage(seed: Record<string, string> = {}): Storage {
   const entries = new Map(Object.entries(seed))
   return {
@@ -256,35 +250,42 @@ describe('GoogleTokenProvider', () => {
     expect(longerLived).not.toContain('tok-abc')
   })
 
-  describe('the account identifier', () => {
-    it('reads the sub claim out of an ID token', () => {
-      expect(accountFromCredential(idToken('sub-alice'))).toBe('sub-alice')
-    })
+  it('calls nothing in the id namespace across a sign-in, a reload and a sign-out', async () => {
+    const session = fakeStorage()
+    const { load, idCalls } = fakeGis(() => granted())
 
-    // The value decides nothing except which account a silent request names,
-    // so anything unreadable is simply no hint rather than a fault.
-    it.each([
-      ['nothing at all', undefined],
-      ['a value that is not a token', 'not-a-token'],
-      ['a token whose middle part is not base64', 'a.!!!.c'],
-      ['a token carrying no sub', `x.${btoa(JSON.stringify({ iss: 'google' }))}.y`],
-      ['a token whose sub is empty', `x.${btoa(JSON.stringify({ sub: '' }))}.y`],
-      ['a token whose sub is not a string', `x.${btoa(JSON.stringify({ sub: 7 }))}.y`],
-    ])('has no account for %s', (_case, credential) => {
-      expect(accountFromCredential(credential)).toBeUndefined()
-    })
+    await new GoogleTokenProvider('client-1', { loadGis: load, session }).signIn()
+    const reloaded = new GoogleTokenProvider('client-1', { loadGis: load, session })
+    await reloaded.resume()
+    await reloaded.signOut()
 
-    // An earlier version wrote a boolean here. Nothing reads it now, so it is
-    // taken out rather than left on the machine after the app stopped using it.
-    it('takes out the flag an earlier version left behind', async () => {
-      const storage = fakeStorage({ [GRANT_KEY]: '1' })
-      const { load } = fakeGis(() => granted(), idToken('sub-alice'))
-      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage })
+    expect(idCalls).toEqual([])
+  })
 
-      await provider.signIn()
+  it('asks for consent and names no account, whatever an earlier version stored', async () => {
+    localStorage.setItem('telly.google.account', 'sub-alice')
+    const { load, requests } = fakeGis(() => granted())
+    const provider = new GoogleTokenProvider('client-1', { loadGis: load })
 
-      await vi.waitFor(() => expect(storage.getItem(GRANT_KEY)).toBeNull())
-    })
+    await provider.signIn()
+
+    expect(requests).toStrictEqual([{ prompt: 'consent' }])
+  })
+
+  it('writes nothing to localStorage across a sign-in, a reload and a sign-out', async () => {
+    const session = fakeStorage()
+    const { load } = fakeGis(() => granted())
+    const stored: string[][] = [Object.keys(localStorage)]
+
+    await new GoogleTokenProvider('client-1', { loadGis: load, session }).signIn()
+    stored.push(Object.keys(localStorage))
+    const reloaded = new GoogleTokenProvider('client-1', { loadGis: load, session })
+    await reloaded.resume()
+    stored.push(Object.keys(localStorage))
+    await reloaded.signOut()
+    stored.push(Object.keys(localStorage))
+
+    expect(stored).toEqual([[], [], [], []])
   })
 
   describe('resume', () => {
@@ -294,13 +295,10 @@ describe('GoogleTokenProvider', () => {
       const said: string[] = []
       const diagnose = (event: string, detail?: string) => said.push(detail ? `${event}: ${detail}` : event)
       const { load } = fakeGis(() => granted())
-      // An account already stored keeps `identify` from running and saying so.
-      const known = () => fakeStorage({ [ACCOUNT_KEY]: 'sub-alice' })
 
       // A tab that was holding nothing.
       await new GoogleTokenProvider('client-1', {
         loadGis: load,
-        storage: known(),
         session: fakeStorage(),
         diagnose,
       }).resume()
@@ -310,14 +308,12 @@ describe('GoogleTokenProvider', () => {
       const stale = fakeStorage()
       await new GoogleTokenProvider('client-1', {
         loadGis: load,
-        storage: known(),
         session: stale,
         now: () => clock,
       }).signIn()
       clock += 3_600_000
       await new GoogleTokenProvider('client-1', {
         loadGis: load,
-        storage: known(),
         session: stale,
         now: () => clock,
         diagnose,
@@ -327,19 +323,17 @@ describe('GoogleTokenProvider', () => {
       const good = fakeStorage()
       await new GoogleTokenProvider('client-1', {
         loadGis: load,
-        storage: known(),
         session: good,
       }).signIn()
       await new GoogleTokenProvider('client-1', {
         loadGis: load,
-        storage: known(),
         session: good,
         diagnose,
       }).resume()
 
       expect(said).toEqual([
         'resume: this tab held no token, so it starts at the button',
-        'resume: the held token was past its hour',
+        'resume: the held token was past its time',
         'resume: took up the token this tab held',
       ])
     })
@@ -348,7 +342,6 @@ describe('GoogleTokenProvider', () => {
       const { load } = fakeGis(() => granted())
       const provider = new GoogleTokenProvider('client-1', {
         loadGis: load,
-        storage: fakeStorage(),
         session: fakeStorage(),
       })
 
@@ -395,69 +388,6 @@ describe('GoogleTokenProvider', () => {
       expect(reloaded.isSignedIn).toBe(false)
       expect(session.getItem(TOKEN_KEY)).toBeNull()
     })
-
-    it('learns the account from the ID token when somebody signs in', async () => {
-      const storage = fakeStorage()
-      const { load } = fakeGis(() => granted(), idToken('sub-bob'))
-      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage })
-
-      await provider.signIn()
-      // Learned after the token, because nothing on the screen waits on it.
-      await vi.waitFor(() => expect(storage.getItem(ACCOUNT_KEY)).toBe('sub-bob'))
-    })
-
-    it('signs in without an account when Google will not say who it is', async () => {
-      const storage = fakeStorage()
-      // No identity: a browser that cannot place the viewer without asking.
-      const { load } = fakeGis(() => granted())
-      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage })
-
-      await expect(provider.signIn()).resolves.toBe('tok-abc')
-
-      // The television is on. The next load has no hint, so it starts at the
-      // sign-in button rather than resuming, which is where it started anyway.
-      expect(storage.getItem(ACCOUNT_KEY)).toBeNull()
-    })
-
-    // Read out of the GIS library: the silent path reports `no_login_hint`
-    // when the request arrived without one. That is a complaint about the
-    // request, not a verdict on the grant, and acting on it as a verdict
-    // would delete the value whose absence caused it.
-    it('keeps the account when the complaint is about the hint', async () => {
-      const storage = fakeStorage({ [ACCOUNT_KEY]: 'sub-alice' })
-      const { load } = fakeGis(() => ({ error: NO_LOGIN_HINT }))
-      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage })
-
-      await expect(provider.resume()).resolves.toBe(false)
-
-      expect(storage.getItem(ACCOUNT_KEY)).toBe('sub-alice')
-    })
-
-    // Reported from a real refresh that signed the viewer out. A page-load
-    // request carries no gesture, so the browser can refuse to open anything,
-    // and that refusal says nothing about whether the grant still stands.
-    it('keeps the grant when the browser refuses the request', async () => {
-      const storage = fakeStorage({ [ACCOUNT_KEY]: 'sub-alice' })
-      const { load } = fakeGis(() => 'silent')
-      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage })
-
-      await expect(provider.resume()).resolves.toBe(false)
-
-      expect(storage.getItem(ACCOUNT_KEY)).toBe('sub-alice')
-    })
-
-    // Found by running the built app behind a proxy that broke the script
-    // fetch: the grant was forgotten on the strength of an answer Google never
-    // gave. Only Google knows whether a grant still stands.
-    it('keeps the grant when the script never arrives', async () => {
-      const storage = fakeStorage({ [ACCOUNT_KEY]: 'sub-alice' })
-      const load = vi.fn(() => Promise.reject(new Error('Google Identity Services could not be loaded')))
-      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage })
-
-      await expect(provider.resume()).resolves.toBe(false)
-
-      expect(storage.getItem(ACCOUNT_KEY)).toBe('sub-alice')
-    })
   })
 
   // A grant revoked from the Google account's own settings leaves this tab
@@ -498,19 +428,14 @@ describe('GoogleTokenProvider', () => {
 
   describe('signOut', () => {
     it('hands the token back to Google and forgets it here', async () => {
-      const storage = fakeStorage()
-      const { load, revoked, autoSelect } = fakeGis(() => granted(), idToken('sub-alice'))
-      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage })
+      const { load, revoked } = fakeGis(() => granted())
+      const provider = new GoogleTokenProvider('client-1', { loadGis: load })
       await provider.signIn()
 
       await provider.signOut()
 
       expect(revoked).toEqual(['tok-abc'])
       expect(provider.isSignedIn).toBe(false)
-      expect(storage.getItem(ACCOUNT_KEY)).toBeNull()
-      // GIS records the sign-out on its own side. Its documentation says this
-      // is what stops the next visit signing the viewer straight back in.
-      expect(autoSelect()).toBe(false)
     })
 
     // Google answers a revocation through its callback, and `successful:
@@ -518,13 +443,12 @@ describe('GoogleTokenProvider', () => {
     // for one. The grant is still standing, so the sign-out says so, and the
     // page is signed out all the same.
     it('fails when Google refuses to take the grant back, and forgets it here anyway', async () => {
-      const storage = fakeStorage()
       const session = fakeStorage()
-      const { load, revoked } = fakeGis(() => granted(), undefined, {
+      const { load, revoked } = fakeGis(() => granted(), {
         successful: false,
         error: 'invalid_token',
       })
-      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage, session })
+      const provider = new GoogleTokenProvider('client-1', { loadGis: load, session })
       const seen: boolean[] = []
       provider.subscribe((signedIn) => seen.push(signedIn))
       await provider.signIn()
@@ -541,7 +465,6 @@ describe('GoogleTokenProvider', () => {
       const { load } = fakeGis(() => granted())
       const provider = new GoogleTokenProvider('client-1', {
         loadGis: load,
-        storage: fakeStorage(),
       })
       const seen: boolean[] = []
       provider.subscribe((signedIn) => seen.push(signedIn))
@@ -561,7 +484,6 @@ describe('GoogleTokenProvider', () => {
       const provider = new GoogleTokenProvider('client-1', {
         loadGis: load,
         now: () => clock,
-        storage: fakeStorage(),
         session: fakeStorage(),
       })
 
@@ -572,16 +494,13 @@ describe('GoogleTokenProvider', () => {
 
     it('puts the screen back to signed out, and the token beyond reach', async () => {
       let clock = 0
-      const storage = fakeStorage()
       const session = fakeStorage()
       const { load } = fakeGis(
         () => ({ access_token: 'tok-1', expires_in: 3600 }),
-        idToken('sub-alice'),
       )
       const provider = new GoogleTokenProvider('client-1', {
         loadGis: load,
         now: () => clock,
-        storage,
         session,
       })
       const seen: boolean[] = []
@@ -595,9 +514,6 @@ describe('GoogleTokenProvider', () => {
       expect(provider.isSignedIn).toBe(false)
       // A spent token is no longer worth carrying over a reload.
       expect(session.getItem(TOKEN_KEY)).toBeNull()
-      // The account stays: it is the hint that spares the viewer picking the
-      // account out of a list again on the sign-in that follows.
-      await vi.waitFor(() => expect(storage.getItem(ACCOUNT_KEY)).toBe('sub-alice'))
     })
   })
 
@@ -612,7 +528,6 @@ describe('GoogleTokenProvider', () => {
       const provider = new GoogleTokenProvider('client-1', {
         loadGis: load,
         now: () => clock,
-        storage: fakeStorage(),
       })
       await provider.signIn()
       return {
@@ -655,45 +570,9 @@ describe('GoogleTokenProvider', () => {
     })
   })
 
-  // A private window throws on the property access itself, before any key is
-  // named. Sign-in has to work anyway; only resuming without a prompt is lost.
-  describe('a browser with storage blocked', () => {
-    const throwing = (): Storage =>
-      new Proxy({} as Storage, {
-        get() {
-          throw new DOMException('access is denied for this document', 'SecurityError')
-        },
-      })
-
-    it('signs in', async () => {
-      const { load } = fakeGis(() => granted())
-      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage: throwing() })
-
-      await expect(provider.signIn()).resolves.toBe('tok-abc')
-      expect(provider.isSignedIn).toBe(true)
-    })
-
-    it('asks Google nothing at page load, having no grant it can read', async () => {
-      const { load } = fakeGis(() => granted())
-      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage: throwing() })
-
-      await expect(provider.resume()).resolves.toBe(false)
-      expect(load).not.toHaveBeenCalled()
-    })
-
-    it('signs out', async () => {
-      const { load, revoked } = fakeGis(() => granted())
-      const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage: throwing() })
-      await provider.signIn()
-
-      await expect(provider.signOut()).resolves.toBeUndefined()
-      expect(revoked).toEqual(['tok-abc'])
-    })
-  })
-
   it('takes up nothing twice over: a live session resumes as itself', async () => {
     const { load, prompts } = fakeGis(() => granted())
-    const provider = new GoogleTokenProvider('client-1', { loadGis: load, storage: fakeStorage() })
+    const provider = new GoogleTokenProvider('client-1', { loadGis: load })
     await provider.signIn()
 
     await expect(provider.resume()).resolves.toBe(true)
@@ -712,7 +591,6 @@ describe('GoogleTokenProvider', () => {
       const { load } = fakeGis(() => ({}) as TokenResponse)
       const provider = new GoogleTokenProvider('client-1', {
         loadGis: load,
-        storage: fakeStorage(),
       })
 
       await expect(provider.signIn()).rejects.toThrow(/no token returned/)
@@ -723,7 +601,6 @@ describe('GoogleTokenProvider', () => {
       const { load } = fakeGis(() => ({ error: 'access_denied', access_token: 'tok-abc' }))
       const provider = new GoogleTokenProvider('client-1', {
         loadGis: load,
-        storage: fakeStorage(),
       })
 
       // Google said no. A token beside the refusal is not consent.

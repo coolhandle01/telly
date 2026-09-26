@@ -23,10 +23,10 @@ bars and the glass has something to act on.
 This is **positive confirmation, not error detection**, and the distinction is
 load bearing.
 
-YouTube fails quietly. For some bad IDs it renders its own "unavailable" page
-inside the iframe and never fires an error event at all. Wait for an error and
-you wait for ever, with a black screen. Wait for a picture and the worst case is
-the card staying up — and crucially, *nothing has to go right* for the card to
+YouTube fails quietly. In this app's use it has, for some bad IDs, rendered its
+own "unavailable" page inside the iframe without firing an error event. Wait for
+an error and you wait for ever, with a black screen. Wait for a picture and the
+worst case is the card staying up, and *nothing has to go right* for the card to
 be there.
 
 The watchdog is `DEFAULT_START_TIMEOUT_MS`, and it faults with `'no picture'`.
@@ -61,14 +61,15 @@ the two out of `FetchingApi` never built one. The five things below are why.
 
 ## Five things that look odd until they don't
 
-Each of these was a real evening of black screen.
+Each of these was a real evening of black screen, and each describes behaviour
+seen in a browser rather than read in YouTube's reference.
 
-**An error tears the player down.** A YouTube player that has errored *stays*
-errored: `loadVideoById` on it does nothing, silently. Without a rebuild, one
-failed video means no picture for the rest of the night.
+**An error tears the player down.** A YouTube player that had errored *stayed*
+errored: `loadVideoById` on it did nothing, silently. Without a rebuild, one
+failed video meant no picture for the rest of the night.
 
 **So does `stop()`.** The surface removes its host element when it unmounts, and
-**an iframe that moves in the DOM reloads** — severing the player object from
+**an iframe that moves in the DOM reloads**, which severs the player object from
 the frame it thinks it is driving. This is why powering the set off and on used
 to kill the stream until a refresh.
 
@@ -84,7 +85,7 @@ this.#host.replaceChildren(target)
 ```
 
 The size must also go in the *options* (`width: '100%', height: '100%'`), not
-just in CSS on the host — the host is gone by the time the iframe exists. Both
+just in CSS on the target: the target is gone by the time the iframe exists. Both
 host and target are `position: absolute; inset: 0`, because the iframe ends up
 one level deeper than you expect and a percentage height resolves against
 whatever it can find.
@@ -92,7 +93,7 @@ whatever it can find.
 **Nothing may be asked of the handle until `onReady`.** `new YT.Player()`
 returns an object immediately, but the API grafts its methods on only when the
 frame reports ready. In between, the handle exists and `setVolume`,
-`playVideo`, `loadVideoById`, `stopVideo` and `destroy` are all `undefined` —
+`playVideo`, `loadVideoById`, `stopVideo` and `destroy` are all `undefined`,
 so turning the volume knob, or a junction arriving, during those few hundred
 milliseconds is a TypeError in the console and a programme that never starts.
 
@@ -105,7 +106,7 @@ Two consequences fall out of the same fact. A mount whose host has left the
 document is **abandoned**, because the surface can unmount while the API is
 still being fetched and a player built into a detached element can never show
 anyone a picture. And every mount takes a **generation number**, because a torn
-down frame still fires its callbacks — the API has no idea it is gone — and
+down frame still fires its callbacks (the API has no idea it is gone), and
 without that they land on whatever player exists by the time they arrive.
 
 **The load effect deliberately omits `offsetSec`** from its dependencies. It
@@ -117,14 +118,15 @@ day still counts as a new item.
 
 `loadYouTubeIframeApi` must have both a **reject path and a `script.onerror`**.
 Without them, a blocked script leaves a promise that never settles, which is
-indistinguishable from one that is merely slow — and the screen never explains
+indistinguishable from one that is merely slow, and the screen never explains
 itself. The same rule applies to the GIS loader; see [tokens.md](tokens.md).
 
 ## The seam
 
 `Player` is an interface. `YouTubeIframePlayer` is the real one;
-`FakePlayer` records calls and pushes faults on demand. jsdom has no media and
-no IFrame API, so without this seam none of the behaviour above could be tested
-at all — and, as [testing.md](testing.md) notes, jsdom never fetches an external
-resource so it never fires `error` either. Every failure mode on this page was
-found in a real browser, not in the suite.
+`FakePlayer` records calls and pushes faults on demand. jsdom has no IFrame API,
+so without this seam none of the behaviour above could be tested at all. The
+suite never loads YouTube's script either: the loader is injected
+(`ScriptLoader`), so a blocked script is something a test hands in, not
+something it meets. Every failure mode on this page was found in a real
+browser, not in the suite.

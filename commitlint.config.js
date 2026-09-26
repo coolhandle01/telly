@@ -2,8 +2,9 @@
  * Conventional Commits, because the merge method is Squash and nothing else.
  *
  * A squash merge writes the pull request *title* as the commit subject on
- * main, so the title faces this rule as much as the commits do — see the
- * `commits` job in `.github/workflows/analysers.yml`, which checks both.
+ * main, so the title faces this rule as much as the commits do
+ * 
+ * see the `commits` job in `.github/workflows/analysers.yml`.
  *
  * The prefix is the only part that is machine-read. The body stays prose: what
  * changed and why, at whatever length the change deserves.

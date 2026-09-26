@@ -192,7 +192,10 @@ programmes ends the session.
 done)`, which hands back **every scope granted to this app**, and then drops the
 in-memory token. `revoke` needs a live token, so it goes first; the local state
 is cleared whatever it answers, because a viewer who asked to be signed out is
-signed out of this page either way.
+signed out of this page either way. Google answers through `done`, and only
+`successful: true` means the grant is gone: any other answer, such as the
+refusal Google gives a token past its hour, makes `signOut` reject, so the
+grant is reported as still standing.
 
 That is only the Google half. `googleSession(tokens, source)` in
 `src/library/session.ts` ties it to the other one, and attempts both whatever

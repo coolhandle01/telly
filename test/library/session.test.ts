@@ -11,7 +11,7 @@ import { googleSession, SignOutError } from '@/library/session'
 const EMPTY_POOL: Pool = { videos: [], channels: new Map() }
 
 /** Stands in for Google's script. No test may reach the real one. */
-function fakeGis(options: { revokeThrows?: boolean } = {}) {
+function fakeGis(options: { revokeThrows?: boolean; revokeRefused?: boolean } = {}) {
   const revoked: string[] = []
   const gis: GoogleIdentityServices = {
     accounts: {
@@ -25,7 +25,11 @@ function fakeGis(options: { revokeThrows?: boolean } = {}) {
         revoke: (accessToken, done) => {
           if (options.revokeThrows) throw new Error('revocation was refused')
           revoked.push(accessToken)
-          done?.({ successful: true })
+          done?.(
+            options.revokeRefused
+              ? { successful: false, error: 'invalid_token' }
+              : { successful: true },
+          )
         },
       },
     },
@@ -69,8 +73,13 @@ function countingSource(options: { forgetFails?: boolean } = {}) {
   return { source, calls }
 }
 
-function build(options: { revokeThrows?: boolean; forgetFails?: boolean } = {}) {
-  const { revoked, load } = fakeGis({ revokeThrows: options.revokeThrows })
+function build(
+  options: { revokeThrows?: boolean; revokeRefused?: boolean; forgetFails?: boolean } = {},
+) {
+  const { revoked, load } = fakeGis({
+    revokeThrows: options.revokeThrows,
+    revokeRefused: options.revokeRefused,
+  })
   const tokens = new GoogleTokenProvider('client-1', { loadGis: load, storage: fakeStorage() })
   const { source, calls } = countingSource({ forgetFails: options.forgetFails })
   return { tokens, source, calls, revoked, session: googleSession(tokens, source) }
@@ -136,6 +145,21 @@ describe('googleSession', () => {
       expect(refused).toBeInstanceOf(SignOutError)
       expect(refused).toMatchObject({ revoked: false, cleared: true })
       expect((refused as SignOutError).cause).toMatchObject({ message: 'revocation was refused' })
+      expect(calls.forget).toBe(1)
+    })
+
+    // Google answers a revocation through its callback, and a refusal is an
+    // answer: `successful: false`, as it gives for a token past its hour. The
+    // grant is still standing, so the viewer is told it is.
+    it('reports the grant as standing when Google refuses to take it back', async () => {
+      const { session, calls, revoked } = build({ revokeRefused: true })
+      await session.signIn()
+
+      const refused = await session.signOut().catch((error: unknown) => error)
+
+      expect(revoked).toEqual(['tok-abc'])
+      expect(refused).toBeInstanceOf(SignOutError)
+      expect(refused).toMatchObject({ revoked: false, cleared: true })
       expect(calls.forget).toBe(1)
     })
 

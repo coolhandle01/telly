@@ -1,12 +1,9 @@
 import type { PoolStore, StoredPool } from './poolStore'
 
 /**
- * A very small promise wrapper over raw IndexedDB — one object store, one
- * record per key. Deliberately not a library: the API surface we need is a get
- * and a put, and a dependency here would be more code than this file.
- *
- * Everything it can throw is caught by `CachedPoolSource`, which treats a
- * failure as a cache miss. Nothing here may take the channel off the air.
+ * A very small promise wrapper over raw IndexedDB: one object store, one
+ * record per key. Deliberately not a library: a dependency here would be more
+ * code than this file.
  */
 
 const DB_NAME = 'testcard'
@@ -84,7 +81,7 @@ export class IndexedDbPoolStore implements PoolStore {
       }
       request.onerror = () => reject(request.error ?? new Error('indexeddb could not be opened'))
       // A blocked open means another tab holds an older version. Don't wait
-      // for it: an unopened database is a cache miss, and the channel goes on.
+      // for it.
       request.onblocked = () => reject(new Error('indexeddb open is blocked by another tab'))
     }).catch((error: unknown) => {
       this.#database = undefined

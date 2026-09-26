@@ -141,11 +141,6 @@ describe('CachedPoolSource', () => {
       expect(pool.channels.size).toBe(1)
     })
 
-    // Widened: the original modelled corruption as *absence*, which is exactly
-    // what `stored.videos ?? []` at cachedPoolSource.ts:97-98 was written for:
-    // it exercised the guard instead of probing past it. A record written by
-    // anything other than this app has fields that are present and the wrong
-    // type, and `??` cannot see those at all.
     it.each([
       ['has lost its arrays', () => ({ savedAt: clock })],
       ['has a videos field that is not an array', () => ({ savedAt: clock, videos: 7, channels: [] })],
@@ -156,12 +151,8 @@ describe('CachedPoolSource', () => {
 
       const loading = new CachedPoolSource(countingSource(poolOf('a')), store, { now, key: 'pool' }).load()
 
-      // Nothing here may take the channel off the air (indexedDbPoolStore.ts:9).
       await expect(loading).resolves.toBeDefined()
       const pool = await loading
-      // The old assertions only checked the two `?? []` defaults. They never
-      // asked whether what came back was a usable Pool at all, which is the
-      // property the render downstream depends on.
       expect(Array.isArray(pool.videos)).toBe(true)
       expect(pool.channels).toBeInstanceOf(Map)
     })
@@ -179,11 +170,6 @@ describe('CachedPoolSource', () => {
       expect(store.entries.get('pool')?.savedAt).toBe(clock)
     })
 
-    // Widened: the original's "corrupt record" was still a *number*, just a
-    // wrong one, so the subtraction at cachedPoolSource.ts:73 always succeeded
-    // and only the comparison was ever exercised. That arithmetic runs outside
-    // the file's only try/catch (:60-65), so a stamp of the wrong type is not a
-    // cache miss: it is a rejected load, on every visit, until site data goes.
     it.each([
       ['stamped in the future', () => clock + 10 * 24 * HOUR],
       ['stamped with something that is not a number', () => 'the day before yesterday'],

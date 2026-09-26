@@ -5,7 +5,7 @@
  *
  * Positions within the day are held as offsets from that 06.00 anchor, so all
  * scheduling arithmetic is plain integers with no wrapping, no timezone and no
- * Date. Only `tune` converts back to an instant.
+ * Date.
  */
 
 /** Local hour at which one broadcast day gives way to the next. */

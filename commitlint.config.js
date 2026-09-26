@@ -12,9 +12,6 @@
 export default {
   extends: ['@commitlint/config-conventional'],
   rules: {
-    // The default set of types, minus the ones this repository has no use for
-    // (`perf` and `revert` are kept; `build` and `ci` earn their place with
-    // Vite config and the workflows).
     'type-enum': [
       2,
       'always',

@@ -22,7 +22,7 @@ export type OnAir =
       daypart: DaypartId
     }
 
-/** What is on after this. Used by the now/next caption; absent at day's end. */
+/** What is on after this; absent at day's end. */
 export interface NowAndNext {
   now: OnAir
   next?: ScheduleItem

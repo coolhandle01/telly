@@ -225,9 +225,6 @@ export class YouTubePoolSource implements PoolSource {
    * no name, no address, nothing the app has not already been granted. It
    * exists to key the cache: two accounts on one browser must not be able to
    * read each other's pool.
-   *
-   * Held for the life of the source, which is the life of a signed-in
-   * session, so it costs its one unit once.
    */
   async ownerId(): Promise<string> {
     this.#owner ??= this.#fetchOwnerId().catch((error: unknown) => {

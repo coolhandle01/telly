@@ -4,8 +4,8 @@ import type { PoolStore, StoredPool } from './poolStore'
 
 /**
  * A cache over any other source. The pool changes about as often as your
- * subscriptions upload, so it is refetched once a day — at closedown, when
- * nothing is on air anyway — and served from storage in between.
+ * subscriptions upload, so a saved copy is served until it is a day old and
+ * refetched on the next load after that.
  *
  * Storage is best-effort by design: a browser that cannot give us a database
  * (private window, storage blocked, a corrupt object store) gets television
@@ -17,7 +17,6 @@ import type { PoolStore, StoredPool } from './poolStore'
  * their own television, and neither is shown the other's.
  */
 
-/** Closedown to closedown. */
 export const DEFAULT_POOL_TTL_MS = 24 * 60 * 60 * 1000
 
 export const DEFAULT_POOL_KEY = 'pool'
@@ -123,8 +122,7 @@ export class CachedPoolSource implements PoolSource {
    *
    * A record belongs to the account that signed in for it. Someone signing
    * out has asked to be forgotten, which is not the same as asking for
-   * everybody else at this machine to be forgotten too, and a record thrown
-   * away costs its owner the whole day's quota to fetch again.
+   * everybody else at this machine to be forgotten too.
    */
   async #remove(key: string | undefined): Promise<void> {
     if (!this.#store) return
@@ -167,8 +165,8 @@ export class CachedPoolSource implements PoolSource {
 
   /**
    * A stamp from the future means a moved clock or a corrupt record: distrust
-   * it. The type check comes first because this runs outside the try/catch at
-   * :60, and IndexedDB stores a BigInt happily: `number - bigint` throws.
+   * it. The type check comes first because this runs outside the try/catch in
+   * `#readFresh`, and IndexedDB stores a BigInt happily: `number - bigint` throws.
    */
   #isFresh(savedAt: unknown): boolean {
     if (typeof savedAt !== 'number' || !Number.isFinite(savedAt)) return false

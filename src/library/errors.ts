@@ -14,8 +14,6 @@ export class YouTubeApiError extends Error {
 
 /**
  * The daily 10,000-unit quota is spent (or the per-minute rate limit is).
- * Distinguishable on purpose: the screen above shows the test card for the rest
- * of the day rather than spinning or retrying into the same wall.
  */
 export class QuotaExceededError extends YouTubeApiError {
   constructor(status: number, reason: string | undefined, message: string) {

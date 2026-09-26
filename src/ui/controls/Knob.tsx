@@ -134,7 +134,6 @@ const CSS = `
  */
 export function Knob({ label, value, onChange, step = DEFAULT_STEP }: KnobProps) {
   const { id, url } = useSurfaceIds()
-  /** Where this drag started, in pixels and in value. Null between drags. */
   const { current, onKeyDown, onPointerDown, onPointerMove, endDrag } = useRotary({
     value,
     onChange,

@@ -12,8 +12,7 @@ import { STATIONS, stationById, type Station, type StationId } from './stations'
  * its own hours and its own taste, so tuning around the presets shows five
  * genuinely different evenings rather than one schedule wearing five hats.
  *
- * Pure and deterministic, like the packer it sits on: the same pool and the
- * same date give the same week, every time and on every machine.
+ * Pure and deterministic, like the packer it sits on.
  */
 export interface Listings {
   /** Which subscription belongs to which station. */
@@ -41,7 +40,6 @@ export function planStations(pool: Pool, options: ListingsOptions): Listings {
   return { lineup, profiles, schedules }
 }
 
-/** One station's day. Exported because the set only ever needs one at a time. */
 export function planStation(
   station: Station,
   pool: Pool,

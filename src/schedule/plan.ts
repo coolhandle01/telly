@@ -77,13 +77,12 @@ const JITTER_SPREAD = 0.5
  * A station with seven suppliers and nineteen hours to fill runs out, and what
  * it did about that was show things again — an afternoon repeat of last
  * night's documentary was not a failure of the schedule, it was the schedule.
- * So a programme may go out twice in a day, a long way apart, and only once
- * nothing new will fit.
+ * So a programme may go out twice in a day, a long way apart.
  */
 const MAX_SHOWINGS = 2
 /** How long before a repeat: far enough that nobody is watching both. */
 const MIN_REPEAT_GAP_SEC = 4 * 3600
-/** What a second showing is worth against a first. Always the last resort. */
+/** What a second showing is worth against a first. */
 const REPEAT_PENALTY = 0.2
 
 const MS_PER_DAY = 86_400_000

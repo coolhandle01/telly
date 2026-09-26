@@ -13,13 +13,7 @@
  * deviation. The button this replaced said "Use my subscriptions", which is
  * honest about what happens and is not on that list. Brand review looks at the
  * UI that triggers consent, so if this app is ever submitted for verification
- * the wording is what gets read. See `docs/verification-roadmap.md`.
- *
- * Drawn rather than fetched, which costs nothing here: Google ships the
- * four-colour G as inline SVG, not as an image file, and declares
- * `font-family: 'Google Sans', arial, sans-serif` — so a build with no image
- * assets and no web fonts is exactly Google's own behaviour, not a compromise
- * against it. What fails review is wording, logo treatment and prominence.
+ * the wording is what gets read.
  *
  * The light theme is used because the page behind it is black: a white button
  * reads as the standard article at a glance, and on a white ground the G sits
@@ -47,15 +41,12 @@ const CSS = `
   background: #fff;
   color: #1f1f1f;
   cursor: pointer;
-  /* Google's own declared stack. Arial is Google's published fallback, not
-     ours, so no web font is needed to be faithful. */
   font: 500 14px/1 'Google Sans', Roboto, arial, sans-serif;
   letter-spacing: 0.25px;
   /* Sized to its content: the label must never ellipsise. */
   white-space: nowrap;
   transition: background-color 120ms linear, box-shadow 120ms linear;
 }
-/* Google's state layer: #303030 over the surface, 8% on hover, 12% held. */
 .gsi:hover { background: #ebebeb; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px 1px rgba(0, 0, 0, 0.15); }
 .gsi:active { background: #e0e0e0; }
 .gsi:focus-visible { outline: 3px solid #a8c7fa; outline-offset: 2px; }

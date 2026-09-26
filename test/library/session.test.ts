@@ -130,8 +130,8 @@ describe('googleSession', () => {
     })
 
     // Google answers a revocation through its callback, and a refusal is an
-    // answer: `successful: false`, as it gives for a token past its hour. The
-    // grant is still standing, so the viewer is told it is.
+    // answer: `successful: false`. The grant is still standing, so the viewer
+    // is told it is.
     it('reports the grant as standing when Google refuses to take it back', async () => {
       const { session, calls, revoked } = build({ revokeRefused: true })
       await session.signIn()

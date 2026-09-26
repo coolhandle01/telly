@@ -8,8 +8,8 @@ import type { Channel, DaypartId, Pool, Video } from '../domain'
 export type Affinities = Partial<Record<DaypartId, number>>
 
 /**
- * The seam. `HeuristicClassifier` ships; an LLM-backed one implements the same
- * interface later, and `OverridingClassifier` decorates either.
+ * The seam. `StationClassifier` and `HeuristicClassifier` implement it, and
+ * `OverridingClassifier` decorates either.
  */
 export interface Classifier {
   classify(video: Video, channel?: Channel): Affinities
@@ -138,7 +138,7 @@ export class HeuristicClassifier implements Classifier {
 
       // Duration is the hard signal. A keyword or a channel habit can lift a
       // programme up the running order; neither can put a thirty-second short
-      // in the two-hour late-night slot because the word "live" is in its
+      // in the late-night slot because the word "live" is in its
       // title — which is exactly what used to happen, and what a short doing
       // an impression of a film looks like from the sofa.
       const fit = bandFit(video.durationSec, band)
@@ -181,9 +181,7 @@ function observeHabits(pool: Pool): ReadonlyMap<string, number> {
 }
 
 /**
- * The escape hatch that makes heuristics liveable. A pinned channel goes where
- * it is pinned and nowhere else — total, by construction, so misfiling is
- * always one line of config away from being fixed for good.
+ * A pinned channel goes where it is pinned and nowhere else.
  *
  * Eligibility still wins: pinning cannot schedule a live or unembeddable video,
  * because nothing can.

@@ -13,7 +13,6 @@ import type { OnAir } from '../domain'
 /** Why the picture went. Reported, never recovered from — see `onFault`. */
 export interface PlayerFault {
   videoId: string
-  /** The underlying player's own error code, kept for the log. */
   code: number
   reason: string
 }

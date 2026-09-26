@@ -166,7 +166,7 @@ describe('GoogleTokenProvider', () => {
   // `requestAccessToken` is reached only when the script has turned on an
   // experiment it never turns on, so `prompt: 'none'` falls through to the
   // popup branch like every other prompt. A popup wants a gesture behind it,
-  // and an hour quietly running out has none. So the hour ending ends the
+  // and a token quietly running out has none. So its expiry ends the
   // session, and the next token comes from a click.
   it('ends the session when the token reaches its end, asking Google nothing', async () => {
     let clock = 0
@@ -439,9 +439,8 @@ describe('GoogleTokenProvider', () => {
     })
 
     // Google answers a revocation through its callback, and `successful:
-    // false` is Google keeping the grant: it refuses a token past its hour,
-    // for one. The grant is still standing, so the sign-out says so, and the
-    // page is signed out all the same.
+    // false` is Google keeping the grant. The grant is still standing, so the
+    // sign-out says so, and the page is signed out all the same.
     it('fails when Google refuses to take the grant back, and forgets it here anyway', async () => {
       const session = fakeStorage()
       const { load, revoked } = fakeGis(() => granted(), {
@@ -553,7 +552,7 @@ describe('GoogleTokenProvider', () => {
     })
 
     // A life that cannot be read is treated as already over, so the next call
-    // renews rather than sending a token of unknown standing.
+    // ends the session rather than sending a token of unknown standing.
     it('treats a life it cannot read as spent', async () => {
       const token = await lifetimeOf('not a number')
 
@@ -629,12 +628,6 @@ describe('loadGoogleIdentityServices', () => {
     scriptTag()?.dispatchEvent(new Event('load'))
     await expect(pending).rejects.toThrow(/exposed no oauth2/i)
 
-    // Widened: one call can never see the hang. This path leaves its <script>
-    // in the document (only the error path removes it), so a second call takes
-    // the `existing` branch at googleTokenProvider.ts:56, attaches listeners to
-    // a tag that has already fired, and appends nothing: no event will ever
-    // come. The docstring at :48-50 says a blocked script must not hang; the
-    // narrow test only proved that of the very first call.
     const second = loadGoogleIdentityServices()
     const outcome = await Promise.race([
       second.then(

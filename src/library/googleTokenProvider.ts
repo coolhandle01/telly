@@ -39,13 +39,10 @@ export const TOKEN_KEY = 'telly.google.token'
 /**
  * A sign-in that produced no token, carrying the reason as its own field.
  *
- * The reason decides what the viewer is asked to do next: a closed popup is
- * "try again", a blocked one is "allow popups", a refused scope is neither.
- * It is a field rather than a sentence because the wording belongs to the
- * screen, and the message here is for whoever is holding the Error.
+ * The reason is a field rather than a sentence because the wording belongs to
+ * the screen, and the message here is for whoever is holding the Error.
  */
 export class SignInError extends Error {
-  /** GIS's `error_callback` type, or the token response's `error`. */
   readonly reason: string
 
   constructor(reason: string) {
@@ -76,12 +73,10 @@ export interface RevocationResponse {
 /**
  * What a token request may ask of the viewer, as GIS defines it.
  *
- * The values are not interchangeable and the difference is the whole of the
- * page-load behaviour. `'none'` shows nothing at all. The empty string asks
- * only on the first request this app makes, so it is the value for a sign-in
- * button and not for a page load. `'consent'` and `'select_account'` always
- * show a screen, and `'select_account'` is what GIS uses when nothing is
- * passed.
+ * The values are not interchangeable. `'none'` shows nothing at all. The empty
+ * string asks only on the first request this app makes. `'consent'` and
+ * `'select_account'` always show a screen, and `'select_account'` is what GIS
+ * uses when nothing is passed.
  *
  * Narrowed to the four rather than left as `string`, because passing a value
  * GIS does not define is how this app spent a week signing people out on
@@ -174,8 +169,7 @@ const EXPIRY_MARGIN_MS = 60_000
  * somebody debugging needs and cannot otherwise get, because the failure
  * paths here all end in `false` and a sign-in button.
  *
- * No value from Google is included beyond the reason it gave, and the token
- * is not one of them.
+ * No value from Google is included.
  */
 export type Diagnostic =
   | 'resume: this tab held no token, so it starts at the button'
@@ -196,12 +190,6 @@ export interface HeldToken {
   expiresAtMs: number
 }
 
-/**
- * Reads and writes the held token.
- *
- * Wrapped because a browser with site data
- * blocked throws on the property access itself, before any key is named.
- */
 function rememberToken(session: Storage | undefined, held: HeldToken | undefined): void {
   try {
     if (held !== undefined) session?.setItem(TOKEN_KEY, JSON.stringify(held))
@@ -358,8 +346,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
 
   /**
    * Resolves only when Google answers that the grant is gone. Any other
-   * answer rejects: Google refuses a token past its time, and then the grant
-   * is still standing.
+   * answer rejects.
    */
   #revoke(token: string): Promise<void> {
     return this.#loadGis().then(
@@ -512,9 +499,8 @@ export class GoogleTokenProvider implements AccessTokenProvider {
       return
     }
 
-    // A response that says nothing about its life is treated as the time GIS
-    // issues, and a garbled one as already over, so `isSignedIn` stays false
-    // and the next call renews.
+    // A garbled `expires_in` is treated as already over, so `isSignedIn` stays
+    // false.
     const lifetimeSec = Number(response.expires_in ?? 3600)
     this.#token = response.access_token
     this.#expiresAtMs = this.#now() + (Number.isFinite(lifetimeSec) ? lifetimeSec : 0) * 1000

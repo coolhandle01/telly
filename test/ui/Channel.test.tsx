@@ -90,8 +90,6 @@ describe('Channel', () => {
     const { player, sound, view } = setUp(SMALL_HOURS)
     await switchOn(view.user)
 
-    // The card is up before the schedule is: it is the channel's base state,
-    // and the tone follows the schedule rather than the picture.
     await waitFor(() => expect(screen.getByRole('timer')).toBeInTheDocument())
     await waitFor(() => expect(sound.tone).toHaveBeenCalled())
     // Closedown carries no programmes, so nothing was ever asked of the player.
@@ -462,8 +460,7 @@ describe('Channel', () => {
       expect(signInButton()).toBeInTheDocument()
     })
 
-    // A refresh is not a sign-out. Google's token model takes a token at page
-    // load, and taking one up is what keeps a returning viewer signed in.
+    // A refresh is not a sign-out.
     it('shows the way out when a grant is taken up at page load', async () => {
       render_(fakeSession({ resume: async () => true }).session)
 
@@ -483,7 +480,7 @@ describe('Channel', () => {
       expect(signOutButton()).toBeNull()
     })
 
-    // Nothing was clicked: the token's hour ran out. The corner has to follow
+    // Nothing was clicked: the token expired. The corner has to follow
     // it, or the set offers a way out of a session that has already ended.
     it('follows the session when the token expires on its own', async () => {
       const { session, announce } = fakeSession({ resume: async () => true })
@@ -572,8 +569,6 @@ describe('Channel', () => {
       expect(screen.queryByRole('button', { name: /telly guide/i })).toBeNull()
     })
 
-    // The signed-out set runs on the fixture, so switching it on shows
-    // television rather than the failure of a request with no token behind it.
     it('does not touch the signed-in source while nobody is signed in', async () => {
       let loads = 0
       const counting: PoolSource = {
@@ -726,8 +721,8 @@ describe('Channel', () => {
   })
 
   /*
-    Five of the six presets have nothing on them. That is not the same thing as
-    a station with nothing to broadcast — which is what a test card is for — and
+    The sixth preset has nothing on it. That is not the same thing as
+    a station with nothing to broadcast, which is what a test card is for, and
     a 1975 set did not confuse the two: no carrier meant snow and hiss.
   */
   describe('an empty preset', () => {
@@ -807,7 +802,6 @@ describe('Channel', () => {
 
       const page = await screen.findByRole('dialog', { name: /listings/i })
       expect(within(page).getByRole('heading', { name: CHANNEL })).toBeInTheDocument()
-      // No column is ringed, because the set is not tuned to one.
       expect(page.querySelectorAll('[data-tuned="true"]')).toHaveLength(0)
     })
   })

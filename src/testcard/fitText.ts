@@ -9,10 +9,10 @@ const MONO_ADVANCE = 0.6
  * The largest font size at which `text` still fits `maxWidth`, never larger
  * than `preferred`.
  *
- * Captions vary: a channel name, a date, a resume time, a fault that runs to
- * forty-odd characters. A line that spills out of its box reads as a mistake
- * rather than as a test card, and the box is a fixed fraction of the picture,
- * so it is the type that has to give.
+ * Captions vary: a channel name, a date, a resume time, a fault message. A
+ * line that spills out of its box reads as a mistake rather than as a test
+ * card, and the box is a fixed fraction of the picture, so it is the type that
+ * has to give.
  */
 export function fitFontSize(
   text: string,

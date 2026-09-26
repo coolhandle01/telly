@@ -284,10 +284,9 @@ export class YouTubeIframePlayer implements Player {
     const current = () => generation === this.#generation
 
     const handle = new api.Player(target, {
-      // The API *replaces* the host element with an iframe of its own, so
-      // styling the host achieves nothing — the size has to be passed in here.
-      // Without it you get YouTube's 640x390 default sitting in the corner of
-      // the stage, which on a television reads as nothing showing at all.
+      // The size has to be passed in here. Without it you get YouTube's
+      // 640x390 default sitting in the corner of the stage, which on a
+      // television reads as nothing showing at all.
       width: '100%',
       height: '100%',
       videoId: cue.videoId,

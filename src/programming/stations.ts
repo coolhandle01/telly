@@ -108,7 +108,7 @@ const ONE_DAY: readonly Daypart[] = [
   closedownFrom(atClock(1, 30)),
 ]
 
-/** Eleven till two. Nothing before lunch, and an hour longer at the end of it. */
+/** Eleven till two. */
 const TWO_DAY: readonly Daypart[] = [
   offAirUntil(atClock(11)),
   { id: 'mid-morning', name: 'Late Morning', startMin: atClock(11), endMin: atClock(13), junction: false },
@@ -146,8 +146,7 @@ const FOUR_DAY: readonly Daypart[] = [
 
 /**
  * Twenty-four hours. Nothing closes down, which means something has to fill
- * the small hours — so the clip show gets them, and everything under a minute
- * in the whole subscription list ends up there.
+ * the small hours, so the clip show gets them.
  */
 const FIVE_DAY: readonly Daypart[] = [
   { id: 'breakfast', name: 'Breakfast', startMin: atClock(6), endMin: atClock(9), junction: false },
@@ -281,7 +280,7 @@ export const STATIONS: readonly Station[] = [
 
 export const STATION_IDS: readonly StationId[] = STATIONS.map((station) => station.id)
 
-/** The one the set comes up on, and the only one tuned dead centre. */
+/** The one the set comes up on. */
 export const DEFAULT_STATION: StationId = 1
 
 export function stationById(id: number): Station | undefined {

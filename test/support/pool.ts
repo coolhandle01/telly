@@ -25,7 +25,7 @@ function seeded(seed: number): () => number {
 interface ChannelSpec {
   id: string
   title: string
-  /** As `topicDetails.topicCategories` gives them: Wikipedia slugs. */
+  /** Wikipedia slugs. */
   topics: readonly string[]
   categoryId?: string
   /** Typical upload length, in minutes: [min, max]. */
@@ -40,8 +40,8 @@ interface ChannelSpec {
 /**
  * The subscription list. Genre, cadence and length are all deliberate: between
  * them they have to produce a plausible week on five stations at once, so
- * there is a daily news channel and a monthly film essayist, an hour of
- * documentary a week and a channel that posts nothing but forty-second clips.
+ * there is a daily news channel, an hour of documentary a week and a channel
+ * that posts nothing but forty-second clips.
  */
 const CHANNEL_SPECS: readonly ChannelSpec[] = [
   // News and current affairs — the spine of the daytime schedule.

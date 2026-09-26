@@ -25,7 +25,7 @@ export interface Subscription {
   format: Format
   /** 0..1 against the rest of the pool: how well watched this one is. */
   standing: number
-  /** Everything it posts is 18+. Nothing it makes goes out before nine. */
+  /** Nothing it makes goes out before nine. */
   restricted: boolean
   /** Declared children's television. Daytime, and not after tea. */
   forChildren: boolean

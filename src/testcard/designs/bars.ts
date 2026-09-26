@@ -11,7 +11,7 @@ import { COLOUR_BARS, PALETTE, greyLevel } from '../palette'
 import type { RectShape, Shape, TestCardModel, TestCardSpec } from '../model'
 
 /**
- * The colour bars card: eight full-height EBU bars down the whole picture, a
+ * The colour bars card: eight EBU bars across the picture, a
  * shallow band of their complements beneath, then the engineer's row — a PLUGE
  * run of near-black steps with a peak-white and a full-black reference either
  * side of it.

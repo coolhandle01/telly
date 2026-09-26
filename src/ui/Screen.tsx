@@ -37,10 +37,6 @@ export interface ScreenProps {
  * carries the frame oscillator, and the line layer carries the line
  * oscillator. Stacking them keeps each one's transform its own — a single
  * element cannot be collapsing, rolling and tearing at the same time.
- *
- * The set's own on-screen display sits outside all three, in `overlay`. It is
- * generated in the cabinet rather than received, so nothing the tuner does
- * reaches it.
  */
 export function Screen({
   label,

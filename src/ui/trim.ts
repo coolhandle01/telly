@@ -1,11 +1,10 @@
 /**
  * The arithmetic every trimmer on the set shares.
  *
- * All five run 0..1 with mid-travel as the setting the picture was made for,
- * and three of them — both holds and the tuner — lock over a *band* either
- * side of it rather than at a point. That band is not a nicety: a control
- * that only worked at one exact value could not be found by hand, which is
- * the only way anyone ever set one.
+ * All five run 0..1, and three of them, both holds and the tuner, lock over a
+ * *band* rather than at a point. That band is not a nicety: a control that
+ * only worked at one exact value could not be found by hand, which is the
+ * only way anyone ever set one.
  */
 
 /** Mid-travel: as transmitted. */

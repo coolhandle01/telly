@@ -11,8 +11,8 @@ import type { Format } from './profile'
  * station to station is only whether it carries them at all, and that lives in
  * the station's own appetite.
  *
- * Together they make the whole decision: the slot says *when*, the station says
- * *whether*, and the two are multiplied.
+ * Together they make the whole decision: the slot says *when* and the station
+ * says *whether*.
  */
 export interface Slot {
   /** How much this time of day wants each genre, 0..1. */

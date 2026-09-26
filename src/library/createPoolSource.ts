@@ -17,8 +17,8 @@ import { YouTubePoolSource } from './youTubePoolSource'
  * therefore **public** — readable by anyone who views source. Only the OAuth
  * *client ID* may live here, which is fine: it is a public identifier by
  * design. A client secret or API key must never be given a `VITE_` name; an
- * access token is never configured at all, it is fetched at runtime and kept in
- * memory (see `AccessTokenProvider`).
+ * access token is never configured at all, it is fetched at runtime (see
+ * `AccessTokenProvider`).
  */
 
 export interface PoolSourceConfig {

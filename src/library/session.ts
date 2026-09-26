@@ -5,8 +5,8 @@ import type { PoolSource } from './poolSource'
  * The viewer's Google session, as the screen needs it.
  *
  * One object rather than a handful of callbacks, because the screen has to
- * show a session rather than the outcome of the last click: a token expires an
- * hour in whether or not anyone touched the set, and `subscribe` is how the
+ * show a session rather than the outcome of the last click: a token expires
+ * whether or not anyone touched the set, and `subscribe` is how the
  * button that says Sign out learns to say Sign in again.
  */
 /**
@@ -42,7 +42,7 @@ export interface Session {
   signOut(): Promise<void>
   /** Takes up a grant already made here. True when there was one to take up. */
   resume(): Promise<boolean>
-  /** Sign-in, the hour running out, and sign-out. */
+  /** Sign-in, the token expiring, and sign-out. */
   subscribe(listener: (signedIn: boolean) => void): () => void
 }
 

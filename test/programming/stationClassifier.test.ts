@@ -66,8 +66,7 @@ describe('StationClassifier', () => {
   })
 
   /*
-    The watershed, in both directions and without exceptions. These are the
-    only judgements in the file that are not preferences.
+    The watershed, in both directions and without exceptions.
   */
   describe('the watershed', () => {
     it('keeps an age-rated programme out of everything before nine', () => {

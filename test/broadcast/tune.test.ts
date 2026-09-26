@@ -31,7 +31,7 @@ const programme = (
  *
  *   0 .. 600     programme `one`, from the top of the video
  *   600 .. 660   the station's ident, padding to the junction
- *   660 .. 1500  programme `two`, joined 300s in — a junction cut its front off
+ *   660 .. 1500  programme `two`, joined 300s in
  *   1500 .. 1800 interlude filler
  */
 const DAY: Schedule = {
@@ -72,7 +72,7 @@ describe('tune', () => {
   })
 
   it('round-trips: the offset lands exactly where the item ends in the video', () => {
-    // The last second of `two`: 839s into the item, 300s of which were cut.
+    // The last second of `two`: 839s into the item.
     expect(tune(DAY, at(1499))).toMatchObject({ videoId: 'two', offsetSec: 1139 })
   })
 

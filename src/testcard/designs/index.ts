@@ -9,13 +9,7 @@ import { buildMonoscopeCard } from './monoscope'
 
 export type CardDesign = (spec: TestCardSpec) => TestCardModel
 
-/**
- * Every card the channel knows how to draw.
- *
- * The order is the rotation order, so adding one changes which card falls on
- * which day. That is fine — nobody has a right to Tuesday's card — but it is
- * why the rotation is derived from the date rather than stored anywhere.
- */
+/** Every card the channel knows how to draw. */
 export const CARD_DESIGNS: Record<CardDesignId, CardDesign> = {
   electronic: buildElectronicCard,
   bars: buildBarsCard,

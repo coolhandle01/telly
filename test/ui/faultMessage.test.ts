@@ -154,7 +154,7 @@ describe('signInMessage', () => {
   // The session's time is up rather than anything going wrong, so the sentence
   // asks for the one thing that fixes it and blames neither Google nor the
   // browser.
-  it('tells a viewer whose hour ran out to sign in again', () => {
+  it('tells a viewer whose session ran out to sign in again', () => {
     const message = signInMessage(new SignInError(EXPIRED))
 
     expect(message).toMatch(/sign in again/i)

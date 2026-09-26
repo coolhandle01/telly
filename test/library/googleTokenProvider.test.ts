@@ -366,7 +366,7 @@ describe('GoogleTokenProvider', () => {
       expect(prompts).toEqual(['consent'])
     })
 
-    it('drops a token whose hour ran out while the tab was away', async () => {
+    it('drops a token that expired while the tab was away', async () => {
       let clock = 0
       const session = fakeStorage()
       const { load } = fakeGis(() => granted(3600))
@@ -537,7 +537,7 @@ describe('GoogleTokenProvider', () => {
       }
     }
 
-    it('takes the hour GIS issues when the response says nothing', async () => {
+    it('assumes 3600 seconds when the response gives no lifetime', async () => {
       const token = await lifetimeOf(undefined)
 
       expect(token.at(0)).toBe(true)

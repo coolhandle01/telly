@@ -64,8 +64,8 @@ grant, and does not reach the database on your machine.
   asserting it appears in no request URL, and it reaches no log, no error
   object, no cookie and no `localStorage`. It is written to `sessionStorage`
   and nowhere else, which is what carries a session across a reload, and
-  closing the tab clears that record. Everything this app writes, or asks
-  Google's script to write, is in the table above.
+  closing the tab clears that record. Everything this app writes is in the
+  table above.
 - **An expired token is discarded and the screen follows it.** Nothing renews
   the token on its own. When the token is next asked for, or on a reload,
   `GoogleTokenProvider` finds it has expired, drops it and tells its

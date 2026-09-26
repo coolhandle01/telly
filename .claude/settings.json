@@ -34,7 +34,15 @@
             "mcp__playwright-edge__browser_take_screenshot",
             "mcp__playwright-edge__browser_wait_for",
             "mcp__playwright-edge__browser_network_requests",
-            "mcp__playwright-edge__browser_console_messages"
+            "mcp__playwright-edge__browser_console_messages",
+
+            // Web Resources
+            "WebFetch(domain:developers.google.com)",
+            "WebFetch(domain:support.google.com)",
+            "WebFetch(domain:code.claude.com)",
+            "WebFetch(domain:docs.claude.com)",
+            "WebFetch(domain:playwright.dev)",
+            "WebFetch(domain:developer.mozilla.org)"
         ],
         "deny": [
             "Read(.browser/)",

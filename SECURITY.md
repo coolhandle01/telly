@@ -51,7 +51,10 @@ Google answers a revocation through its callback. The page treats any answer
 other than success as unconfirmed, and says so. That includes `invalid_token`,
 which Google's reference describes as "Token is already expired or revoked
 before revoke method is called. In most cases, you can regard the grant
-associated with the accessToken is revoked."
+associated with the accessToken is revoked." When the revocation request cannot
+reach Google, Google's script answers success (observed 26 September 2026 with
+the request blocked), so the page shows a completed sign-out. Your Google
+account's permissions page shows whether the grant is gone.
 
 Withdrawing access from your Google account's permissions page removes telly's
 grant, and does not reach the database on your machine.

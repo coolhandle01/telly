@@ -46,8 +46,6 @@ export class CachedPoolSource implements PoolSource {
   readonly #ttlMs: number
   readonly #now: () => number
   readonly #scope: (() => Promise<string>) | undefined
-  /** The last key this source resolved, so signing out needs no network. */
-  #lastKey: string | undefined
   /** One fetch, however many callers ask at once. */
   #inFlight: Promise<Pool> | undefined
   /** Everyone watching the fetch in flight. Emptied when it settles. */
@@ -63,7 +61,10 @@ export class CachedPoolSource implements PoolSource {
   }
 
   async load(onProgress?: LoadProgress): Promise<Pool> {
-    const hit = await this.#readFresh()
+    // Settled before the fetch, so the pool is filed under the account it was
+    // fetched for, whoever holds the token when it lands.
+    const key = this.#store ? await this.#keyFor() : undefined
+    const hit = await this.#readFresh(key)
     // A cache hit did no work, so there was no progress to watch. Say so
     // anyway: a caller that hid a button until the fraction reached 1 would
     // otherwise hide it for ever on the fastest path there is.
@@ -75,7 +76,7 @@ export class CachedPoolSource implements PoolSource {
     // One fetch however many callers ask at once, so a second caller watches
     // the first one's progress rather than starting a second load to watch.
     if (onProgress) this.#listeners.add(onProgress)
-    this.#inFlight ??= this.#fetchAndStore().finally(() => {
+    this.#inFlight ??= this.#fetchAndStore(key).finally(() => {
       this.#inFlight = undefined
       this.#listeners.clear()
     })
@@ -97,7 +98,7 @@ export class CachedPoolSource implements PoolSource {
     // Resolved before anything is torn down. The inner source is about to
     // forget which account this was, and the token it would ask with is about
     // to be revoked, so the key is settled while both still exist.
-    const key = this.#lastKey ?? (await this.#keyFor())
+    const key = await this.#keyFor()
 
     // Both halves are attempted whatever the other does. A database that will
     // not open would otherwise leave the source still keyed to the account
@@ -141,19 +142,16 @@ export class CachedPoolSource implements PoolSource {
    * until the account is known.
    */
   async #keyFor(): Promise<string | undefined> {
-    if (!this.#scope) return (this.#lastKey = this.#key)
+    if (!this.#scope) return this.#key
     try {
-      return (this.#lastKey = `${this.#key}:${await this.#scope()}`)
+      return `${this.#key}:${await this.#scope()}`
     } catch {
       return undefined
     }
   }
 
-  async #readFresh(): Promise<Pool | undefined> {
-    if (!this.#store) return undefined
-
-    const key = await this.#keyFor()
-    if (key === undefined) return undefined
+  async #readFresh(key: string | undefined): Promise<Pool | undefined> {
+    if (!this.#store || key === undefined) return undefined
 
     let stored: StoredPool | undefined
     try {
@@ -183,13 +181,12 @@ export class CachedPoolSource implements PoolSource {
     for (const listener of this.#listeners) listener(fraction)
   }
 
-  async #fetchAndStore(): Promise<Pool> {
+  async #fetchAndStore(key: string | undefined): Promise<Pool> {
     const pool = await this.#inner.load(this.#report)
 
-    if (this.#store) {
+    if (this.#store && key !== undefined) {
       try {
-        const key = await this.#keyFor()
-        if (key !== undefined) await this.#store.write(key, toStored(pool, this.#now()))
+        await this.#store.write(key, toStored(pool, this.#now()))
       } catch {
         // Failing to save is not failing to load.
       }

@@ -357,11 +357,13 @@ had more than one person signed into it, which is the reason to leave the others
 alone, not the reason to take them. Clearing the site's data is how a viewer
 removes the lot.
 
-`CachedPoolSource.forget` resolves the key first, from the last key it resolved
-where there is one, so it usually needs no network: the inner source is about
-to forget which account this was, and the token it would ask with is about to
-be revoked. A key that cannot be established throws rather than reporting a
-removal that did not happen.
+`CachedPoolSource.forget` resolves the key first, from the owner id
+`YouTubePoolSource` holds for the session, so it usually needs no network: the
+inner source is about to forget which account this was, and the token it would
+ask with is about to be revoked. A key that cannot be established throws rather
+than reporting a removal that did not happen. A load settles its key before it
+fetches, so a pool that lands after a sign-out is filed under the account it was
+fetched for.
 
 ## When something fails
 

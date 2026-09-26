@@ -82,17 +82,21 @@ describe('whose record a load is filed under', () => {
       return { ok: true, status: 200, json: async () => ({ items: mine ? [{ id: owner }] : [] }) }
     }
     const written: string[] = []
+    const removed: string[] = []
     const store: PoolStore = {
       read: async () => undefined,
       write: async (key) => {
         written.push(key)
       },
-      remove: async () => {},
+      remove: async (key) => {
+        removed.push(key)
+      },
     }
     const source = createPoolSource({ clientId: '123.apps.googleusercontent.com', tokens: provider, fetch, store })!
     return {
       source,
       written,
+      removed,
       ownerLookups,
       switchTo: (next: string) => {
         owner = next
@@ -120,5 +124,28 @@ describe('whose record a load is filed under', () => {
     await accounts.source.load()
 
     expect(accounts.ownerLookups).toEqual(['UC-alice'])
+  })
+
+  it("signs the next account out of its own record, not the last account's", async () => {
+    const accounts = twoAccounts()
+    await accounts.source.load()
+
+    accounts.announce(false)
+    accounts.switchTo('UC-bob')
+    await accounts.source.forget!()
+
+    expect(accounts.removed).toEqual(['pool:UC-bob'])
+  })
+
+  // Signing out must not need the network: the token is being revoked in the
+  // same breath, and the account was established when the pool was loaded.
+  it('signs out without asking whose it is again', async () => {
+    const accounts = twoAccounts()
+    await accounts.source.load()
+
+    await accounts.source.forget!()
+
+    expect(accounts.ownerLookups).toEqual(['UC-alice'])
+    expect(accounts.removed).toEqual(['pool:UC-alice'])
   })
 })

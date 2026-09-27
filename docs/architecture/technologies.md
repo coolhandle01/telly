@@ -177,12 +177,15 @@ by the `oxlint` job in `analysers.yml`.
 Stryker: `@stryker-mutator/core` 10.0.0, configured by `stryker.config.json`,
 run by `npm run mutate`.
 
-- `testRunner: "command"`, with `commandRunner.command` set to
-  `npx vitest run $MUTATION_TESTS --silent=true`. `@stryker-mutator/vitest-runner`
-  10.0.0 is installed but the config does not select it; why, is in
+- `testRunner: "command"`, with `commandRunner.command` running
+  `npx vitest run $MUTATION_TESTS --maxWorkers=1 --bail=1 --silent=true` and
+  then the clocks-change suite under `TZ=Europe/London`, in a POSIX shell.
+  `@stryker-mutator/vitest-runner` is not installed; why, is in
   [testing.md](testing.md).
-- `coverageAnalysis: "off"`, `concurrency: 2`, `timeoutMS: 60000`.
-- `mutate` covers `src/**/*.ts` and `src/**/*.tsx` less `src/main.tsx`.
+- `coverageAnalysis: "off"`, `timeoutMS: 120000`, and Stryker's default
+  concurrency.
+- `mutate` names the files where a false green costs most; which, and why, is
+  in [testing.md](testing.md).
 - `thresholds`: `high` 90, `low` 75, `break` **null**.
 
 `break: null` means no score fails the run, and no workflow invokes Stryker at

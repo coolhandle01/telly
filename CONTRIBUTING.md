@@ -62,10 +62,12 @@ way it does.
   the root config is solution-style and plain `tsc --noEmit` checks nothing.
 - **Watch what the suite would not notice.** Coverage says a line ran, not that
   anyone would notice it being wrong. `npm run mutate` breaks the code on
-  purpose and every survivor names a missing assertion; narrow it with
-  `MUTATION_TESTS="src/broadcast" npx stryker run --mutate "src/broadcast/tune.ts"`,
-  which takes minutes rather than an afternoon. Check one survivor by hand
-  before believing a bad score — see `docs/architecture/testing.md`.
+  purpose, and every survivor is a missing assertion or code that does
+  nothing; narrow it with
+  `MUTATION_TESTS="test/broadcast" npx stryker run --mutate "src/broadcast/tune.ts"`,
+  which takes minutes rather than an afternoon. Apply a survivor by hand before
+  believing it. `docs/architecture/testing.md` says why the setup is the way
+  it is.
 - **Run `npm run test:dst` if you touch anything with a date in it.** CI is
   UTC, where the clocks never change, so the ordinary suite cannot see a
   British Summer Time bug — and three were sitting there. Those tests live in

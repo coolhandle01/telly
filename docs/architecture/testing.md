@@ -107,36 +107,74 @@ It does not say anyone would notice it being wrong. Two things follow:
 ## Mutation testing
 
 ```bash
-npm run mutate                                     # everything, slowly
-MUTATION_TESTS="src/broadcast" npx stryker run --mutate "src/broadcast/tune.ts"
+npm run mutate                                                                     # the files in the table below
+MUTATION_TESTS="test/broadcast" npx stryker run --mutate "src/broadcast/tune.ts"   # one file, against its own tests
 ```
 
 Stryker breaks the code on purpose (flips a comparison, drops a term, empties
-a return), and a mutant that no test notices is an assertion you do not have.
-`tune.ts`, the function the whole app rests on, scored **100%** when last run:
-45 mutants killed, 3 timed out (a mutated binary search that never terminates
-counts as caught), none survived.
+a return), and a mutant that no test notices is either an assertion you do not
+have or code that does nothing. So a survivor is a question: apply it by hand,
+run the tests, and watch what fails. If nothing can, the mutant is equivalent
+and the finding is about the code.
 
-Two things about the setup are deliberate and both would otherwise waste an
-afternoon.
+**It mutates a short list of files.** Every mutant runs the whole suite, so
+`mutate` in `stryker.config.json` names the files where a false green costs
+most, not the ones with the worst score:
 
-**It uses the command runner, not the Vitest runner.** Stryker's Vitest
-integration reads its coverage back through `ctx.state.getFiles()`, a Vitest
-internal that changed in Vitest 5. It comes back empty, so Stryker concludes no
-test covers any mutant, runs nothing, and reports **everything as survived**.
-`tune.ts` scored 2% that way, and the same mutants, applied by hand, were
-killed by the suite immediately. A mutation score that low on well-tested code
-is a broken harness, not a bad suite: check one survivor by hand before
-believing any of it.
+| File | What a surviving mutant there would let through |
+|---|---|
+| `src/broadcast/tune.ts` | the wrong programme, or the right one at the wrong second |
+| `src/domain/time.ts` | a broadcast day of the wrong length |
+| `src/library/googleTokenProvider.ts` | a sign-in, an expiry or a revocation handled wrongly |
+| `src/library/session.ts` | a sign-out that does only one of its two things |
+| `src/library/cachedPoolSource.ts` | one account reading another's saved subscriptions |
+| `src/ui/faultMessage.ts` | a message naming the wrong failure, or Google's own text on screen |
 
-**The test scope comes from `$MUTATION_TESTS`.** The command runner re-runs the
-whole suite for every mutant, and the whole suite took 20 seconds when this was
-written. Two concurrent runs of it on four cores exceeded every sane timeout and
-*every* mutant "timed out", which scores as killed and tells you nothing. The command interpolates
-the variable through the shell, so a run can be narrowed to the tests that
-could plausibly kill the mutants, and each attempt takes about three seconds.
-Narrow the scope too far and a real killer is excluded, and you get a false
-survivor; the whole-suite default is the honest one.
+`--mutate` replaces the list, for a run pointed anywhere else.
+
+**It uses the command runner, not the Vitest runner.** Stryker's Vitest runner
+narrows each mutant's run with a `testNamePattern` built from the test's
+`describe` chain joined with a space, and Vitest 5 matches the pattern against
+names joined with `" > "`. It matches nothing, every test is skipped, and a
+mutant that no test ran against is reported Survived (stryker-js#6210). The
+command runner has no name filter to get wrong: it sets the active mutant in
+the environment, runs the command, and reads its exit code.
+`@stryker-mutator/vitest-runner` is not installed.
+
+**The dry run cannot catch a harness that lies.** It is the only process
+running, so it passes, and a result is fabricated only afterwards, under the
+load of every concurrent run. These settings stop that, and each one inflates
+the score if it goes:
+
+- **`--maxWorkers=1`.** Stryker already runs one command per core. Without this,
+  each of those starts several Vitest workers of its own, the runs overrun the
+  timeout, and Stryker scores a timeout as killed.
+- **`timeoutMS`, set by hand.** Stryker's default is derived from the dry run,
+  the one run that has the machine to itself.
+- **No `--coverage`, which is why the command is not `npm run test:ci`.** Vitest
+  refuses to start a coverage run while another process holds the coverage
+  directory, and exits 1 before running a test, which Stryker scores as a kill.
+
+A timeout is scored as killed, never as survived, so load can hide a real
+survivor but cannot invent one.
+
+**`--bail=1` changes how long a kill takes, never the score.** A run stops at
+its first failing test. A failure is a kill wherever it comes, and a run with no
+failure runs the whole suite as it would have anyway.
+
+**The clocks-change suite runs as well.** After the ordinary suite, the command
+runs `vite.dst.config.ts` under `TZ=Europe/London`. `broadcastDayLength` only
+meets a 23 or 25 hour day there, so without it a mutant that makes every day 24
+hours long would survive in UTC, where every day is.
+
+**`$MUTATION_TESTS` narrows the ordinary suite.** Unset, it expands to nothing
+and every mutant runs everything, which is the honest default. Set, it is a
+Vitest filter over test paths, so it names `test/`, not `src/`. Narrow it too
+far and a real killer is excluded, and you get a false survivor.
+
+**It needs a POSIX shell.** Stryker hands the command to Node's `exec`, which
+uses `cmd.exe` on Windows, where neither `$MUTATION_TESTS` nor `TZ=` means
+anything. Run it on Linux, macOS or WSL.
 
 The sandbox is a full copy of the project, tests included, so `.stryker-tmp` is
 excluded from Vitest, oxlint and git. Without that, `vitest run` finds every

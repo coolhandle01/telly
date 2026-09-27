@@ -20,6 +20,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # Every zone in vite.config.ts, and the clocks-change tests.
       - run: npx vitest run --coverage
 
   dst:
@@ -32,5 +33,6 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # The runner is UTC, where the clocks never change.
-      - run: npm run test:dst
+      # The clocks-change tests on their own, so a red check names them. The
+      # project sets TZ=Europe/London itself; the runner is UTC.
+      - run: npx vitest run --project clocks-change

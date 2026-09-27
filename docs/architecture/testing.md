@@ -25,8 +25,10 @@ current one. The shape is the part worth knowing:
   `GoogleSignInButton.test.tsx` pins Google's branding rules and
   `SourceLink.test.tsx` pins GitHub's, because the edits that break a brand rule
   are sympathetic ones nobody flags in review.
-- **The clocks-change suite is separate.** `test/**/*.dst.test.ts` runs under
-  `TZ=Europe/London` from its own config, and is excluded from the ordinary run.
+- **Every test runs in every zone.** `ZONES` in `vite.config.ts` lists them, UTC
+  and Europe/London, and each is a Vitest project named after the zone.
+  `test/**/*.dst.test.ts` is a project of its own, `clocks-change`, pinned to
+  Europe/London.
 
 ## The gates
 
@@ -34,14 +36,9 @@ current one. The shape is the part worth knowing:
 npm run lint         # oxlint
 npm run typecheck    # tsc -b --noEmit
 npm test             # vitest
-npm run test:ci      # vitest run --coverage, then npm run test:dst
+npm run test:ci      # vitest run --coverage, every project
 npm run build        # typecheck, then vite build
 ```
-
-`npm run test:dst` sets `TZ=Europe/London` with POSIX shell syntax, which the
-default npm shell on Windows does not run. There, run
-`TZ=Europe/London npx vitest run --config vite.dst.config.ts` from a POSIX
-shell.
 
 **The type gate must be `tsc -b`.** Vite strips types without checking them, so
 the build is not a type gate. And the root `tsconfig.json` here is
@@ -107,7 +104,7 @@ It does not say anyone would notice it being wrong. Two things follow:
 ## Mutation testing
 
 ```bash
-npm run mutate                                                                     # the files in the table below
+npm run mutate                                                                     # all of src/ except main.tsx
 MUTATION_TESTS="test/broadcast" npx stryker run --mutate "src/broadcast/tune.ts"   # one file, against its own tests
 ```
 
@@ -117,20 +114,9 @@ have or code that does nothing. So a survivor is a question: apply it by hand,
 run the tests, and watch what fails. If nothing can, the mutant is equivalent
 and the finding is about the code.
 
-**It mutates a short list of files.** Every mutant runs the whole suite, so
-`mutate` in `stryker.config.json` names the files where a false green costs
-most, not the ones with the worst score:
-
-| File | What a surviving mutant there would let through |
-|---|---|
-| `src/broadcast/tune.ts` | the wrong programme, or the right one at the wrong second |
-| `src/domain/time.ts` | a broadcast day of the wrong length |
-| `src/library/googleTokenProvider.ts` | a sign-in, an expiry or a revocation handled wrongly |
-| `src/library/session.ts` | a sign-out that does only one of its two things |
-| `src/library/cachedPoolSource.ts` | one account reading another's saved subscriptions |
-| `src/ui/faultMessage.ts` | a message naming the wrong failure, or Google's own text on screen |
-
-`--mutate` replaces the list, for a run pointed anywhere else.
+`stryker.config.mjs` mutates every file in `src/` except `main.tsx`, and every
+mutant runs the whole suite: every test in every zone, and the clocks-change
+tests. `--mutate` points a run at part of `src/`.
 
 **It uses the command runner, not the Vitest runner.** Stryker's Vitest runner
 narrows each mutant's run with a `testNamePattern` built from the test's
@@ -162,19 +148,16 @@ survivor but cannot invent one.
 its first failing test. A failure is a kill wherever it comes, and a run with no
 failure runs the whole suite as it would have anyway.
 
-**The clocks-change suite runs as well.** After the ordinary suite, the command
-runs `vite.dst.config.ts` under `TZ=Europe/London`. `broadcastDayLength` only
-meets a 23 or 25 hour day there, so without it a mutant that makes every day 24
-hours long would survive in UTC, where every day is.
-
-**`$MUTATION_TESTS` narrows the ordinary suite.** Unset, it expands to nothing
-and every mutant runs everything, which is the honest default. Set, it is a
-Vitest filter over test paths, so it names `test/`, not `src/`. Narrow it too
+**`MUTATION_TESTS` narrows the suite.** Unset, every mutant runs everything,
+which is the honest default. Set, `stryker.config.mjs` writes it into the
+command as a Vitest filter over test paths, so it names `test/`, not `src/`. It
+is an environment variable: the example above sets it in a POSIX shell, and in
+PowerShell it is `$env:MUTATION_TESTS = "test/broadcast"` first. Narrow it too
 far and a real killer is excluded, and you get a false survivor.
 
-**It needs a POSIX shell.** Stryker hands the command to Node's `exec`, which
-uses `cmd.exe` on Windows, where neither `$MUTATION_TESTS` nor `TZ=` means
-anything. Run it on Linux, macOS or WSL.
+**The command holds nothing for a shell to expand.** Stryker hands it to Node's
+`exec`, which is `cmd.exe` on Windows and `/bin/sh` elsewhere, and it runs the
+same in both. The zones come from the projects' `env`, not from the command.
 
 The sandbox is a full copy of the project, tests included, so `.stryker-tmp` is
 excluded from Vitest, oxlint and git. Without that, `vitest run` finds every
@@ -190,11 +173,12 @@ waiting: a broadcast day assumed to be 86,400 seconds when twice a year it is
 counting wall-clock times from the day's anchor instead of reading them off
 real instants.
 
-`npm run test:dst` runs `test/**/*.dst.test.ts` under `TZ=Europe/London`, with
-its own Vitest config. Merging configs was the wrong tool, since the base
-config's `exclude` exists to keep these files *out* of the ordinary run and
-`mergeConfig` concatenates rather than replaces, which excluded the only files
-the config included.
+So every test runs in each zone in `ZONES` in `vite.config.ts`, UTC and
+Europe/London, as a project named after the zone that sets `TZ` through
+Vitest's `env`. `test/timezone.test.ts` proves each project runs in the zone it
+is named after, whatever the machine's own zone. `test/**/*.dst.test.ts` is the
+`clocks-change` project, pinned to Europe/London. Adding a zone is adding it to
+`ZONES`.
 
 The first test in that file asserts the timezone it is running in. A suite that
 silently degrades to a no-op when its one precondition is missing is worse than

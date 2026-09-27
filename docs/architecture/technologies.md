@@ -146,19 +146,18 @@ the bundle will not produce: same aliases, same plugins.
 |---|---|
 | Environment | `jsdom` (jsdom 30.1.0) |
 | Globals | on, `describe`/`it`/`expect` without imports |
-| Tests | `include: ['test/**/*.test.{ts,tsx}']` |
+| Tests | `test/**/*.test.{ts,tsx}`, once per zone in `ZONES` |
+| Projects | one per zone in `ZONES` (`UTC`, `Europe/London`), named after it and setting `TZ` through `env`; and `clocks-change`, `test/**/*.dst.test.ts` pinned to Europe/London |
 | Setup | `test/support/setup.ts` |
 | Mocks | `restoreMocks: true` |
 | Coverage | provider `v8`, reporters `text` and `lcov`, `include: ['src/**/*.{ts,tsx}']` |
-| Excluded from the ordinary run | `node_modules`, `dist`, `.stryker-tmp`, and `**/*.dst.test.ts` |
+| Excluded | `node_modules`, `dist` and `.stryker-tmp`; the zone projects also exclude `**/*.dst.test.ts` |
 
 No coverage thresholds are configured. Coverage is measured and reported; it
 does not fail a run.
 
-The clocks-change suite has a second config, `vite.dst.config.ts`, which spreads
-the base config and replaces `include` with `test/**/*.dst.test.ts`, replaces
-`exclude`, and disables coverage. It is run by `npm run test:dst`, which sets
-`TZ=Europe/London`.
+Adding a zone is adding it to `ZONES`: every test then runs there too, and
+`test/timezone.test.ts` proves each project runs in the zone it is named after.
 
 Component tests use `@testing-library/react` 16.3.3,
 `@testing-library/jest-dom` 7.0.1 and `@testing-library/user-event` 14.6.7. The
@@ -174,18 +173,17 @@ by the `oxlint` job in `analysers.yml`.
 
 ## Mutation tester
 
-Stryker: `@stryker-mutator/core` 10.0.0, configured by `stryker.config.json`,
+Stryker: `@stryker-mutator/core` 10.0.0, configured by `stryker.config.mjs`,
 run by `npm run mutate`.
 
-- `testRunner: "command"`, with `commandRunner.command` running
-  `npx vitest run $MUTATION_TESTS --maxWorkers=1 --bail=1 --silent=true` and
-  then the clocks-change suite under `TZ=Europe/London`, in a POSIX shell.
+- `testRunner: "command"`, with `commandRunner.command` built as
+  `npx vitest run --maxWorkers=1 --bail=1 --silent=true`, every project, with
+  `MUTATION_TESTS` written in as a filter when it is set.
   `@stryker-mutator/vitest-runner` is not installed; why, is in
   [testing.md](testing.md).
 - `coverageAnalysis: "off"`, `timeoutMS: 120000`, and Stryker's default
   concurrency.
-- `mutate` names the files where a false green costs most; which, and why, is
-  in [testing.md](testing.md).
+- `mutate` covers `src/**/*.ts` and `src/**/*.tsx` less `src/main.tsx`.
 - `thresholds`: `high` 90, `low` 75, `break` **null**.
 
 `break: null` means no score fails the run, and no workflow invokes Stryker at
@@ -272,10 +270,9 @@ setting and is not in the repository.
 | Node floor | `engines` in `package.json` |
 | Compiler | `tsconfig.json` and the two it references |
 | Bundler, dev server, preview | `vite.config.ts` |
-| Vitest, ordinary run | `test` in `vite.config.ts` |
-| Vitest, clocks-change run | `vite.dst.config.ts` |
+| Vitest, and the zones it runs in | `test` and `ZONES` in `vite.config.ts` |
 | Lint | `.oxlintrc.json` |
-| Mutation testing | `stryker.config.json` |
+| Mutation testing | `stryker.config.mjs` |
 | Commit and pull request title rules | `commitlint.config.js` |
 | Changelog sections and links | `.versionrc.json` |
 | Build-time variable | `.env.example`, and `vars` on the `github-pages` environment |

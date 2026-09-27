@@ -75,8 +75,8 @@ controls.
 
 | Workflow | Job (`name:`) | What it runs |
 |---|---|---|
-| `tests.yml` | `vitest` | `npx vitest run --coverage` |
-| `tests.yml` | `british summer time` | `npm run test:dst`, which is `TZ=Europe/London vitest run --config vite.dst.config.ts` |
+| `tests.yml` | `vitest` | `npx vitest run --coverage`: every zone project and `clocks-change` |
+| `tests.yml` | `british summer time` | `npx vitest run --project clocks-change` |
 | `analysers.yml` | `oxlint` | `npm run lint` |
 | `analysers.yml` | `tsc` | `npm run typecheck` (`tsc -b --noEmit`), then a step comparing the major in `.nvmrc` with the major of the `@types/node` range and failing if they differ |
 | `analysers.yml` | `vite build` | `npx vite build` |
@@ -84,11 +84,11 @@ controls.
 | `codeql.yml` | `Analyze (javascript-typescript)` | CodeQL init and analyze, `build-mode: none` |
 | `codeql.yml` | `Analyze (actions)` | the same over the workflow files, which run with a token |
 
-`npm run test:ci` is the local composite: `vitest run --coverage && npm run
-test:dst`. CI splits those two halves into separate jobs, so a red check names
-which half broke. The two are separate for a reason: the runner is UTC, where
-the clocks never change, so the clocks-change suite needs its own zone and is
-excluded from the ordinary run.
+`npm run test:ci` is `vitest run --coverage`, the same as the `vitest` job:
+every test in each zone in `ZONES` in `vite.config.ts`, and the clocks-change
+tests. Each project sets `TZ` itself, so the runner being UTC does not matter.
+The `british summer time` job runs the clocks-change tests again on their own,
+so a red check names them.
 
 CodeQL also runs on a schedule, `cron: "41 4 * * 2"`, and the workflow's own
 header records that GitHub's default CodeQL setup must be off in repository
@@ -208,7 +208,7 @@ named; what they enforce has to be read in Settings.
 
 ## Mutation testing is not a gate
 
-`stryker.config.json` and `npm run mutate` exist, and nothing in CI runs either:
+`stryker.config.mjs` and `npm run mutate` exist, and nothing in CI runs either:
 no workflow mentions Stryker. Its `thresholds` are `high: 90`, `low: 75` and
 `break: null`, and a null `break` means no mutation score fails the run even
 when it is run.

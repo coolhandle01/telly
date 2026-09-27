@@ -62,15 +62,17 @@ way it does.
   the root config is solution-style and plain `tsc --noEmit` checks nothing.
 - **Watch what the suite would not notice.** Coverage says a line ran, not that
   anyone would notice it being wrong. `npm run mutate` breaks the code on
-  purpose and every survivor names a missing assertion; narrow it with
-  `MUTATION_TESTS="src/broadcast" npx stryker run --mutate "src/broadcast/tune.ts"`,
-  which takes minutes rather than an afternoon. Check one survivor by hand
-  before believing a bad score — see `docs/architecture/testing.md`.
-- **Run `npm run test:dst` if you touch anything with a date in it.** CI is
-  UTC, where the clocks never change, so the ordinary suite cannot see a
-  British Summer Time bug — and three were sitting there. Those tests live in
-  `*.dst.test.ts`, run under `TZ=Europe/London`, and are excluded from the
-  normal run because there they would fail for the wrong reason.
+  purpose, and every survivor is a missing assertion or code that does
+  nothing; narrow it with
+  `MUTATION_TESTS="test/broadcast" npx stryker run --mutate "src/broadcast/tune.ts"`,
+  which takes minutes rather than an afternoon. Apply a survivor by hand before
+  believing it. `docs/architecture/testing.md` says why the setup is the way
+  it is.
+- **Every test runs in every zone.** In UTC the clocks never change, so a
+  suite run only there cannot see a British Summer Time bug, and three were
+  sitting there. `ZONES` in `vite.config.ts` runs the whole suite in UTC and in
+  Europe/London, and the clocks-change tests, `*.dst.test.ts`, are a project
+  pinned to Europe/London. Adding a zone is adding it to `ZONES`.
 - **jsdom is not a browser.** It has no layout, no media, no IndexedDB, and it
   never fetches an external resource — so it never fires `error` either. Several
   of this app's nastiest bugs were invisible to a green suite and obvious in
@@ -103,8 +105,8 @@ Open the pull request and wait for the checks.
 | `conventional commits` | the pull request title, which is what `main` keeps — it re-runs when you rename, so a bad title can be fixed in place |
 | `tsc` | the typecheck, separate because Vite strips types without checking them |
 | `vite build` | proves it bundles |
-| `vitest` | the suite, with coverage |
-| `british summer time` | the same suite under `TZ=Europe/London` |
+| `vitest` | the suite in every zone, and the clocks-change tests, with coverage |
+| `british summer time` | the clocks-change tests on their own |
 | `Analyze (javascript-typescript)` | CodeQL over the app |
 | `Analyze (actions)` | CodeQL over these workflows, which run with a token |
 

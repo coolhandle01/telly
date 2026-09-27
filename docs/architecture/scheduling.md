@@ -53,11 +53,12 @@ The listings page reads its times off real instants rather than counting from
 the anchor, for the same reason: six hours plus the offset is right on 363 days
 and an hour out for the back half of the other two.
 
-The ordinary suite cannot catch any of this: it runs wherever the machine is,
-and CI is UTC, where British Summer Time does not exist. `*.dst.test.ts` files
-are excluded from that run and have their own config and script,
-`npm run test:dst`, which pins `TZ=Europe/London`. The first test in the file
-asserts the timezone, because without it the rest is a confident no-op.
+A suite run only in UTC cannot catch any of this, since British Summer Time
+does not exist there. So every test runs in each zone in `ZONES` in
+`vite.config.ts`, UTC and Europe/London, and the `*.dst.test.ts` files are a
+project of their own, `clocks-change`, pinned to Europe/London. The first test
+in the file asserts the timezone, because without it the rest is a confident
+no-op.
 
 ## Dayparts are data
 

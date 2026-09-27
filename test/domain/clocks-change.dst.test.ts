@@ -9,10 +9,10 @@ import { SECONDS_PER_DAY, broadcastDayLength, broadcastDayStart, secondsIntoDay 
 /**
  * The two days a year the arithmetic is wrong.
  *
- * This file runs under `TZ=Europe/London` — `npm run test:dst` — because the
- * rest of the suite runs wherever the machine is, and CI is UTC, where British
- * Summer Time does not exist and none of this can happen. That is exactly why
- * none of it was caught.
+ * This file is the `clocks-change` project of `vite.config.ts`, pinned to
+ * Europe/London. In UTC,
+ * where British Summer Time does not exist, none of this can happen, which is
+ * exactly why none of it was caught while the suite ran only there.
  *
  * UK clocks go forward 01.00 -> 02.00 on Sunday 29 March 2026, and back
  * 02.00 -> 01.00 on Sunday 25 October 2026. Both fall *inside* a broadcast day

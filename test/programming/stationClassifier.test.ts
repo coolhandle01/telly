@@ -170,6 +170,37 @@ describe('StationClassifier', () => {
 
       expect(thursday).toBeLessThan(monday)
     })
+
+    // Channel Two's Thursday themes are its peak time and its late night.
+    // The evening before them is an ordinary evening.
+    it('leaves the rest of the night alone', () => {
+      const thursday = classify(two, THURSDAY, comic, sitcom).evening
+      const monday = classify(two, MONDAY, comic, sitcom).evening
+
+      expect(thursday).toBeGreaterThan(0)
+      expect(thursday).toBe(monday)
+    })
+  })
+
+  // Being well watched counts at nine and counts for nothing at ten in the
+  // morning.
+  it('weighs standing in peak time and not in mid-morning', () => {
+    const programme = video({ id: 'v', durationSec: 30 * MINUTE })
+    const at = (standing: number) =>
+      classify(one, MONDAY, { channelId: 'UC1', genre: 'factual', standing }, programme)
+
+    expect(at(1).prime).toBeGreaterThan(at(0).prime as number)
+    expect(at(1)['mid-morning']).toBe(at(0)['mid-morning'])
+  })
+
+  // The evening takes a half-hour more readily than an hour, so between two
+  // uploads of the same supplier the half-hour is the better fit there.
+  it('scores a better fit for the slot higher', () => {
+    const supplier = { channelId: 'UC1', genre: 'entertainment' } as const
+    const halfHour = classify(one, MONDAY, supplier, video({ id: 'v', durationSec: 28 * MINUTE })).evening
+    const hour = classify(one, MONDAY, supplier, video({ id: 'v', durationSec: 55 * MINUTE })).evening
+
+    expect(halfHour).toBeGreaterThan(hour as number)
   })
 
   describe('a weekly series', () => {

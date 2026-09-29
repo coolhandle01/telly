@@ -324,7 +324,7 @@ function secondsToNextMark(sec: number): number {
  * 1 for an ending exactly on a junction, 0 for one nowhere near. Programmes
  * that end at 20:58 feel like television; ones that end at 20:53:41 do not.
  */
-function junctionCloseness(endSec: number): number {
+export function junctionCloseness(endSec: number): number {
   const pastTheHour = ((endSec % 3600) + 3600) % 3600
   let nearest = Infinity
   for (const mark of JUNCTION_MARKS_SEC) nearest = Math.min(nearest, Math.abs(pastTheHour - mark))

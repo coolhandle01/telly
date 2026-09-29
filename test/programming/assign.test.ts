@@ -112,6 +112,50 @@ describe('assign', () => {
   it('copes with no subscriptions at all', () => {
     expect(assign([]).size).toBe(0)
   })
+
+  /*
+    Two stations and five channels of one genre, so both stations rank the
+    channels the same way, by standing alone: A, then B, C, D and E.
+  */
+  describe('the draft', () => {
+    const [first, second] = STATIONS
+    const ranked = [
+      sub({ channelId: 'UC-a', standing: 1 }),
+      sub({ channelId: 'UC-b', standing: 0.9 }),
+      sub({ channelId: 'UC-c', standing: 0.8 }),
+      sub({ channelId: 'UC-d', standing: 0.7 }),
+      sub({ channelId: 'UC-e', standing: 0.6 }),
+    ]
+
+    // The order reverses each round and back again: the second station takes
+    // the second and third choices, and the first takes the fourth and the
+    // fifth, which ends the draft part-way through a round.
+    it('snakes, so each round starts with the station that picked last', () => {
+      const lineup = assign(ranked, [first, second])
+
+      expect(lineup.size).toBe(ranked.length)
+      expect(lineupFor(first.id, ranked, lineup).map((s) => s.channelId)).toEqual(['UC-a', 'UC-d', 'UC-e'])
+      expect(lineupFor(second.id, ranked, lineup).map((s) => s.channelId)).toEqual(['UC-b', 'UC-c'])
+    })
+
+    it('gives a tie between equally fitting channels to the lower channel id', () => {
+      const twins = [sub({ channelId: 'UC-y' }), sub({ channelId: 'UC-x' })]
+      const lineup = assign(twins, [first, second])
+
+      expect(lineup.get('UC-x')).toBe(first.id)
+      expect(lineup.get('UC-y')).toBe(second.id)
+    })
+  })
+})
+
+describe('lineupFor', () => {
+  it("lists a station's subscriptions in channel id order, however they arrive", () => {
+    const [first] = STATIONS
+    const arriving = [sub({ channelId: 'UC-c' }), sub({ channelId: 'UC-a' }), sub({ channelId: 'UC-b' })]
+    const lineup = new Map(arriving.map((s) => [s.channelId, first.id]))
+
+    expect(lineupFor(first.id, arriving, lineup).map((s) => s.channelId)).toEqual(['UC-a', 'UC-b', 'UC-c'])
+  })
 })
 
 describe('fitFor', () => {

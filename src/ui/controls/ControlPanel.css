@@ -364,10 +364,6 @@
   .tv-fascia__grille { min-height: 1.5rem; margin: 0.1rem 0.06rem; }
   .tv-fascia__badge { font-size: 0.52rem; }
   .tv-fascia__well { padding-bottom: 0; }
-  /* The knob is sized against the viewport, which on a short window is much
-     wider than the cabinet — so on a small set it was 72px of a 90px column,
-     and the single biggest thing holding the fascia's height up. */
-  .tv-knob__stack { width: 3.2rem; }
 }
 
 /* Smaller again. Same controls, same targets, no air left to give. */
@@ -377,7 +373,6 @@
   .tv-fascia__presets { gap: 0.16rem 0.2rem; padding: 0.2rem 0.18rem; }
   .tv-fascia__grille { min-height: 0.5rem; margin: 0.05rem 0.04rem; }
   .tv-fascia__lamps { gap: 0.2rem; padding: 0.12rem 0.2rem; }
-  .tv-knob__stack { width: 2.8rem; }
 }
 
 @media (max-width: 40rem) {

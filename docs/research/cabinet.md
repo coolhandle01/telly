@@ -257,8 +257,8 @@ at all, which is why shrinking it further never fixed anything.
 
 The fascia now answers to the cabinet rather than the window, through a
 container query on `.tv-cabinet`, with two tighter tiers below 58rem and 46rem:
-less air between the controls, a shallower speaker, and a volume knob that
-stops being 72px of a 90px column. Six of eight test viewports fit now, against
+less air between the controls and a shallower speaker. Six of eight test
+viewports fit now, against
 three of eight before.
 
 The two that still scroll are short-and-wide (900x640) and short phones, and

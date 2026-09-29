@@ -3,6 +3,7 @@ import type { Video } from '@/domain'
 import { profile, type Subscription } from '@/programming/profile'
 import { StationClassifier } from '@/programming/stationClassifier'
 import { STATIONS, stationById, type Station } from '@/programming/stations'
+import { strandsFor } from '@/programming/strands'
 
 const MINUTE = 60
 /** A Thursday, which is comedy night on Channel Two. */
@@ -169,20 +170,26 @@ describe('StationClassifier', () => {
 
   describe('a weekly series', () => {
     const hourLong = video({ id: 'v', durationSec: 55 * MINUTE })
-    const weekly = { channelId: 'UC1', cadence: 'weekly', format: 'hour' } as const
+    // Society, because no theme on Channel One names it: a genre a theme
+    // lifts would make its theme's night stand out with no strand at all.
+    const weekly = { channelId: 'UC1', genre: 'society', cadence: 'weekly', format: 'hour' } as const
 
     it('is worth far more on its own night than on any other', () => {
-      const classifier = new StationClassifier(one, profiles(weekly), MONDAY)
-      const scores = new Set<number>()
-      for (let day = 0; day < 7; day++) {
+      const strand = strandsFor(one, [...profiles(weekly).values()]).get('UC1')
+      const week = Array.from({ length: 7 }, (_, day) => {
         const on = new Date(2026, 8, 7 + day, 6, 0, 0)
         const offered = new StationClassifier(one, profiles(weekly), on).classify(hourLong)
-        scores.add(Math.max(0, ...Object.values(offered)))
-      }
+        const [daypart, score] = Object.entries(offered).sort(([, a], [, b]) => (b ?? 0) - (a ?? 0))[0]
+        return { weekday: on.getDay(), daypart, score: score ?? 0 }
+      })
+      const [best, ...rest] = [...week].sort((a, b) => b.score - a.score)
 
-      expect(classifier.classify(hourLong)).toBeDefined()
-      // One night stands out from the other six.
-      expect(scores.size).toBeGreaterThan(1)
+      expect(strand).toBeDefined()
+      expect({ weekday: best.weekday, daypart: best.daypart }).toEqual({
+        weekday: strand?.weekday,
+        daypart: strand?.daypart,
+      })
+      for (const other of rest) expect(other.score).toBeLessThan(best.score)
     })
 
     // Without the holding back, a series simply goes out on the first day of

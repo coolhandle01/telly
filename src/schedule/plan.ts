@@ -115,7 +115,7 @@ export function plan(pool: Pool, options: PlanOptions): Schedule {
   const maxOverrunSec = options.maxOverrunSec ?? DEFAULT_MAX_OVERRUN_SEC
 
   const candidates: Candidate[] = pool.videos
-    .filter((video) => isEligible(video) && video.durationSec > 0)
+    .filter((video) => isEligible(video))
     .map((video) => ({
       video,
       affinities: classifier.classify(video, pool.channels.get(video.channelId)),
@@ -153,7 +153,6 @@ export function plan(pool: Pool, options: PlanOptions): Schedule {
    */
   const fillTo = (target: number, daypart: DaypartId): void => {
     const gap = target - cursor
-    if (gap <= 0) return
     push(target, daypart, {
       kind: 'filler',
       variant: gap <= IDENT_MAX_SEC ? 'ident' : 'interlude',
@@ -178,12 +177,10 @@ export function plan(pool: Pool, options: PlanOptions): Schedule {
 
     for (const candidate of candidates) {
       const shown = aired.get(candidate.video.id)
-      if (shown !== undefined) {
-        if (shown.showings >= MAX_SHOWINGS) continue
-        if (cursor - shown.endSec < MIN_REPEAT_GAP_SEC) continue
-      }
-      // Two uploads of a channel with the same name are the same programme as
-      // far as an evening is concerned, whatever their ids say.
+      if (shown !== undefined && shown.showings >= MAX_SHOWINGS) continue
+      // The gap between showings is kept by title rather than by id: two
+      // uploads of a channel with the same name are the same programme as far
+      // as an evening is concerned, whatever their ids say.
       const lastTitle = airedTitles.get(titleKey(candidate.video))
       if (lastTitle !== undefined && cursor - lastTitle < MIN_REPEAT_GAP_SEC) continue
 
@@ -201,7 +198,7 @@ export function plan(pool: Pool, options: PlanOptions): Schedule {
         affinity * candidate.recency * novelty * fitness * tidiness * candidate.jitter * freshness
       if (score <= 0) continue
 
-      if (best === undefined || score > bestScore) {
+      if (score > bestScore) {
         best = candidate
         bestScore = score
       }

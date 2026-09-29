@@ -137,6 +137,17 @@ describe('profile', () => {
 
       expect(profiles.get('UC1')?.standing).toBe(0.5)
     })
+
+    // One figure is no ranking: placed first of one, its standing would be
+    // 0 / 0, and a NaN standing reaches the draft.
+    it('does not rank a lone channel with a figure against those without', () => {
+      const profiles = profile(
+        poolOf([...series('UC-seen', 3, 1, { viewCount: 10 }), ...series('UC-unseen', 3, 1)]),
+      )
+
+      expect(profiles.get('UC-seen')?.standing).toBe(0.5)
+      expect(profiles.get('UC-unseen')?.standing).toBe(0.5)
+    })
   })
 
   describe('who may go out when', () => {

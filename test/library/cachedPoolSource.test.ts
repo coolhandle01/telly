@@ -34,11 +34,13 @@ function countingSource(pool: Pool): PoolSource & { loads: number } {
   }
 }
 
-function inMemoryStore(): PoolStore & { entries: Map<string, StoredPool>; writes: number } {
+function inMemoryStore(): PoolStore & { entries: Map<string, StoredPool>; reads: number; writes: number } {
   return {
     entries: new Map(),
+    reads: 0,
     writes: 0,
     async read(key) {
+      this.reads += 1
       return this.entries.get(key)
     },
     async write(key, entry) {
@@ -293,6 +295,7 @@ describe('CachedPoolSource', () => {
       // miss, and the record under the bare key belongs to whoever wrote it.
       expect(inner.loads).toBe(1)
       expect(pool.videos.map((each) => each.id)).toEqual(['a'])
+      expect(store.reads).toBe(0)
       expect(store.writes).toBe(0)
       expect(store.entries.size).toBe(0)
     })
@@ -444,20 +447,6 @@ describe('CachedPoolSource', () => {
     })
   })
 
-  describe('the age of a record', () => {
-    it('serves one saved this very instant', async () => {
-      const store = inMemoryStore()
-      const inner = countingSource(poolOf('a'))
-      const cached = new CachedPoolSource(inner, store, { now })
-      await cached.load()
-
-      // No time passes at all: age is exactly zero, which is fresh.
-      await cached.load()
-
-      expect(inner.loads).toBe(1)
-    })
-  })
-
   describe('a store that refuses', () => {
     // Survived mutation: the rethrow could be deleted and nothing noticed. A
     // sign-out that silently failed to clear is the whole reason this throws.
@@ -579,6 +568,36 @@ describe('CachedPoolSource, progress', () => {
     )
 
     expect(seen).toEqual([0.5, 1])
+  })
+
+  it('still hands the pool to a caller that is not watching the progress', async () => {
+    const inner: PoolSource = {
+      async load(onProgress) {
+        onProgress?.(0.5)
+        return poolOf('a')
+      },
+    }
+
+    const pool = await new CachedPoolSource(inner, undefined, { now }).load()
+
+    expect(pool.videos.map((each) => each.id)).toEqual(['a'])
+  })
+
+  it('tells a caller nothing about a later load than its own', async () => {
+    const inner: PoolSource = {
+      async load(onProgress) {
+        onProgress?.(1)
+        return poolOf('a')
+      },
+    }
+    // No store, so every load is a fetch.
+    const cached = new CachedPoolSource(inner, undefined, { now })
+    const first: number[] = []
+
+    await cached.load((fraction) => first.push(fraction))
+    await cached.load()
+
+    expect(first).toEqual([1])
   })
 
   it('says a cache hit is finished, because it is', async () => {

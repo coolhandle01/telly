@@ -121,14 +121,16 @@ describe('profile', () => {
       expect(profiles.get('UC-huge')?.standing).toBe(1)
     })
 
+    // The ids sort the other way from the ranking, so a comparison that fell
+    // through to the tie-break on id would put them in the wrong order.
     it('falls back to subscribers where a channel hides its views', () => {
       const profiles = profile(
-        poolOf([...series('UC-shy', 3, 1), ...series('UC-open', 3, 1, { viewCount: 10 })], [
-          { id: 'UC-shy', title: 'Shy', subscriberCount: 900_000 },
+        poolOf([...series('UC-hidden', 3, 1), ...series('UC-open', 3, 1, { viewCount: 10 })], [
+          { id: 'UC-hidden', title: 'Hidden', subscriberCount: 900_000 },
         ]),
       )
 
-      expect(profiles.get('UC-shy')?.standing).toBe(1)
+      expect(profiles.get('UC-hidden')?.standing).toBe(1)
       expect(profiles.get('UC-open')?.standing).toBe(0)
     })
 

@@ -215,7 +215,7 @@ rooms:
 - **Legends are not set in a code font.** They were stamped or silk-screened in a
   condensed grotesque (Helvetica, Univers, DIN), in caps, small, widely
   tracked, so they read at arm's length across a lit room without drawing
-  attention. `type.ts` uses a system stack, so the set draws instantly and works
+  attention. `type.css` uses a system stack, so the set draws instantly and works
   offline.
 - **Nothing on the fascia is selectable.** Dragging a knob should never leave
   half the set highlighted in blue.

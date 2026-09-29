@@ -1,0 +1,24 @@
+.gsi {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #747775;
+  border-radius: 4px;
+  background: #fff;
+  color: #1f1f1f;
+  cursor: pointer;
+  font: 500 14px/1 'Google Sans', Roboto, arial, sans-serif;
+  letter-spacing: 0.25px;
+  /* Sized to its content: the label must never ellipsise. */
+  white-space: nowrap;
+  transition: background-color 120ms linear, box-shadow 120ms linear;
+}
+.gsi:hover { background: #ebebeb; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px 1px rgba(0, 0, 0, 0.15); }
+.gsi:active { background: #e0e0e0; }
+.gsi:focus-visible { outline: 3px solid #a8c7fa; outline-offset: 2px; }
+.gsi__mark { display: block; flex: none; }
+@media (prefers-reduced-motion: reduce) {
+  .gsi { transition: none; }
+}

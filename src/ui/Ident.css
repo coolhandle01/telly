@@ -1,0 +1,73 @@
+.ident {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: clamp(0.6rem, 3%, 1.4rem);
+}
+.ident__mark {
+  width: clamp(6rem, 38%, 13rem);
+  aspect-ratio: 1;
+  overflow: visible;
+}
+.ident__name {
+  margin: 0;
+  font: 700 clamp(0.7rem, 2.4vw, 1.1rem)/1 Helvetica, Arial, sans-serif;
+  letter-spacing: 0.32em;
+  /* The tracking pushes the last letter off centre; put it back. */
+  text-indent: 0.32em;
+  text-transform: uppercase;
+}
+
+.ident__spin {
+  transform-origin: 50px 50px;
+  animation: ident-spin 9s linear infinite;
+}
+.ident__sweep {
+  transform-origin: 50px 50px;
+  animation: ident-sweep 7s ease-in-out infinite;
+}
+.ident__turn {
+  transform-origin: 50px 50px;
+  animation: ident-turn 1.1s cubic-bezier(0.3, 0.9, 0.3, 1) both;
+}
+.ident__slide {
+  animation: ident-slide 0.8s cubic-bezier(0.25, 0.9, 0.3, 1) both;
+}
+.ident__gather {
+  animation: ident-gather 0.9s cubic-bezier(0.25, 0.9, 0.3, 1) both;
+}
+
+@keyframes ident-spin {
+  from { rotate: 0deg; }
+  to { rotate: 360deg; }
+}
+@keyframes ident-sweep {
+  0% { transform: scaleX(1); }
+  50% { transform: scaleX(-1); }
+  100% { transform: scaleX(1); }
+}
+@keyframes ident-turn {
+  from { transform: rotate(-90deg) scale(0.4); opacity: 0; }
+  to { transform: rotate(0deg) scale(1); opacity: 1; }
+}
+@keyframes ident-slide {
+  from { transform: translateX(-60px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes ident-gather {
+  from { translate: var(--from); opacity: 0; }
+  to { translate: 0 0; opacity: 1; }
+}
+
+/* An ident is a moving mark. Without the movement it is still the mark. */
+@media (prefers-reduced-motion: reduce) {
+  .ident__spin,
+  .ident__sweep,
+  .ident__turn,
+  .ident__slide,
+  .ident__gather {
+    animation: none;
+  }
+}

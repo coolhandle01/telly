@@ -11,6 +11,7 @@ interface RecordedCall {
   endpoint: Endpoint
   url: URL
   params: URLSearchParams
+  method: string
   headers: Record<string, string>
 }
 
@@ -40,6 +41,10 @@ function fakeYouTube(handlers: Partial<Record<Endpoint, Handler>>): {
   const calls: RecordedCall[] = []
 
   const fetch: FetchLike = async (url, init) => {
+    // A browser refuses a request whose method is not an HTTP token.
+    if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(init.method)) {
+      throw new TypeError(`'${init.method}' is not a valid HTTP method`)
+    }
     const parsed = new URL(url)
     const endpoint = parsed.pathname.split('/').pop() as Endpoint
     const handler = handlers[endpoint]
@@ -50,6 +55,7 @@ function fakeYouTube(handlers: Partial<Record<Endpoint, Handler>>): {
       endpoint,
       url: parsed,
       params: parsed.searchParams,
+      method: init.method,
       headers: { ...init.headers },
     })
     return handler(parsed.searchParams, seen)
@@ -940,6 +946,24 @@ describe('YouTubePoolSource', () => {
         expect(call.headers.Authorization).toBe('Bearer test-access-token')
       }
       expect(tokensAsked).toBeGreaterThan(0)
+    })
+
+    // The grant is read-only, and every call this source makes is a read.
+    it('only ever reads, and asks for JSON', async () => {
+      const { fetch, calls } = fakeYouTube({
+        subscriptions: () => subscriptionPage(['UC1']),
+        channels: (params) => channelsPage(params.get('id')!.split(',')),
+        playlistItems: () => playlistItemsPage(['v1']),
+        videos: (params) => videosPage(params.get('id')!.split(',').map((id) => ({ id }))),
+      })
+
+      await new YouTubePoolSource({ fetch, tokens }).load()
+
+      expect(calls).not.toHaveLength(0)
+      for (const call of calls) {
+        expect(call.method).toBe('GET')
+        expect(call.headers.Accept).toBe('application/json')
+      }
     })
 
     it('never puts the token, or any key, in the URL', async () => {

@@ -98,7 +98,7 @@ const clamp01 = (value: number): number => Math.min(1, Math.max(0, value))
 function bandFit(durationSec: number, band: Band): number {
   const distance =
     durationSec < band.lo ? band.lo - durationSec : durationSec > band.hi ? durationSec - band.hi : 0
-  return distance === 0 ? 1 : clamp01(1 - distance / BAND_MARGIN_SEC)
+  return clamp01(1 - distance / BAND_MARGIN_SEC)
 }
 
 /**
@@ -150,8 +150,7 @@ export class HeuristicClassifier implements Classifier {
       // without anyone having said so.
       if (habit !== undefined && bandFit(habit, band) === 1) score += CHANNEL_HABIT_BONUS
 
-      const final = clamp01(score)
-      if (final > 0) affinities[id] = final
+      affinities[id] = clamp01(score)
     }
 
     return affinities
@@ -161,7 +160,7 @@ export class HeuristicClassifier implements Classifier {
 function observeHabits(pool: Pool): ReadonlyMap<string, number> {
   const durations = new Map<string, number[]>()
   for (const video of pool.videos) {
-    if (!isEligible(video) || video.durationSec <= 0) continue
+    if (!isEligible(video)) continue
     const seen = durations.get(video.channelId)
     if (seen) seen.push(video.durationSec)
     else durations.set(video.channelId, [video.durationSec])

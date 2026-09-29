@@ -137,12 +137,16 @@ describe('StationClassifier', () => {
 
     // Damped elsewhere rather than barred: a station with a thin afternoon
     // would rather repeat the lunchtime bulletin than show the card.
+    // Measured against the same upload without the news category, in the same
+    // daypart, so nothing but the damping differs between the two.
     it('is damped outside the bulletins rather than barred from them', () => {
-      const offered = classify(one, MONDAY, { channelId: 'UC1', genre: 'news' }, bulletin)
+      const supplier = { channelId: 'UC1', genre: 'news' } as const
+      const offered = classify(one, MONDAY, supplier, bulletin)
+      const undamped = classify(one, MONDAY, supplier, { ...bulletin, categoryId: undefined })
 
       expect(offered['lunchtime-news']).toBeGreaterThan(0)
       expect(offered.afternoon ?? 0).toBeGreaterThan(0)
-      expect(offered.afternoon ?? 0).toBeLessThan(offered['lunchtime-news'] ?? 0)
+      expect(offered.afternoon ?? 0).toBeLessThan(undamped.afternoon ?? 0)
     })
   })
 

@@ -122,9 +122,10 @@ describe('signOutMessage', () => {
   })
 
   // An error from somewhere else says nothing about which half ran, so the
-  // viewer is pointed at both rather than told a half-truth.
+  // viewer is pointed at both rather than told a half-truth. Even one that
+  // happens to carry the same field names.
   it('assumes nothing from an error it does not recognise', () => {
-    const message = signOutMessage(new Error('something else entirely'))
+    const message = signOutMessage(Object.assign(new Error('something else entirely'), { revoked: true }))
 
     expect(message).toMatch(/did not confirm/i)
     expect(message).toMatch(/may still hold/i)

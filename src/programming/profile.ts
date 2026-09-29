@@ -1,4 +1,4 @@
-import type { Channel, Pool, Video } from '../domain'
+import { median, type Channel, type Pool, type Video } from '../domain'
 import { isEligible } from '../schedule/classify'
 import { genreOf, type Genre } from './genre'
 
@@ -193,10 +193,4 @@ function rank(
     standings.set(entry.channelId, scored.length < 2 ? UNRANKED_STANDING : index / (scored.length - 1))
   }
   return standings
-}
-
-function median(values: readonly number[]): number {
-  const sorted = [...values].sort((a, b) => a - b)
-  const middle = Math.floor(sorted.length / 2)
-  return sorted.length % 2 === 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
 }

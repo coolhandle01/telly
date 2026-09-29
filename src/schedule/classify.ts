@@ -1,4 +1,4 @@
-import type { Channel, DaypartId, Pool, Video } from '../domain'
+import { median, type Channel, type DaypartId, type Pool, type Video } from '../domain'
 
 /**
  * How well a video suits each daypart, 0..1. Absent means "not here" — the map
@@ -99,12 +99,6 @@ function bandFit(durationSec: number, band: Band): number {
   const distance =
     durationSec < band.lo ? band.lo - durationSec : durationSec > band.hi ? durationSec - band.hi : 0
   return distance === 0 ? 1 : clamp01(1 - distance / BAND_MARGIN_SEC)
-}
-
-function median(values: readonly number[]): number {
-  const sorted = [...values].sort((a, b) => a - b)
-  const middle = Math.floor(sorted.length / 2)
-  return sorted.length % 2 === 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
 }
 
 /**

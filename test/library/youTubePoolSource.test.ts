@@ -972,6 +972,7 @@ describe('YouTubePoolSource', () => {
       ['a 429 rateLimitExceeded', () => apiError(429, 'rateLimitExceeded')],
       ['a 429 userRateLimitExceeded', () => apiError(429, 'userRateLimitExceeded')],
       ['a 403 rateLimitExceeded', () => apiError(403, 'rateLimitExceeded')],
+      ['a 403 userRateLimitExceeded', () => apiError(403, 'userRateLimitExceeded')],
       ['a 429 that names no reason', () => json({ error: { code: 429, message: 'too many requests' } }, 429)],
     ])('backs off and asks again after %s, and the load succeeds', async (_name, limited) => {
       const { waits, sleep } = recorder()
@@ -1007,19 +1008,27 @@ describe('YouTubePoolSource', () => {
       expect(waits).toHaveLength(RATE_LIMIT_BACKOFF_MS.length)
     })
 
+    // The class is asserted exactly: a QuotaExceededError is also a
+    // YouTubeApiError, and the screen shows a different card for each.
     it.each([
-      ['the daily quota', () => apiError(403, 'quotaExceeded')],
-      ['the daily limit', () => apiError(403, 'dailyLimitExceeded')],
-      ['a refused token', () => apiError(401, 'authError')],
-      ['a refused request', () => apiError(403, 'forbidden')],
-      ['a server error', () => json({ error: { code: 500, message: 'backend error' } }, 500)],
-    ])('does not wait out %s', async (_name, refused) => {
+      ['the daily quota', () => apiError(403, 'quotaExceeded'), QuotaExceededError],
+      ['the daily limit', () => apiError(403, 'dailyLimitExceeded'), QuotaExceededError],
+      ['a refused token', () => apiError(401, 'authError'), YouTubeApiError],
+      ['a refused request', () => apiError(403, 'forbidden'), YouTubeApiError],
+      [
+        'a server error',
+        () => json({ error: { code: 500, message: 'backend error' } }, 500),
+        YouTubeApiError,
+      ],
+    ])('does not wait out %s', async (_name, refused, Expected) => {
       const { waits, sleep } = recorder()
       const { fetch, callsTo } = fakeYouTube({ subscriptions: refused })
 
-      await expect(new YouTubePoolSource({ fetch, tokens, sleep }).load()).rejects.toBeInstanceOf(
-        YouTubeApiError,
-      )
+      const error = await new YouTubePoolSource({ fetch, tokens, sleep })
+        .load()
+        .catch((caught: unknown) => caught)
+
+      expect((error as object).constructor).toBe(Expected)
       expect(callsTo('subscriptions')).toHaveLength(1)
       expect(waits).toEqual([])
     })

@@ -14,7 +14,7 @@ import {
 } from '@/domain'
 import { fixturePool } from '../support/pool'
 import { HeuristicClassifier, OverridingClassifier, type Affinities, type Classifier } from '@/schedule/classify'
-import { assertCoversDay, plan } from '@/schedule/plan'
+import { assertCoversDay, junctionCloseness, plan } from '@/schedule/plan'
 
 const MINUTE = 60
 /** A broadcast day that begins at local 06.00 on a fixed date. */
@@ -796,5 +796,27 @@ describe('assertCoversDay', () => {
 
   it('takes a whole day by default', () => {
     expect(() => assertCoversDay([item(0, SECONDS_PER_DAY)])).not.toThrow()
+  })
+})
+
+/*
+  How much an ending near a mark counts: all of it on the hour, the quarter
+  past and the half, falling away over five minutes either side, and nothing
+  beyond. A quarter to is not a mark.
+*/
+describe('junctionCloseness', () => {
+  it.each([
+    ['on the hour', 0, 1],
+    ['on the quarter past', 15 * MINUTE, 1],
+    ['on the half hour', 30 * MINUTE, 1],
+    ['on the next hour', 60 * MINUTE, 1],
+    ['on a mark in a later hour', 13 * 60 * MINUTE + 15 * MINUTE, 1],
+    ['two and a half minutes after a mark', 30 * MINUTE + 150, 0.5],
+    ['two and a half minutes before a mark', 15 * MINUTE - 150, 0.5],
+    ['two and a half minutes before the hour', 60 * MINUTE - 150, 0.5],
+    ['five minutes from a mark', 5 * MINUTE, 0],
+    ['at a quarter to', 45 * MINUTE, 0],
+  ])('counts an ending %s as %d', (_name, endSec, closeness) => {
+    expect(junctionCloseness(endSec)).toBeCloseTo(closeness, 10)
   })
 })

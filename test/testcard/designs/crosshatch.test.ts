@@ -201,6 +201,10 @@ describe('crosshatchGrid — the arithmetic of the grid', () => {
     expect(() => crosshatchGrid(picture(1024, 768), -4)).toThrow(RangeError)
     expect(() => crosshatchGrid(picture(1024, 768), 12.5)).toThrow(RangeError)
   })
+
+  it('draws two columns, the fewest that cross in the middle', () => {
+    expect(crosshatchGrid(picture(1024, 768), 2).columns).toBe(2)
+  })
 })
 
 describe('buildCrosshatchCard — the card frame', () => {

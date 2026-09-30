@@ -364,6 +364,72 @@ describe('when a video mounts but no picture ever arrives', () => {
     expect(faults).toEqual([])
   })
 
+  it('keeps watching through a state that is no picture at all', async () => {
+    const { players, load, host } = fakeApiDriver()
+    const player = new YouTubeIframePlayer(load, host, watchdog)
+    const faults: PlayerFault[] = []
+    player.onFault((fault) => faults.push(fault))
+
+    player.load('vid-1', 0)
+    const youtube = await mounted(players)
+    youtube.ready()
+    youtube.state(-1) // UNSTARTED
+
+    await vi.waitFor(() => expect(faults).toHaveLength(1), { interval: 5, timeout: 500 })
+    // Our own code: YouTube's are all positive, and this is not one of them.
+    expect(faults[0].code).toBeLessThan(0)
+  })
+
+  it('stands down when the set is switched off', async () => {
+    const { players, load, host } = fakeApiDriver()
+    const player = new YouTubeIframePlayer(load, host, watchdog)
+    const faults: PlayerFault[] = []
+    player.onFault((fault) => faults.push(fault))
+
+    player.load('vid-1', 0)
+    await mounted(players)
+    player.stop()
+
+    await new Promise((resolve) => setTimeout(resolve, 80))
+    expect(faults).toEqual([])
+  })
+
+  it('stands down when the video errors, which is the fault to report', async () => {
+    const { players, load, host } = fakeApiDriver()
+    const player = new YouTubeIframePlayer(load, host, watchdog)
+    const faults: PlayerFault[] = []
+    player.onFault((fault) => faults.push(fault))
+
+    player.load('vid-1', 0)
+    const youtube = await mounted(players)
+    youtube.ready()
+    youtube.fail(100)
+
+    await new Promise((resolve) => setTimeout(resolve, 80))
+    expect(faults.map((fault) => fault.code)).toEqual([100])
+  })
+
+  it('gives each programme its full wait, not what was left of the last one', () => {
+    vi.useFakeTimers()
+    try {
+      const { load, host } = fakeApiDriver()
+      const player = new YouTubeIframePlayer(load, host, watchdog)
+      const faults: PlayerFault[] = []
+      player.onFault((fault) => faults.push(fault))
+
+      player.load('vid-1', 0)
+      vi.advanceTimersByTime(15)
+      player.load('vid-2', 0)
+      vi.advanceTimersByTime(15)
+      expect(faults).toEqual([])
+
+      vi.advanceTimersByTime(5)
+      expect(faults.map((fault) => fault.videoId)).toEqual(['vid-2'])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('watches each new programme in its turn', async () => {
     const { players, load, host } = fakeApiDriver()
     const player = new YouTubeIframePlayer(load, host, watchdog)

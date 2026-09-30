@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Content, DaypartId, Schedule, ScheduleItem } from '@/domain'
+import type { Content, Daypart, DaypartId, Schedule, ScheduleItem } from '@/domain'
 import { entryAt, listing } from '@/ui/listing'
 
 const programme = (title: string): Content => ({
@@ -109,6 +109,73 @@ describe('listing', () => {
     )
 
     expect(entries.map((e) => e.kind)).toEqual(['interlude', 'programme', 'interlude'])
+  })
+
+  // The paper printed programme times, not the station's symbol before one.
+  it('folds an ident into the programme above it', () => {
+    const entries = listing(
+      scheduleOf([
+        [0, 1080, 'breakfast', programme('One')],
+        [1080, 1200, 'breakfast', card('ident')],
+        [1200, 1800, 'breakfast', programme('Two')],
+      ]),
+    )
+
+    expect(entries.map((e) => [e.label, e.startSec, e.endSec])).toEqual([
+      ['One', 0, 1200],
+      ['Two', 1200, 1800],
+    ])
+  })
+
+  it('prints an ident that opens a daypart on its own line, not on the last daypart', () => {
+    const entries = listing(
+      scheduleOf([
+        [0, 600, 'breakfast', programme('One')],
+        [600, 700, 'mid-morning', card('ident')],
+        [700, 1000, 'mid-morning', programme('Two')],
+      ]),
+    )
+
+    expect(entries.map((e) => [e.daypart, e.label, e.endSec])).toEqual([
+      ['breakfast', 'One', 600],
+      ['mid-morning', 'Interlude', 700],
+      ['mid-morning', 'Two', 1000],
+    ])
+  })
+
+  it('marks a second showing (R), and nothing else', () => {
+    const entries = listing(
+      scheduleOf([
+        [0, 600, 'breakfast', programme('One')],
+        [600, 1200, 'breakfast', { ...programme('One'), repeat: true } as Content],
+        [1200, 1300, 'breakfast', card('interlude')],
+      ]),
+    )
+
+    expect(entries.map((e) => e.repeat)).toEqual([undefined, true, undefined])
+  })
+
+  // The clip show is one line, and one line cannot be a repeat.
+  it('does not mark a stripped daypart (R), whatever its clips were', () => {
+    const clipShow: Daypart = {
+      id: 'clip-show',
+      name: 'Clip Show',
+      startMin: 0,
+      endMin: 60,
+      junction: true,
+      stripped: true,
+    }
+    const entries = listing(
+      scheduleOf([
+        [0, 60, 'clip-show', { ...programme('Clip'), repeat: true } as Content],
+        [60, 120, 'clip-show', programme('Another')],
+      ]),
+      [clipShow],
+    )
+
+    expect(entries).toEqual([
+      { startSec: 0, endSec: 120, daypart: 'clip-show', kind: 'programme', label: 'Clip Show' },
+    ])
   })
 })
 

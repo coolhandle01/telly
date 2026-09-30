@@ -394,6 +394,42 @@ describe('when a video mounts but no picture ever arrives', () => {
   })
 })
 
+// The card stays up until the player says there is a picture, so every edge of
+// this sequence is something a viewer sees.
+describe('the picture it reports', () => {
+  it('has a picture only while a programme is playing', async () => {
+    const { player, players } = driver()
+    const seen: boolean[] = []
+    player.onPicture((has) => seen.push(has))
+
+    player.load('vid-1', 0)
+    const youtube = await mounted(players)
+    youtube.ready()
+    youtube.state(3) // BUFFERING: on its way, not here
+    expect(seen).toEqual([false])
+    youtube.state(1) // PLAYING
+    player.load('vid-2', 0) // the next programme, not playing yet
+    youtube.state(1)
+    player.stop()
+
+    expect(seen).toEqual([false, true, false, true, false])
+  })
+
+  it('takes the picture down when destroyed mid-programme', async () => {
+    const { player, players } = driver()
+    const seen: boolean[] = []
+    player.onPicture((has) => seen.push(has))
+
+    player.load('vid-1', 0)
+    const youtube = await mounted(players)
+    youtube.ready()
+    youtube.state(1)
+    player.destroy()
+
+    expect(seen).toEqual([false, true, false])
+  })
+})
+
 // Found by switching the set off and on again: the surface removes the host
 // from the document when it unmounts, and an iframe that moves in the DOM
 // reloads — severing the player object from its frame.

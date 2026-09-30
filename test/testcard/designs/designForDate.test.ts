@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CardDesignId } from '@/testcard/model'
-import { designForDate } from '@/testcard/designs/index'
+import { DESIGN_ROTATION, designForDate } from '@/testcard/designs/index'
 
 const FIVE: readonly CardDesignId[] = ['electronic', 'bars', 'monoscope', 'crosshatch', 'ident']
 const on = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h)
@@ -52,6 +52,10 @@ describe('designForDate', () => {
   it('survives a rotation of one, which is what it has until more are drawn', () => {
     expect(designForDate(on(2026, 9, 12), ['electronic'])).toBe('electronic')
     expect(designForDate(on(2031, 1, 1), ['electronic'])).toBe('electronic')
+  })
+
+  it('falls back to the channel rotation when given an empty one', () => {
+    expect(DESIGN_ROTATION).toContain(designForDate(on(2026, 9, 12), []))
   })
 
   it.each([

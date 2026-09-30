@@ -243,6 +243,17 @@ describe('buildCrosshatchCard — the card frame', () => {
     expect(shape).toMatchObject({ ...model.picture, fill: '#000000' })
   })
 
+  it('frames the picture in a line finer than the border, heavier on a bigger card', () => {
+    const small = card({ width: 320, height: 240 })
+    const large = card({ width: 2048, height: 1536 })
+    const [smallFrame] = rectsOf(small, 'picture')
+    const [largeFrame] = rectsOf(large, 'picture')
+
+    expect(smallFrame.strokeWidth).toBeGreaterThanOrEqual(1)
+    expect(largeFrame.strokeWidth).toBeGreaterThan(smallFrame.strokeWidth as number)
+    expect(largeFrame.strokeWidth).toBeLessThan(large.picture.x)
+  })
+
   it('wears no castellations, no bars and no wedges — the grid is the card', () => {
     const model = card()
 

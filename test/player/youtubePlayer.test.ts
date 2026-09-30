@@ -641,6 +641,23 @@ describe('a superseded player', () => {
     expect(pictures.at(-1)).toBe(false)
   })
 
+  it('cannot raise the picture on the player built after it', async () => {
+    const { player, players } = driver()
+    const pictures: boolean[] = []
+    player.onPicture((has) => pictures.push(has))
+
+    player.load('vid-1', 0)
+    const first = await mounted(players)
+    first.ready()
+    player.stop()
+    player.load('vid-2', 0)
+    await vi.waitFor(() => expect(players).toHaveLength(2), POLL)
+
+    first.state(1) // PLAYING, from the frame the new one replaced
+
+    expect(pictures).toEqual([false])
+  })
+
   it('cannot report a fault after it has been torn down', async () => {
     const { player, players } = driver()
     const faults: PlayerFault[] = []

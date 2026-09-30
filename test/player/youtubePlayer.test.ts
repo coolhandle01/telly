@@ -482,6 +482,20 @@ describe('the picture it reports', () => {
     expect(seen).toEqual([false, true, false, true, false])
   })
 
+  it('stops telling a listener that unsubscribed', async () => {
+    const { player, players } = driver()
+    const seen: boolean[] = []
+    const unsubscribe = player.onPicture((has) => seen.push(has))
+
+    player.load('vid-1', 0)
+    const youtube = await mounted(players)
+    youtube.ready()
+    unsubscribe()
+    youtube.state(1)
+
+    expect(seen).toEqual([false])
+  })
+
   it('takes the picture down when destroyed mid-programme', async () => {
     const { player, players } = driver()
     const seen: boolean[] = []
@@ -780,6 +794,15 @@ describe('loadYouTubeIframeApi', () => {
     scriptTag()?.dispatchEvent(new Event('error'))
     await expect(pending).rejects.toThrow()
 
+    expect(scriptTag()).toBeNull()
+  })
+
+  // The API announces itself once; a second wait for that would never end.
+  it('hands back an API that is already loaded, without asking again', async () => {
+    const api = { Player: vi.fn() }
+    ;(window as { YT?: unknown }).YT = api
+
+    await expect(loadYouTubeIframeApi()).resolves.toBe(api)
     expect(scriptTag()).toBeNull()
   })
 

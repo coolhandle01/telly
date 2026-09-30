@@ -33,7 +33,8 @@ export function bandDrift(value: number, band: number, centre: number = CENTRE):
   const off = Math.abs(clamp01(value) - middle)
   if (off <= band) return 0
   // Measured against the longer side, so the drift still reaches 1 at the far
-  // stop when the band is nearer one end than the other.
+  // stop when the band is nearer one end than the other. `off` is never more
+  // than that side, so getting here means the band is shorter than it.
   const reach = Math.max(middle, 1 - middle) - band
-  return reach <= 0 ? 1 : tidy(Math.min(1, (off - band) / reach))
+  return tidy(Math.min(1, (off - band) / reach))
 }

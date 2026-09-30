@@ -69,6 +69,18 @@ describe('every station', () => {
   })
 })
 
+// An affinity map leaves out a daypart that does not want a video, and never
+// records a zero, so a slot that does not want a genre leaves it out too.
+describe('every slot', () => {
+  it('wants each genre it names by more than nothing', () => {
+    for (const [id, slot] of Object.entries(SLOTS)) {
+      for (const [genre, want] of Object.entries(slot.wants)) {
+        expect(want, `${id} ${genre}`).toBeGreaterThan(0)
+      }
+    }
+  })
+})
+
 const offAir = (startMin: number, endMin: number): Daypart => ({
   id: 'closedown',
   name: 'Closedown',

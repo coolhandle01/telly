@@ -1,4 +1,4 @@
-import { BORDER_FRACTION, DEFAULTS, type Picture } from '../primitives'
+import { cardFrame } from '../primitives'
 import { PALETTE } from '../palette'
 import type { RectShape, Shape, TestCardModel, TestCardSpec, TextShape } from '../model'
 
@@ -36,16 +36,7 @@ const STATION_SIZE = 0.04
 export const DEFAULT_FAULT_HEADING = 'SERVICE FAULT'
 
 export function buildFaultCard(spec: TestCardSpec): TestCardModel {
-  const width = spec.width ?? DEFAULTS.width
-  const height = spec.height ?? DEFAULTS.height
-  const border = Math.round(Math.min(width, height) * BORDER_FRACTION)
-  const picture: Picture = {
-    x: border,
-    y: border,
-    width: width - border * 2,
-    height: height - border * 2,
-  }
-  const centre = { x: picture.x + picture.width / 2, y: picture.y + picture.height / 2 }
+  const { width, height, picture, centre } = cardFrame(spec)
   const shapes: Shape[] = []
 
   shapes.push({

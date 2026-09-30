@@ -1,6 +1,6 @@
 import {
-  DEFAULTS,
   captionBox,
+  cardFrame,
   clockBox,
   type Picture,
 } from '../primitives'
@@ -122,16 +122,7 @@ function geometryCircle(picture: Picture, centre: { x: number; y: number }): Cir
 }
 
 export function buildCrosshatchCard(spec: TestCardSpec): TestCardModel {
-  const width = spec.width ?? DEFAULTS.width
-  const height = spec.height ?? DEFAULTS.height
-  const border = Math.round(Math.min(width, height) * BORDER_FRACTION)
-  const picture: Picture = {
-    x: border,
-    y: border,
-    width: width - 2 * border,
-    height: height - 2 * border,
-  }
-  const centre = { x: width / 2, y: height / 2 }
+  const { width, height, border, picture, centre } = cardFrame(spec, BORDER_FRACTION)
   // The interlude is the same grid at half the density: a convergence pattern
   // under a programme junction should be legible, not busy.
   const grid = crosshatchGrid(

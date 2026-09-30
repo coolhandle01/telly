@@ -233,7 +233,7 @@ describe('YouTubeIframePlayer', () => {
   })
 
   it('destroys the underlying player and goes inert', async () => {
-    const { player, players } = driver()
+    const { player, players, load } = driver()
 
     player.load('vid-1', 0)
     const youtube = await mounted(players)
@@ -245,6 +245,7 @@ describe('YouTubeIframePlayer', () => {
     expect(youtube.destroys).toBe(1)
     expect(youtube.stops).toBe(0)
     expect(youtube.loads).toEqual([])
+    expect(load).toHaveBeenCalledTimes(1) // the API is not fetched again
   })
 
   it('mounts nothing at all if it was destroyed before the API arrived', async () => {
@@ -659,6 +660,18 @@ describe('before the frame reports ready', () => {
     expect(youtube.destroys).toBe(0)
   })
 
+  // It cannot be asked to destroy itself yet, so leaving the document is the
+  // only thing that stops it.
+  it('takes a frame that never became ready out of the host when stopped', async () => {
+    const { player, players, host } = driver()
+
+    player.load('vid-1', 0)
+    await mounted(players)
+    player.stop()
+
+    expect(host.children).toHaveLength(0)
+  })
+
   it('abandons a mount whose host has left the document', async () => {
     const { player, players, host } = driver()
 
@@ -745,7 +758,7 @@ describe('loadYouTubeIframeApi', () => {
   const scriptTag = () => document.querySelector<HTMLScriptElement>(`script[src="${API_URL}"]`)
 
   afterEach(() => {
-    scriptTag()?.remove()
+    document.querySelectorAll(`script[src="${API_URL}"]`).forEach((script) => script.remove())
     delete (window as { YT?: unknown }).YT
     delete (window as { onYouTubeIframeAPIReady?: unknown }).onYouTubeIframeAPIReady
   })
@@ -758,6 +771,29 @@ describe('loadYouTubeIframeApi', () => {
     script?.dispatchEvent(new Event('error'))
 
     await expect(pending).rejects.toThrow(/could not be loaded/i)
+  })
+
+  // Left in the page, the dead tag is what the next try finds, and it waits on
+  // a script that is never coming.
+  it('takes a script that failed out of the page, so the next try fetches it afresh', async () => {
+    const pending = loadYouTubeIframeApi()
+    scriptTag()?.dispatchEvent(new Event('error'))
+    await expect(pending).rejects.toThrow()
+
+    expect(scriptTag()).toBeNull()
+  })
+
+  it('asks for the script once, however many are waiting on it', async () => {
+    const first = loadYouTubeIframeApi()
+    const second = loadYouTubeIframeApi()
+    const api = { Player: vi.fn() }
+    ;(window as { YT?: unknown }).YT = api
+
+    window.onYouTubeIframeAPIReady?.()
+
+    expect(document.querySelectorAll(`script[src="${API_URL}"]`)).toHaveLength(1)
+    await expect(first).resolves.toBe(api)
+    await expect(second).resolves.toBe(api)
   })
 
   it('resolves once the API announces itself', async () => {

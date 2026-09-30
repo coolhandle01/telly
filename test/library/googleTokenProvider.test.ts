@@ -261,7 +261,7 @@ describe('GoogleTokenProvider', () => {
     await provider.signIn()
 
     // Written out: the key is what an earlier tab left behind for this one.
-    expect(JSON.parse(sessionStorage.getItem('telly.google.token') ?? '')).toEqual({
+    expect(JSON.parse(sessionStorage.getItem('telly.google.token') ?? 'null')).toEqual({
       token: 'tok-abc',
       expiresAtMs: expect.any(Number),
     })

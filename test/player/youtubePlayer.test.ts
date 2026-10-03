@@ -802,8 +802,9 @@ describe('loadYouTubeIframeApi', () => {
     const api = { Player: vi.fn() }
     ;(window as { YT?: unknown }).YT = api
 
-    await expect(loadYouTubeIframeApi()).resolves.toBe(api)
+    const pending = loadYouTubeIframeApi()
     expect(scriptTag()).toBeNull()
+    await expect(pending).resolves.toBe(api)
   })
 
   it('asks for the script once, however many are waiting on it', async () => {

@@ -1,3 +1,5 @@
+import './SourceLink.css'
+
 export interface SourceLinkProps {
   /** Where the source lives. */
   href: string
@@ -33,7 +35,6 @@ export function SourceLink({ href }: SourceLinkProps) {
       rel="noreferrer noopener"
       aria-label="Source on GitHub"
     >
-      <style>{CSS}</style>
       <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false">
         <path
           fill="#ffffff"
@@ -44,30 +45,3 @@ export function SourceLink({ href }: SourceLinkProps) {
     </a>
   )
 }
-
-const CSS = `
-.source-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  min-height: 2.5rem;
-  padding: 0 0.85rem;
-  border: 1px solid #3a3f44;
-  border-radius: 4px;
-  background: #16191c;
-  color: #e7e9ea;
-  font: 0.85rem/1 ui-monospace, Menlo, monospace;
-  letter-spacing: 0.04em;
-  text-decoration: none;
-}
-.source-link:hover { background: #1e2226; }
-.source-link:focus-visible {
-  outline: 3px solid #ffe6a8;
-  outline-offset: 2px;
-}
-/* The mark alone once there is no room for the word beside it. */
-@media (max-width: 30rem) {
-  .source-link { padding: 0 0.7rem; }
-  .source-link__label { display: none; }
-}
-`

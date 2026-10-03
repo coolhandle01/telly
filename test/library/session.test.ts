@@ -124,7 +124,13 @@ describe('googleSession', () => {
       const refused = await session.signOut().catch((error: unknown) => error)
 
       expect(refused).toBeInstanceOf(SignOutError)
-      expect(refused).toMatchObject({ revoked: false, cleared: true })
+      // The name and the message are for whoever is holding the Error.
+      expect(refused).toMatchObject({
+        name: 'SignOutError',
+        message: expect.stringMatching(/signing out/),
+        revoked: false,
+        cleared: true,
+      })
       expect((refused as SignOutError).cause).toMatchObject({ message: 'revocation was refused' })
       expect(calls.forget).toBe(1)
     })

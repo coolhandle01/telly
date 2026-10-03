@@ -9,11 +9,12 @@ import {
   type Pool,
   type Programme,
   type Schedule,
+  type ScheduleItem,
   type Video,
 } from '@/domain'
 import { fixturePool } from '../support/pool'
 import { HeuristicClassifier, OverridingClassifier, type Affinities, type Classifier } from '@/schedule/classify'
-import { plan } from '@/schedule/plan'
+import { assertCoversDay, junctionCloseness, plan } from '@/schedule/plan'
 
 const MINUTE = 60
 /** A broadcast day that begins at local 06.00 on a fixed date. */
@@ -655,5 +656,167 @@ describe('plan, the dayparts it is given', () => {
     expect(plan(pool, { dayStart: DAY_START, dayparts: [] })).toEqual(
       plan(pool, { dayStart: DAY_START, dayparts: DEFAULT_DAYPARTS }),
     )
+  })
+})
+
+/*
+  Each rule at its own boundary. The tests above sit comfortably inside or
+  outside each threshold, which a `<` for a `<=` does not change.
+*/
+describe('plan, at the exact edges', () => {
+  const only = (id: string, durationSec: number, affinity = 1) => ({
+    videos: [video({ id, durationSec })],
+    classifier: classifierOf({ [id]: { breakfast: affinity } }),
+  })
+  const variantAt = (schedule: Schedule, index: number) => {
+    const content = schedule.items[index].content
+    return content.kind === 'filler' ? content.variant : content.kind
+  }
+
+  it('fills a gap of exactly three minutes with the ident', () => {
+    const { videos, classifier } = only('a', 10 * MINUTE)
+    const schedule = plan(poolOf(videos), { dayStart: DAY_START, dayparts: twoPartDay(13), classifier })
+
+    expect(schedule.items[1]).toMatchObject({ startSec: 10 * MINUTE, endSec: 13 * MINUTE })
+    expect(variantAt(schedule, 1)).toBe('ident')
+  })
+
+  it('holds the ident up to a mark exactly three minutes away', () => {
+    const { videos, classifier } = only('a', 12 * MINUTE)
+    const schedule = plan(poolOf(videos), { dayStart: DAY_START, dayparts: twoPartDay(60), classifier })
+
+    expect(schedule.items[1]).toMatchObject({ startSec: 12 * MINUTE, endSec: 15 * MINUTE })
+    expect(variantAt(schedule, 1)).toBe('ident')
+  })
+
+  // The mark is at 15 minutes and the daypart ends at 14, with nothing after
+  // it to cut the ident back: holding the symbol to the mark would run it
+  // into the next daypart.
+  it('does not hold the ident past the end of its own daypart', () => {
+    const { videos, classifier } = only('a', 12 * MINUTE)
+    const schedule = plan(poolOf(videos), {
+      dayStart: DAY_START,
+      dayparts: twoPartDay(14, false),
+      classifier,
+    })
+
+    expect(schedule.items[1]).toMatchObject({ startSec: 12 * MINUTE, endSec: 14 * MINUTE, daypart: 'breakfast' })
+    expect(variantAt(schedule, 1)).toBe('ident')
+    expect(schedule.items[2]).toMatchObject({ startSec: 14 * MINUTE, daypart: 'closedown' })
+  })
+
+  it('still offers a programme the last ninety seconds of a daypart', () => {
+    const videos = [
+      video({ id: 'long', channelId: 'UC-a', durationSec: 18 * MINUTE + 30 }),
+      video({ id: 'sting', channelId: 'UC-b', durationSec: 90 }),
+    ]
+    const schedule = plan(poolOf(videos), {
+      dayStart: DAY_START,
+      dayparts: twoPartDay(20),
+      classifier: classifierOf({ long: { breakfast: 1 }, sting: { breakfast: 0.2 } }),
+    })
+
+    expect(programmes(schedule).map((p) => p.videoId)).toEqual(['long', 'sting'])
+  })
+
+  it('takes a video whose affinity is exactly the threshold', () => {
+    const { videos, classifier } = only('a', 10 * MINUTE, 0.15)
+    const schedule = plan(poolOf(videos), { dayStart: DAY_START, dayparts: twoPartDay(20), classifier })
+
+    expect(programmes(schedule).map((p) => p.videoId)).toEqual(['a'])
+  })
+
+  it('takes a programme that overruns by exactly the allowance', () => {
+    const { videos, classifier } = only('a', 20 * MINUTE + 600)
+    const schedule = plan(poolOf(videos), { dayStart: DAY_START, dayparts: twoPartDay(20), classifier })
+
+    expect(programmes(schedule).map((p) => p.videoId)).toEqual(['a'])
+  })
+
+  // The same programme under two ids, in a daypart that starts ten hours in.
+  // Early in the day the gap is small whichever way it is worked out, so the
+  // arithmetic only shows later on.
+  it('keeps two uploads of one programme hours apart late in the day as well', () => {
+    const videos = [
+      { ...video({ id: 'a', durationSec: 30 * MINUTE }), title: 'The Same Thing' },
+      { ...video({ id: 'b', durationSec: 30 * MINUTE }), title: 'The Same Thing' },
+    ]
+    const dayparts: readonly Daypart[] = [
+      { id: 'closedown', name: 'Closedown', startMin: 0, endMin: 600, junction: false, offAir: true },
+      { id: 'breakfast', name: 'Breakfast', startMin: 600, endMin: 720, junction: false },
+      { id: 'closedown', name: 'Closedown', startMin: 720, endMin: MINUTES_PER_DAY, junction: true, offAir: true },
+    ]
+    const schedule = plan(poolOf(videos), {
+      dayStart: DAY_START,
+      dayparts,
+      classifier: classifierOf({ a: { breakfast: 1 }, b: { breakfast: 1 } }),
+    })
+
+    expect(programmes(schedule)).toHaveLength(1)
+  })
+
+  it('treats titles that differ only in the space around them as one programme', () => {
+    const videos = [
+      { ...video({ id: 'a', durationSec: 30 * MINUTE }), title: 'The Same Thing' },
+      { ...video({ id: 'b', durationSec: 30 * MINUTE }), title: '  The Same Thing ' },
+    ]
+    const schedule = plan(poolOf(videos), {
+      dayStart: DAY_START,
+      dayparts: twoPartDay(60),
+      classifier: classifierOf({ a: { breakfast: 1 }, b: { breakfast: 1 } }),
+    })
+
+    expect(programmes(schedule)).toHaveLength(1)
+  })
+})
+
+describe('assertCoversDay', () => {
+  const item = (startSec: number, endSec: number): ScheduleItem => ({
+    startSec,
+    endSec,
+    daypart: 'breakfast',
+    content: { kind: 'filler', variant: 'interlude' },
+  })
+
+  it('accepts a day covered end to end', () => {
+    expect(() => assertCoversDay([item(0, 100), item(100, 200)], 200)).not.toThrow()
+  })
+
+  it.each([
+    ['a day that does not start at zero', [item(10, 200)], /not contiguous at 10s/],
+    ['a gap', [item(0, 100), item(150, 200)], /not contiguous at 150s/],
+    ['an overlap', [item(0, 100), item(50, 200)], /not contiguous at 50s/],
+    ['an item with no length', [item(0, 100), item(100, 100), item(100, 200)], /at 100s has no duration/],
+    ['an item that runs backwards', [item(0, 100), item(100, 90)], /at 100s has no duration/],
+    ['a day that stops short', [item(0, 100)], /covers 100s, not the 200s/],
+    ['a day that runs over', [item(0, 300)], /covers 300s, not the 200s/],
+  ])('refuses %s', (_name, items, message) => {
+    expect(() => assertCoversDay(items, 200)).toThrow(message)
+  })
+
+  it('takes a whole day by default', () => {
+    expect(() => assertCoversDay([item(0, SECONDS_PER_DAY)])).not.toThrow()
+  })
+})
+
+/*
+  How much an ending near a mark counts: all of it on the hour, the quarter
+  past and the half, falling away over five minutes either side, and nothing
+  beyond. A quarter to is not a mark.
+*/
+describe('junctionCloseness', () => {
+  it.each([
+    ['on the hour', 0, 1],
+    ['on the quarter past', 15 * MINUTE, 1],
+    ['on the half hour', 30 * MINUTE, 1],
+    ['on the next hour', 60 * MINUTE, 1],
+    ['on a mark in a later hour', 13 * 60 * MINUTE + 15 * MINUTE, 1],
+    ['two and a half minutes after a mark', 30 * MINUTE + 150, 0.5],
+    ['two and a half minutes before a mark', 15 * MINUTE - 150, 0.5],
+    ['two and a half minutes before the hour', 60 * MINUTE - 150, 0.5],
+    ['five minutes from a mark', 5 * MINUTE, 0],
+    ['at a quarter to', 45 * MINUTE, 0],
+  ])('counts an ending %s as %d', (_name, endSec, closeness) => {
+    expect(junctionCloseness(endSec)).toBeCloseTo(closeness, 10)
   })
 })

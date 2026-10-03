@@ -165,8 +165,9 @@ export class CachedPoolSource implements PoolSource {
 
   /**
    * A stamp from the future means a moved clock or a corrupt record: distrust
-   * it. The type check comes first because this runs outside the try/catch in
-   * `#readFresh`, and IndexedDB stores a BigInt happily: `number - bigint` throws.
+   * it. The stored value can be anything IndexedDB holds, a BigInt included,
+   * and `Number.isFinite` refuses all but a finite number; the type check is
+   * what lets the subtraction treat it as one.
    */
   #isFresh(savedAt: unknown): boolean {
     if (typeof savedAt !== 'number' || !Number.isFinite(savedAt)) return false

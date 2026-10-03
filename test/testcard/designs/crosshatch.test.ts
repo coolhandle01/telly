@@ -201,6 +201,10 @@ describe('crosshatchGrid — the arithmetic of the grid', () => {
     expect(() => crosshatchGrid(picture(1024, 768), -4)).toThrow(RangeError)
     expect(() => crosshatchGrid(picture(1024, 768), 12.5)).toThrow(RangeError)
   })
+
+  it('draws two columns, the fewest that cross in the middle', () => {
+    expect(crosshatchGrid(picture(1024, 768), 2).columns).toBe(2)
+  })
 })
 
 describe('buildCrosshatchCard — the card frame', () => {
@@ -237,6 +241,17 @@ describe('buildCrosshatchCard — the card frame', () => {
     expect(model.picture.y + model.picture.height).toBe(model.height - model.picture.y)
     expect(rest).toEqual([])
     expect(shape).toMatchObject({ ...model.picture, fill: '#000000' })
+  })
+
+  it('frames the picture in a line finer than the border, heavier on a bigger card', () => {
+    const small = card({ width: 320, height: 240 })
+    const large = card({ width: 2048, height: 1536 })
+    const [smallFrame] = rectsOf(small, 'picture')
+    const [largeFrame] = rectsOf(large, 'picture')
+
+    expect(smallFrame.strokeWidth).toBeGreaterThanOrEqual(1)
+    expect(largeFrame.strokeWidth).toBeGreaterThan(smallFrame.strokeWidth as number)
+    expect(largeFrame.strokeWidth).toBeLessThan(large.picture.x)
   })
 
   it('wears no castellations, no bars and no wedges — the grid is the card', () => {

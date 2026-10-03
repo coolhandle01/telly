@@ -102,6 +102,9 @@ describe('WebAudioSound', () => {
       const samples = buffer?.getChannelData(0) ?? new Float32Array()
       expect(samples.some((sample) => sample !== 0)).toBe(true)
       expect(samples.every((sample) => sample >= -1 && sample <= 1)).toBe(true)
+      // Both halves of the swing, not one side of it.
+      expect(samples.reduce((a, b) => Math.max(a, b), -1)).toBeGreaterThan(0.5)
+      expect(samples.reduce((a, b) => Math.min(a, b), 1)).toBeLessThan(-0.5)
     })
 
     it('is quieter than the tone, because broadband noise is not one frequency', () => {
@@ -236,6 +239,27 @@ describe('WebAudioSound', () => {
       expect(firstOffset).not.toBe(secondOffset)
     })
 
+    // A browser refuses a negative offset, and a slice past the end of the
+    // noise plays nothing.
+    it('cuts every slice from inside the noise, however many there are', () => {
+      for (let i = 0; i < 40; i++) sound.click()
+
+      const buffer = context.sources[0].buffer
+      const seconds = (buffer?.length ?? 0) / (buffer?.sampleRate ?? 1)
+      for (const source of context.sources) {
+        const [, offset, duration] = source.start.mock.calls[0]
+        expect(offset).toBeGreaterThanOrEqual(0)
+        expect(offset + duration).toBeLessThanOrEqual(seconds)
+      }
+    })
+
+    it('runs the noise through its filter to its gain', () => {
+      sound.click()
+
+      expect(context.sources[0].connect).toHaveBeenCalledWith(context.filters[0])
+      expect(context.filters[0].connect).toHaveBeenCalledWith(context.gains[0])
+    })
+
     it('does not disturb what is already playing', () => {
       sound.tone(1000)
       sound.clunk()
@@ -244,6 +268,22 @@ describe('WebAudioSound', () => {
       // click during closedown, not the end of the tone.
       expect(context.oscillators[0].stop).not.toHaveBeenCalled()
     })
+  })
+
+  // A ramp or a stop scheduled before now happens at once: the click a fade is
+  // there to prevent, or a knock cut off before it sounds.
+  it('schedules every fade and every knock to end after now, never before', () => {
+    sound.tone(1000)
+    sound.setLevel(0.5)
+    sound.stop()
+    sound.hiss()
+    sound.click()
+
+    const ramps = context.gains.flatMap((gain) => gain.gain.linearRampToValueAtTime.mock.calls)
+    expect(ramps.length).toBeGreaterThanOrEqual(4)
+    for (const [, at] of ramps) expect(at).toBeGreaterThan(context.currentTime)
+    const knock = context.sources[context.sources.length - 1]
+    expect(knock.stop.mock.calls[0][0]).toBeGreaterThan(context.currentTime)
   })
 
   it('opens the context from a gesture, before there is anything to play', () => {

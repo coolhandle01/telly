@@ -98,10 +98,5 @@ export class IndexedDbPoolStore implements PoolStore {
  * expected to carry on without a cache rather than fail.
  */
 export function openPoolStore(factory: IDBFactory | undefined = globalThis.indexedDB): PoolStore | undefined {
-  if (!factory) return undefined
-  try {
-    return new IndexedDbPoolStore(factory)
-  } catch {
-    return undefined
-  }
+  return factory ? new IndexedDbPoolStore(factory) : undefined
 }

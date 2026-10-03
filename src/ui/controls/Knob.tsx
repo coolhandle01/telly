@@ -1,6 +1,7 @@
-import { LEGEND_FONT, NO_SELECT } from './type'
 import { useSurfaceIds } from './surfaceIds'
 import { DEFAULT_STEP, MAX, MIN, clamp, tidy, useRotary } from './useRotary'
+import './type.css'
+import './Knob.css'
 
 export interface KnobProps {
   label: string
@@ -58,74 +59,6 @@ function tickLine(index: number) {
   return { x1: 50 + dx * 43, y1: 50 + dy * 43, x2: 50 + dx * 49, y2: 50 + dy * 49 }
 }
 
-const CSS = `
-.tv-knob { display: grid; justify-items: center; gap: 0.4rem; }
-.tv-knob__stack {
-  position: relative;
-  width: clamp(3.25rem, 13vw, 4.5rem);
-  aspect-ratio: 1;
-}
-/* Overflowing, because the shadow the knob throws lands outside the dial. */
-.tv-knob__ticks { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.tv-knob__dial {
-  position: absolute;
-  inset: 11%;
-  border-radius: 50%;
-  cursor: ns-resize;
-  touch-action: none;
-  /* All that is left of the knob if filters are refused. */
-  background: radial-gradient(circle at 36% 30%, #3b352f, #0b0907 78%);
-}
-.tv-knob__body { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.tv-knob__dial:focus-visible {
-  outline: 0.18rem solid #ffe6a8;
-  outline-offset: 0.22rem;
-}
-/*
-  The pointer runs from the milling in to the edge of the cap and stops:
-  it is marked on the black skirt, and a line drawn across a spun cap would
-  read as a scratch. The origin is still the centre of the dial, which is why
-  it is past the bottom of the mark itself.
-*/
-.tv-knob__pointer {
-  position: absolute;
-  left: 50%;
-  top: 6%;
-  width: 0.17rem;
-  height: 26%;
-  margin-left: -0.085rem;
-  border-radius: 0.085rem;
-  transform-origin: 50% 169.2%;
-  /* Ivory against near-black, with a hard shadow under it: a pointer only
-     reads as crisp if the edge either side of it is dark. */
-  background: linear-gradient(#fffaf1, #ead9b6 58%, #b09a74);
-  box-shadow:
-    0 0.05rem 0.11rem rgba(0, 0, 0, 0.8),
-    inset -0.03rem 0 0 rgba(92, 74, 46, 0.45);
-}
-.tv-knob__cap {
-  position: absolute;
-  inset: 34%;
-  border-radius: 50%;
-  /* Under the spun cap, and all that is left of it without filters. */
-  background: radial-gradient(circle at 34% 28%, #dbd7d0, #9f9b93 78%);
-  box-shadow:
-    inset 0 -0.04rem 0.08rem rgba(0, 0, 0, 0.4),
-    0 0.05rem 0.14rem rgba(0, 0, 0, 0.7);
-}
-.tv-knob__spun { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; }
-.tv-knob__label {
-  font: 600 0.6rem/1 ${LEGEND_FONT};
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  ${NO_SELECT}
-  /* Engraved into the plate the spindle comes through, so it is cut dark
-     with the burr under it catching the light — not printed on in cream. */
-  color: #4a4640;
-  text-shadow: 0 0.045rem 0 rgba(255, 255, 255, 0.6);
-}
-`
-
 /**
  * A bakelite volume control, drawn in CSS. It stands in for an
  * `<input type="range">` and so has to be at least as good as one: the same
@@ -142,7 +75,6 @@ export function Knob({ label, value, onChange, step = DEFAULT_STEP }: KnobProps)
 
   return (
     <div className="tv-knob">
-      <style>{CSS}</style>
       <div className="tv-knob__stack">
         <svg className="tv-knob__ticks" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
           <defs>

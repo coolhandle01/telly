@@ -35,4 +35,13 @@ describe('bandDrift', () => {
   it('is symmetrical about mid-travel', () => {
     expect(bandDrift(CENTRE + 0.3, 0.09)).toBe(bandDrift(CENTRE - 0.3, 0.09))
   })
+
+  // A tuner's band can sit well off mid-travel. Drift is measured against the
+  // longer side, so it reaches the full amount at the far stop and no sooner:
+  // with the band at 0.3, 0.65 is 0.3 out of a possible 0.65.
+  it('measures an off-centre band against its longer side', () => {
+    expect(bandDrift(1, 0.05, 0.3)).toBe(1)
+    expect(bandDrift(0.65, 0.05, 0.3)).toBeCloseTo(0.3 / 0.65, 6)
+    expect(bandDrift(0, 0.05, 0.3)).toBeCloseTo(0.25 / 0.65, 6)
+  })
 })

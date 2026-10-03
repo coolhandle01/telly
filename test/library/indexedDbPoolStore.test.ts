@@ -33,9 +33,16 @@ class FakeRequest<T> {
 class FakeObjectStore {
   readonly records: Map<string, unknown>
   readonly #failing: boolean
-  constructor(records: Map<string, unknown>, failing = false) {
+  readonly #readonly: boolean
+  constructor(records: Map<string, unknown>, failing = false, readonly = false) {
     this.records = records
     this.#failing = failing
+    this.#readonly = readonly
+  }
+
+  // A read-only transaction refuses writes on the spot, as the real one does.
+  #refuseInReadonly(): void {
+    if (this.#readonly) throw new DOMException('the transaction is read-only', 'ReadOnlyError')
   }
 
   get(key: string): FakeRequest<unknown> {
@@ -46,6 +53,7 @@ class FakeObjectStore {
   }
 
   put(value: unknown, key: string): FakeRequest<void> {
+    this.#refuseInReadonly()
     const request = new FakeRequest<void>()
     if (this.#failing) {
       request.fail(new Error('the object store is unwritable'))
@@ -57,6 +65,7 @@ class FakeObjectStore {
   }
 
   delete(key: string): FakeRequest<void> {
+    this.#refuseInReadonly()
     const request = new FakeRequest<void>()
     if (this.#failing) {
       request.fail(new Error('the record could not be removed'))
@@ -68,20 +77,30 @@ class FakeObjectStore {
   }
 }
 
+type Ending = 'complete' | 'error' | 'abort'
+
 class FakeTransaction {
   oncomplete: Listener = null
   onerror: Listener = null
   onabort: Listener = null
-  readonly error: Error | undefined
+  // An abort the page asked for carries no error, as in a browser.
+  readonly error: Error | null = null
+  readonly #scope: string
   readonly #store: FakeObjectStore
 
-  constructor(store: FakeObjectStore, failing = false) {
+  constructor(scope: string, store: FakeObjectStore, ending: Ending) {
+    this.#scope = scope
     this.#store = store
-    if (failing) this.error = new Error('the transaction was rolled back')
-    setTimeout(() => (failing ? this.onerror?.({ target: this }) : this.oncomplete?.({ target: this })), 0)
+    if (ending === 'error') this.error = new Error('the transaction was rolled back')
+    setTimeout(() => {
+      if (ending === 'complete') this.oncomplete?.({ target: this })
+      else if (ending === 'error') this.onerror?.({ target: this })
+      else this.onabort?.({ target: this })
+    }, 0)
   }
 
-  objectStore(_name: string): FakeObjectStore {
+  objectStore(name: string): FakeObjectStore {
+    if (name !== this.#scope) throw new DOMException(`${name} is not in this transaction`, 'NotFoundError')
     return this.#store
   }
 }
@@ -95,6 +114,7 @@ class FakeDatabase {
   }
   readonly records = new Map<string, unknown>()
   failing = false
+  aborting = false
   transactions = 0
   closed = false
   onversionchange: Listener = null
@@ -106,11 +126,18 @@ class FakeDatabase {
   }
 
   // A closed connection refuses every transaction, as the real one does, so a
-  // store that keeps using one fails here too.
-  transaction(_names: string, _mode: string): FakeTransaction {
+  // store that keeps using one fails here too. So does a transaction over a
+  // store the database does not have.
+  transaction(name: string, mode: IDBTransactionMode): FakeTransaction {
     if (this.closed) throw new Error('InvalidStateError: the database connection is closing')
+    if (!this.objectStoreNames.contains(name)) {
+      throw new DOMException(`there is no object store called ${name}`, 'NotFoundError')
+    }
+    if (mode !== 'readonly' && mode !== 'readwrite') throw new TypeError(`${mode} is not a transaction mode`)
     this.transactions += 1
-    return new FakeTransaction(new FakeObjectStore(this.records, this.failing), this.failing)
+    const store = new FakeObjectStore(this.records, this.failing, mode === 'readonly')
+    const ending = this.failing ? 'error' : this.aborting ? 'abort' : 'complete'
+    return new FakeTransaction(name, store, ending)
   }
 
   close(): void {
@@ -123,18 +150,24 @@ interface OpenRequest extends FakeRequest<FakeDatabase> {
   onblocked: Listener
 }
 
-function fakeIndexedDb(options: { failToOpen?: boolean; blockOpen?: boolean; failing?: boolean } = {}): {
+function fakeIndexedDb(
+  options: { failToOpen?: boolean; blockOpen?: boolean; failing?: boolean; aborting?: boolean } = {},
+): {
   factory: IDBFactory
   database: FakeDatabase
   opens: number
+  openedAs: { name: string; version?: number }[]
 } {
   const database = new FakeDatabase()
   database.failing = options.failing ?? false
+  database.aborting = options.aborting ?? false
   const state = { opens: 0 }
+  const openedAs: { name: string; version?: number }[] = []
 
   const factory = {
-    open(_name: string, _version?: number) {
+    open(name: string, version?: number) {
       state.opens += 1
+      openedAs.push({ name, version })
       const request = new FakeRequest<FakeDatabase>() as OpenRequest
       request.onupgradeneeded = null
       request.onblocked = null
@@ -166,6 +199,7 @@ function fakeIndexedDb(options: { failToOpen?: boolean; blockOpen?: boolean; fai
     get opens() {
       return state.opens
     },
+    openedAs,
   }
 }
 
@@ -217,12 +251,15 @@ describe('IndexedDbPoolStore', () => {
     expect(await store.read('pool:UC-bob')).toBeDefined()
   })
 
-  it('creates the object store on first open', async () => {
-    const { factory, database } = fakeIndexedDb()
+  // Browsers that have run the app already hold their cache under these
+  // names, so a change to either strands it and costs a day's quota.
+  it('keeps the pool in the database and store existing browsers already hold', async () => {
+    const { factory, database, openedAs } = fakeIndexedDb()
 
-    await new IndexedDbPoolStore(factory).read('pool')
+    await new IndexedDbPoolStore(factory).write('pool', entry(1))
 
-    expect([...database.objectStoreNames.names]).not.toHaveLength(0)
+    expect(openedAs).toEqual([{ name: 'testcard', version: 1 }])
+    expect([...database.objectStoreNames.names]).toEqual(['pools'])
   })
 
   it('opens the database once however many times it is used', async () => {
@@ -246,6 +283,17 @@ describe('IndexedDbPoolStore', () => {
     const { factory } = fakeIndexedDb({ failing: true })
 
     await expect(new IndexedDbPoolStore(factory).write('pool', entry(1))).rejects.toThrow(/rolled back/)
+  })
+
+  // A sign-out waits on the removal, so a transaction that aborts and never
+  // settles is a sign-out that never reports.
+  it.each([
+    ['write', (store: IndexedDbPoolStore) => store.write('pool', entry(1))],
+    ['remove', (store: IndexedDbPoolStore) => store.remove('pool')],
+  ])('rejects when a %s transaction aborts', async (_name, act) => {
+    const { factory } = fakeIndexedDb({ aborting: true })
+
+    await expect(act(new IndexedDbPoolStore(factory))).rejects.toThrow(/aborted/)
   })
 
   it('rejects instead of waiting when another tab is blocking the upgrade', async () => {

@@ -52,7 +52,7 @@ export function assign(
   subscriptions: Iterable<Subscription>,
   stations: readonly Station[] = STATIONS,
 ): Lineup {
-  const everyone = [...subscriptions].sort((a, b) => a.channelId.localeCompare(b.channelId))
+  const everyone = [...subscriptions]
   if (stations.length === 0) return new Map()
 
   const lineup = new Map<string, StationId>()

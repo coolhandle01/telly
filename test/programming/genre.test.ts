@@ -49,6 +49,11 @@ describe('genreOf', () => {
     expect(genreOf(channel({ topics: ['Humour', 'Entertainment'] }), [])).toBe('comedy')
   })
 
+  it('takes the first of two equally specific topics', () => {
+    expect(genreOf(channel({ topics: ['Politics', 'Business'] }), [])).toBe('news')
+    expect(genreOf(channel({ topics: ['Business', 'Politics'] }), [])).toBe('society')
+  })
+
   it('falls back to what most of the uploads are filed under', () => {
     const videos = [video({ categoryId: '25' }), video({ categoryId: '25' }), video({ categoryId: '10' })]
 

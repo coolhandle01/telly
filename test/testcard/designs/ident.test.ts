@@ -378,6 +378,15 @@ describe('buildIdentCard — the station mark', () => {
     )
   })
 
+  // A short name has width to spare, so only the plate's height holds it in.
+  it('keeps a short name no taller than its plate', () => {
+    const model = card({ channelName: 'ONE' })
+    const name = textShape(model, 'ident-name')
+    const [plate] = rects(model, 'ident-mark')
+
+    expect(name.fontSize).toBeLessThan(plate.height)
+  })
+
   it('gives the clock a plate of its own, larger than the clock box it sits under', () => {
     const model = card()
     const [clock] = rects(model, 'clock-box')

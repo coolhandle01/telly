@@ -40,6 +40,27 @@ describe('parseIso8601Duration', () => {
     expect(parseIso8601Duration('PT1M30.5S')).toBe(90)
   })
 
+  it.each([
+    // The everyday shape of a YouTube duration: two digits in each place.
+    ['PT1H23M45S', 5025],
+    ['PT12H34M56S', 45296],
+    // Every component at once, each in two digits: 10 years, 11 months,
+    // 12 weeks, 13 days, 14 hours, 15 minutes and 16 seconds.
+    ['P10Y11M12W13DT14H15M16S', 352_304_116],
+    ['PT1.5M', 90],
+    ['PT1.5H', 5400],
+    // YouTube sends no fractions, but they parse: two decimal places in every
+    // component is 1.25 times one of each.
+    ['P1.25Y1.25M1.25W1.25DT1.25H1.25M1.25S', 43_528_576],
+  ])('parses %s as %i seconds', (iso, seconds) => {
+    expect(parseIso8601Duration(iso)).toBe(seconds)
+  })
+
+  it('returns zero for a duration with anything before or after it', () => {
+    expect(parseIso8601Duration('xPT1M')).toBe(0)
+    expect(parseIso8601Duration('PT1Mx')).toBe(0)
+  })
+
   it('returns zero for a duration it cannot make sense of', () => {
     expect(parseIso8601Duration('')).toBe(0)
     expect(parseIso8601Duration('banana')).toBe(0)

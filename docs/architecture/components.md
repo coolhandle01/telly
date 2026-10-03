@@ -518,8 +518,8 @@ noise, a gamma transfer to separate it into grain, `feSpecularLighting` for
 anything that catches the light. It stays sharp at any size and the whole set
 is a few kilobytes.
 
-`surfaces.tsx` holds `WoodSurface` and `MetalSurface`; `type.ts` holds the
-fascia's typography (`LEGEND_FONT`, `BADGE_FONT`, `NO_SELECT`). The idiom and
+`surfaces.tsx` holds `WoodSurface` and `MetalSurface`; `type.css` holds the
+fascia's typography (`--tv-legend-font`, `--tv-badge-font`). The idiom and
 the reference material are in [research/cabinet.md](../research/cabinet.md).
 
 Two structural rules that are easy to undo by accident:
@@ -543,7 +543,7 @@ Two structural rules that are easy to undo by accident:
 - **V, H, B, C, T are knobs, not buttons.** Vertical hold, horizontal hold,
   brightness, colour, tuning: a set of this period adjusted those with
   trimmers.
-- **No control contains selectable text.** `NO_SELECT` is on every legend, so
+- **No control contains selectable text.** Every legend sets `user-select: none`, so
   dragging a knob never leaves half the fascia highlighted in blue.
 - **All five trimmers adjust something.** `ControlPanel` takes them as one
   `trimmers` map keyed by what each adjusts. A trimmer is live only when it is

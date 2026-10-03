@@ -57,7 +57,7 @@ So the provider is split in two:
 - **`prepare()`**: called on mount. Fetches the GIS script and builds the token
   client. Idempotent, memoised on `#ready`.
 - **`signIn()`**: called *straight from the click*, with no `await` in front of
-  it. When the client is already built, `#requestSynchronously` opens the popup
+  it. When the client is already built, `#request` opens the popup
   inside the click's own task, while the activation is still there.
 
 The caller must respect the same rule. In `Channel.tsx`:

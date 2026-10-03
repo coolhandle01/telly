@@ -71,11 +71,13 @@ describe('useCrtPower', () => {
       matches: query === '(prefers-reduced-motion: reduce)',
     }))
     const { result, rerender } = renderHook(({ on }) => useCrtPower(on), {
-      initialProps: { on: true },
+      initialProps: { on: false },
     })
 
-    rerender({ on: false })
+    rerender({ on: true })
+    expect(result.current).toBe('on')
 
+    rerender({ on: false })
     expect(result.current).toBe('off')
   })
 })

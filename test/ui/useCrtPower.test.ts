@@ -52,8 +52,24 @@ describe('useCrtPower', () => {
     expect(result.current).toBe('on')
   })
 
+  it('abandons a warm-up if the set is switched off part-way', () => {
+    const { result, rerender } = renderHook(({ on }) => useCrtPower(on), {
+      initialProps: { on: false },
+    })
+
+    rerender({ on: true })
+    act(() => void vi.advanceTimersByTime(WARM_MS / 3))
+    rerender({ on: false })
+    // Past the moment the warm-up would have finished, short of the collapse.
+    act(() => void vi.advanceTimersByTime(WARM_MS))
+
+    expect(result.current).toBe('collapsing')
+  })
+
   it('switches instantly for a viewer who asked for less movement', () => {
-    vi.stubGlobal('matchMedia', () => ({ matches: true }))
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+    }))
     const { result, rerender } = renderHook(({ on }) => useCrtPower(on), {
       initialProps: { on: true },
     })

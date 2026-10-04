@@ -720,6 +720,33 @@ describe('Channel', () => {
       expect(await screen.findByRole('dialog', { name: /listings/i })).toBeInTheDocument()
     })
 
+    it('ignores i while nobody is signed in, and does not save it for later', async () => {
+      const view = render_(fakeSession().session)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+
+      await view.user.keyboard('i')
+      await view.user.click(signInButton()!)
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+
+      expect(screen.queryByRole('dialog', { name: /listings/i })).toBeNull()
+    })
+
+    // One listener for the key, however many times the source has changed.
+    it('opens the paper on i after signing in, out and in again', async () => {
+      const view = render_(fakeSession().session)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+      await view.user.click(signInButton()!)
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+      await view.user.click(signOutButton()!)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+      await view.user.click(signInButton()!)
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+
+      await view.user.keyboard('i')
+
+      expect(await screen.findByRole('dialog', { name: /listings/i })).toBeInTheDocument()
+    })
+
     it('has no programmes to show while nobody is signed in', async () => {
       const view = render_(fakeSession().session)
       await waitFor(() => expect(signInButton()).toBeInTheDocument())

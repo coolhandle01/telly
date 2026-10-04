@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Video } from '@/domain'
-import { profile, type Subscription } from '@/programming/profile'
+import { profile, SHORT_MAX_SEC, type Subscription } from '@/programming/profile'
 import { StationClassifier } from '@/programming/stationClassifier'
 import { STATIONS, stationById, type Station } from '@/programming/stations'
 import { strandsFor } from '@/programming/strands'
@@ -122,6 +122,13 @@ describe('StationClassifier', () => {
     it('keeps a real programme out of the clip show', () => {
       const offered = classify(five, MONDAY, { channelId: 'UC1' }, video({ id: 'v' }))
 
+      expect(Object.keys(offered)).not.toContain('clip-show')
+    })
+
+    it('offers a video of exactly the longest a short can be as a programme', () => {
+      const offered = classify(five, MONDAY, { channelId: 'UC1' }, video({ id: 'v', durationSec: SHORT_MAX_SEC }))
+
+      expect(Object.keys(offered)).not.toHaveLength(0)
       expect(Object.keys(offered)).not.toContain('clip-show')
     })
   })

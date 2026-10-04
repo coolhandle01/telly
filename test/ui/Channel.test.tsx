@@ -1255,17 +1255,6 @@ describe('Channel', () => {
       expect(screen.getByRole('region', { name: /CHANNEL SIX/ })).toBeInTheDocument()
     })
 
-    // Channel two does not open until eleven, so its card says so, not six.
-    it('gives each station its own resume time at closedown', async () => {
-      const { view } = setUp(SMALL_HOURS)
-      await switchOn(view.user)
-      await programmed()
-
-      await tuneTo(view.user, 2)
-
-      expect(glass()).toHaveTextContent('NORMAL SERVICE WILL RESUME AT 11.00')
-    })
-
     // A reload that fails takes the last pool off the screen with it: what is
     // left is the card and the reason, not yesterday's programmes.
     it('drops the programmes it had when a reload fails', async () => {

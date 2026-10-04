@@ -39,6 +39,30 @@ describe('App', () => {
     )
   })
 
+  // Given no player, it builds the YouTube one, which asks for the IFrame API
+  // when the first programme goes on air and not before.
+  it('builds its own player when it is given none', async () => {
+    try {
+      const view = render(
+        <App
+          clock={new FakeClock(new Date(2026, 8, 9, 14, 32, 7))}
+          sound={createFakeSound()}
+          poolSource={new FixturePoolSource()}
+        />,
+      )
+      expect(document.querySelector('script[src*="youtube.com"]')).toBeNull()
+
+      await view.user.click(screen.getByRole('button', { name: 'Power' }))
+
+      await waitFor(() =>
+        expect(document.querySelector('script[src*="youtube.com"]')).not.toBeNull(),
+      )
+    } finally {
+      document.querySelectorAll('script[src*="youtube.com"]').forEach((script) => script.remove())
+      delete (window as { onYouTubeIframeAPIReady?: unknown }).onYouTubeIframeAPIReady
+    }
+  })
+
   it('plays the pool it was given on the player it was given', async () => {
     const player = new FakePlayer()
     const view = render(

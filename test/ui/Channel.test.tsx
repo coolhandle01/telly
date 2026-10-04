@@ -7,6 +7,8 @@ import { SignInError, YouTubeApiError } from '@/library'
 import { FixturePoolSource } from '../support/fixturePoolSource'
 import type { PoolSource, Session } from '@/library'
 import { createFakeSound } from '../support/fakeAudio'
+import { broadcastDayStart, type Schedule, type ScheduleItem } from '@/domain'
+import { planStations } from '@/programming'
 
 const CHANNEL = 'CHANNEL ONE'
 /** Mid-afternoon: a programme is certainly on air. */
@@ -1170,5 +1172,169 @@ describe('Channel', () => {
     await switchOn(view.user)
     await waitFor(() => expect(player.volumes.length).toBeGreaterThan(0))
     expect(player.volumes.at(-1)).toBeCloseTo(0.8)
+  })
+
+  describe('what goes with the picture, and what the card says', () => {
+    /** Channel one's day, planned the way the set plans it for `now`. */
+    async function dayOf(now: Date) {
+      const pool = await new FixturePoolSource().load()
+      const dayStart = broadcastDayStart(now)
+      return { pool, schedule: planStations(pool, { dayStart }).schedules.get(1)! }
+    }
+
+    /** A second into the first item of the day that `test` picks. */
+    const momentOf = (schedule: Schedule, test: (item: ScheduleItem) => boolean) => {
+      const item = schedule.items.find(test)
+      return item && new Date(schedule.startsAt.getTime() + (item.startSec + 1) * 1000)
+    }
+
+    const filler = (variant: 'interlude' | 'ident') => (item: ScheduleItem) =>
+      item.content.kind === 'filler' && item.content.variant === variant
+
+    it('rolls on to the new day at six in the morning', async () => {
+      const { clock, player, view } = setUp(new Date(2026, 8, 10, 5, 30, 0))
+      await switchOn(view.user)
+      await programmed()
+      expect(player.loads).toHaveLength(0)
+
+      act(() => clock.set(new Date(2026, 8, 10, 6, 30, 0)))
+
+      await waitFor(() => expect(player.loads).toHaveLength(1))
+    })
+
+    // The power click is the one gesture a browser accepts for audio, and
+    // closedown is hours after it.
+    it('opens the sound from the power switch, and stops the picture with it', async () => {
+      const { player, sound, view } = setUp()
+      expect(sound.prepare).not.toHaveBeenCalled()
+
+      await switchOn(view.user)
+      expect(sound.prepare).toHaveBeenCalledOnce()
+
+      const stops = player.stops
+      await switchOn(view.user) // and off again
+      expect(player.stops).toBeGreaterThan(stops)
+    })
+
+    it('turns the sound with the volume knob', async () => {
+      const { sound, view } = setUp()
+
+      screen.getByRole('slider', { name: /volume/i }).focus()
+      await view.user.keyboard('{ArrowUp}')
+
+      expect(sound.setLevel.mock.calls.at(-1)?.[0]).toBeCloseTo(0.85)
+    })
+
+    it('sounds the tone at closedown, and not over an interlude or an ident', async () => {
+      const { schedule } = await dayOf(AFTERNOON)
+      for (const variant of ['interlude', 'ident'] as const) {
+        const at = momentOf(schedule, filler(variant))
+        expect(at, variant).toBeDefined()
+        const { sound, view } = setUp(at)
+        await switchOn(view.user)
+        await programmed()
+
+        expect(sound.tone, variant).not.toHaveBeenCalled()
+        view.unmount()
+      }
+    })
+
+    it('keeps quiet at closedown while the set is off', async () => {
+      const { sound, view } = setUp(SMALL_HOURS)
+
+      await view.user.click(screen.getByRole('button', { name: /telly guide/i }))
+      await screen.findByRole('heading', { name: CHANNEL })
+
+      expect(sound.tone).not.toHaveBeenCalled()
+    })
+
+    // A fault is the set saying it cannot provide a service. Nobody
+    // transmitted that, so nothing goes out with it.
+    it('sounds no tone over a fault', async () => {
+      const sound = createFakeSound()
+      const view = render(
+        <Channel
+          channelName={CHANNEL}
+          clock={new FakeClock(SMALL_HOURS)}
+          poolSource={new FixturePoolSource()}
+          player={new FakePlayer()}
+          sound={sound}
+          fault={{ code: 'Fault 01', detail: ['This receiver is broken.'] }}
+        />,
+      )
+
+      await switchOn(view.user)
+      await programmed()
+
+      expect(sound.tone).not.toHaveBeenCalled()
+    })
+
+    it('hisses on a station the tuner is not on', async () => {
+      const { sound, view } = setUp()
+      await switchOn(view.user)
+
+      await tuneTo(view.user, MISTUNED_PRESET)
+
+      await waitFor(() => expect(sound.hiss).toHaveBeenCalled())
+    })
+
+    it('raises no alert over subscriptions that have videos in them', async () => {
+      const { player, view } = setUp()
+      await switchOn(view.user)
+
+      await waitFor(() => expect(player.loads).toHaveLength(1))
+
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    it('says programmes will continue over an interlude, and not at closedown', async () => {
+      const { schedule } = await dayOf(AFTERNOON)
+      const interlude = setUp(momentOf(schedule, filler('interlude')))
+      await switchOn(interlude.view.user)
+      await programmed()
+      expect(glass()).toHaveTextContent('PROGRAMMES WILL CONTINUE SHORTLY')
+      interlude.view.unmount()
+
+      const closedown = setUp(SMALL_HOURS)
+      await switchOn(closedown.view.user)
+      await programmed()
+      expect(glass()).not.toHaveTextContent('PROGRAMMES WILL CONTINUE SHORTLY')
+    })
+
+    it('captions the card under a programme with its title, in capitals', async () => {
+      const { pool } = await dayOf(AFTERNOON)
+      const { player, view } = setUp()
+      await switchOn(view.user)
+
+      await waitFor(() => expect(player.loads).toHaveLength(1))
+
+      const title = pool.videos.find((video) => video.id === player.loads[0].videoId)!.title
+      expect(title).not.toBe(title.toUpperCase())
+      expect(glass()).toHaveTextContent(title.toUpperCase())
+    })
+
+    // A video that would not play yesterday gets another chance today.
+    it('forgives yesterday\'s faults on a new day', async () => {
+      const today = await dayOf(AFTERNOON)
+      const tomorrow = await dayOf(new Date(2026, 8, 10, 12, 0, 0))
+      const videoOf = (item: ScheduleItem) =>
+        item.content.kind === 'programme' ? item.content.videoId : undefined
+      const shownToday = new Set(today.schedule.items.map(videoOf).filter(Boolean))
+      const again = tomorrow.schedule.items.find((item) => shownToday.has(videoOf(item)))
+      expect(again).toBeDefined()
+      const videoId = videoOf(again!)!
+      const { clock, player, view } = setUp(
+        momentOf(today.schedule, (item) => videoOf(item) === videoId),
+      )
+      await switchOn(view.user)
+      await waitFor(() => expect(player.loads).toHaveLength(1))
+      act(() => player.fault({ videoId, code: 150, reason: 'not embeddable' }))
+      await waitFor(() => expect(glass()).toHaveTextContent(/NORMAL SERVICE WILL BE RESUMED/))
+
+      act(() => clock.set(momentOf(tomorrow.schedule, (item) => item === again)!))
+
+      await waitFor(() => expect(player.loads.at(-1)?.videoId).toBe(videoId))
+      expect(glass()).not.toHaveTextContent(/NORMAL SERVICE WILL BE RESUMED/)
+    })
   })
 })

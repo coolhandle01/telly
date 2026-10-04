@@ -54,9 +54,9 @@ taste, its own hours and its own test cards.
 | | Hours | What it is |
 |---|---|---|
 | One | 06.00–01.30 | The national service. News on the hour, children's television after school. |
-| Two | 11.00–02.00 | Serious, but not solemn. Documentaries, arts, and Thursday night is comedy night. |
+| Two | 06.00–02.00 | Serious, but not solemn. Documentaries, arts, and Thursday night is comedy night. |
 | Three | 06.00–02.30 | Popular television. Sport, lifestyle, and Saturday variety. |
-| Four | 15.00–03.00 | The alternative. Film, arts, and satire on a Friday. |
+| Four | 06.00–03.00 | The alternative. Film, arts, and satire on a Friday. |
 | Five | round the clock | Never closes. The small hours are a clip show. |
 
 Your subscriptions are divided between them and belong to one each, so tuning

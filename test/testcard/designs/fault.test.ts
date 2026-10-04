@@ -165,13 +165,17 @@ describe('the fault card', () => {
     }
   })
 
-  it('keeps the blocks in the border, clear of the picture', () => {
+  it('keeps the blocks in the border, on the edge of the card and clear of the picture', () => {
     const model = buildTestCard(spec())
     const { y, height } = model.picture
 
     ;(shapesOfRole(model, 'alert-block') as RectShape[]).forEach((block) => {
       const clear = block.y + block.height <= y || block.y >= y + height
-      expect({ id: block.id, clear }).toEqual({ id: block.id, clear: true })
+      // Each run sits flush against its own edge of the card, not beyond it.
+      const flush = block.id.startsWith('alert-top-')
+        ? block.y === 0
+        : block.y + block.height === model.height
+      expect({ id: block.id, clear, flush }).toEqual({ id: block.id, clear: true, flush: true })
     })
   })
 

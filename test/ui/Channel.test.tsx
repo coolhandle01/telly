@@ -727,6 +727,19 @@ describe('Channel', () => {
       expect(await screen.findByRole('dialog', { name: /listings/i })).toBeInTheDocument()
     })
 
+    // The paper is the signed-in viewer's own listings, and they go with them.
+    it('puts the paper down when its viewer signs out', async () => {
+      const view = render_(fakeSession({ resume: async () => true }).session)
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+      await view.user.click(await screen.findByRole('button', { name: /telly guide/i }))
+      await screen.findByRole('dialog', { name: /listings/i })
+
+      await view.user.click(signOutButton()!)
+
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+      expect(screen.queryByRole('dialog', { name: /listings/i })).toBeNull()
+    })
+
     it('ignores i while nobody is signed in, and does not save it for later', async () => {
       const view = render_(fakeSession().session)
       await waitFor(() => expect(signInButton()).toBeInTheDocument())
@@ -1240,6 +1253,37 @@ describe('Channel', () => {
       await tuneTo(view.user, EMPTY_PRESET)
 
       expect(screen.getByRole('region', { name: /CHANNEL SIX/ })).toBeInTheDocument()
+    })
+
+    // Channel two does not open until eleven, so its card says so, not six.
+    it('gives each station its own resume time at closedown', async () => {
+      const { view } = setUp(SMALL_HOURS)
+      await switchOn(view.user)
+      await programmed()
+
+      await tuneTo(view.user, 2)
+
+      expect(glass()).toHaveTextContent('NORMAL SERVICE WILL RESUME AT 11.00')
+    })
+
+    // A reload that fails takes the last pool off the screen with it: what is
+    // left is the card and the reason, not yesterday's programmes.
+    it('drops the programmes it had when a reload fails', async () => {
+      let loads = 0
+      const failsSecondTime: PoolSource = {
+        load: () => {
+          loads += 1
+          if (loads === 1) return new FixturePoolSource().load()
+          return Promise.reject(new YouTubeApiError(403, 'quotaExceeded', 'youtube videos failed: 403'))
+        },
+      }
+      const { view } = setUp(AFTERNOON, failsSecondTime)
+      await switchOn(view.user)
+      await view.user.click(await programmed()) // the paper, which loads again
+      await screen.findByRole('alert')
+      await view.user.keyboard('{Escape}')
+
+      expect(glass()).toHaveTextContent('NO PROGRAMME INFORMATION AVAILABLE')
     })
 
     it('lights the fault lamp when the pool will not load', async () => {

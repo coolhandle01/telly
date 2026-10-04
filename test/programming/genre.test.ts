@@ -72,6 +72,11 @@ describe('genreOf', () => {
     expect(genreOf(channel({ title: 'Kitchen Table Cookery' }), [video()])).toBe('food')
   })
 
+  it('reads a word in the singular or the plural', () => {
+    expect(genreOf(channel({ title: 'Movie Night' }), [video()])).toBe('film')
+    expect(genreOf(channel({ title: 'Classic Movies' }), [video()])).toBe('film')
+  })
+
   // Word-bounded on purpose: a newsagent is not a news programme.
   it('does not read a name that merely contains the word', () => {
     expect(genreOf(channel({ title: 'Newsagent Diaries' }), [video()])).toBe('entertainment')

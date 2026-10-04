@@ -600,6 +600,22 @@ describe('plan, what it prefers', () => {
 
     expect(programmes(schedule).map((p) => p.videoId)).toEqual(['fits'])
   })
+
+  // The penalty grows with the overrun: a minute over costs a strong programme
+  // a little, not everything.
+  it('lets a much stronger programme run a minute over rather than take a weaker one that fits', () => {
+    const videos = [
+      video({ id: 'strong', channelId: 'UC-a', durationSec: 21 * MINUTE }),
+      video({ id: 'weak', channelId: 'UC-b', durationSec: 20 * MINUTE }),
+    ]
+    const schedule = plan(poolOf(videos), {
+      dayStart: DAY_START,
+      dayparts: twoPartDay(20),
+      classifier: classifierOf({ strong: { breakfast: 1 }, weak: { breakfast: 0.3 } }),
+    })
+
+    expect(programmes(schedule).map((p) => p.videoId)).toEqual(['strong'])
+  })
 })
 
 describe('plan, the edges of the day', () => {

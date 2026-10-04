@@ -56,6 +56,13 @@ const switchOn = async (user: { click: (el: Element) => Promise<void> }) =>
  */
 const programmed = () => screen.findByRole('button', { name: /telly guide/i })
 
+/**
+ * Lets the effects of the last render run. The sound follows what is on the
+ * screen from an effect, so a test that asserts the sound did *not* happen has
+ * to give that effect its chance first, or it passes before the effect fires.
+ */
+const settle = () => act(async () => {})
+
 describe('Channel', () => {
   // A set that is off is a dark screen. It does not caption itself: the only
   // thing that screen could tell you is the thing you can already see.
@@ -1301,6 +1308,7 @@ describe('Channel', () => {
         const { sound, view } = setUp(at)
         await switchOn(view.user)
         await programmed()
+        await settle()
 
         expect(sound.tone, variant).not.toHaveBeenCalled()
         view.unmount()
@@ -1312,6 +1320,7 @@ describe('Channel', () => {
 
       await view.user.click(screen.getByRole('button', { name: /telly guide/i }))
       await screen.findByRole('heading', { name: CHANNEL })
+      await settle()
 
       expect(sound.tone).not.toHaveBeenCalled()
     })
@@ -1333,6 +1342,7 @@ describe('Channel', () => {
 
       await switchOn(view.user)
       await programmed()
+      await settle()
 
       expect(sound.tone).not.toHaveBeenCalled()
     })

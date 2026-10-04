@@ -59,9 +59,10 @@ describe('StationClassifier', () => {
   })
 
   it('offers nothing this station has no daypart for', () => {
-    // Channel Four carries no lunchtime news, so nothing can go out there.
+    // Channel Four carries no lunchtime news, so not even a news bulletin from
+    // a news supplier can go out there.
     const four = stationById(4) as Station
-    const offered = classify(four, MONDAY, { channelId: 'UC1' }, video({ id: 'v' }))
+    const offered = classify(four, MONDAY, { channelId: 'UC1', genre: 'news' }, video({ id: 'v', categoryId: '25' }))
 
     expect(Object.keys(offered)).not.toContain('lunchtime-news')
   })

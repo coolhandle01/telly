@@ -97,12 +97,13 @@ const withDay = (dayparts: readonly Daypart[]): Station => ({ ...STATIONS[0], da
   here.
 */
 describe('opensAt', () => {
-  it('is the hour each station first carries programmes', () => {
+  // Every station opens at six, when the broadcast day does.
+  it('opens every station at six in the morning', () => {
     expect(STATIONS.map((station) => [station.name, opensAt(station)])).toEqual([
       ['CHANNEL ONE', 6],
-      ['CHANNEL TWO', 11],
+      ['CHANNEL TWO', 6],
       ['CHANNEL THREE', 6],
-      ['CHANNEL FOUR', 15],
+      ['CHANNEL FOUR', 6],
       ['CHANNEL FIVE', 6],
     ])
   })

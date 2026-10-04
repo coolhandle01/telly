@@ -90,6 +90,22 @@ describe('strandsFor', () => {
     expect(SLOTS[strand!.daypart].lengths.feature).toBeGreaterThan(0)
   })
 
+  // Peak time weighs standing and the afternoon does not, so standing is what
+  // carries a well-watched series into the evening.
+  it('gives a well-watched series its night in peak time', () => {
+    const strand = strandsFor(one, [sub({ channelId: 'UC1', standing: 1 })]).get('UC1')
+
+    expect(strand?.daypart).toBe('prime')
+  })
+
+  // With no standing to weigh, a factual hour scores the same in the
+  // afternoon as in peak time, and the earlier of the two keeps it.
+  it('leaves a tie with the earlier daypart', () => {
+    const strand = strandsFor(one, [sub({ channelId: 'UC1', standing: 0 })]).get('UC1')
+
+    expect(strand?.daypart).toBe('afternoon')
+  })
+
   it('is a fact rather than a decision', () => {
     const subs = ['UC3', 'UC1', 'UC2'].map((channelId) => sub({ channelId }))
 

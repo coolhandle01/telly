@@ -438,8 +438,7 @@ export function Channel({
         ? channelName
         : station.name
 
-  // When this station opens up again, which is not six in the morning on one
-  // that does not start until the afternoon.
+  // When this station opens up again.
   const resumesAt = useMemo(
     () => nextServiceResume(new Date(dayStartMs), station ? opensAt(station) : undefined),
     [dayStartMs, station],

@@ -70,10 +70,13 @@ describe('planStations', () => {
   })
 
   it('keeps the station off air when the station is off air', () => {
-    // Channel Four does not open until the afternoon.
-    const morning = listings.schedules.get(4)?.items.find((item) => item.startSec === 0)
+    // Channel One closes down at half past one, so three in the morning is
+    // twenty-one hours into its day and off air.
+    const night = listings.schedules
+      .get(1)
+      ?.items.find((item) => item.startSec <= 21 * 3600 && item.endSec > 21 * 3600)
 
-    expect(morning?.content).toEqual({ kind: 'filler', variant: 'closedown' })
+    expect(night?.content).toEqual({ kind: 'filler', variant: 'closedown' })
   })
 
   it('never closes Channel Five down', () => {

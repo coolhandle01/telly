@@ -71,16 +71,6 @@ const SATURDAY = 6
 /** Mid-travel, where a correctly set preset sits. */
 const CENTRE = 0.5
 
-/** A day that starts with hours of nothing: the station is simply not up yet. */
-const offAirUntil = (endMin: number): Daypart => ({
-  id: 'closedown',
-  name: 'Closedown',
-  startMin: atClock(6),
-  endMin,
-  junction: true,
-  offAir: true,
-})
-
 const closedownFrom = (startMin: number): Daypart => ({
   id: 'closedown',
   name: 'Closedown',
@@ -108,9 +98,9 @@ const ONE_DAY: readonly Daypart[] = [
   closedownFrom(atClock(1, 30)),
 ]
 
-/** Eleven till two. */
+/** Six till two. */
 const TWO_DAY: readonly Daypart[] = [
-  offAirUntil(atClock(11)),
+  { id: 'breakfast', name: 'Breakfast', startMin: atClock(6), endMin: atClock(11), junction: false },
   { id: 'mid-morning', name: 'Late Morning', startMin: atClock(11), endMin: atClock(13), junction: false },
   { id: 'afternoon', name: 'Afternoon', startMin: atClock(13), endMin: atClock(16, 30), junction: false },
   { id: 'childrens', name: "Children's Television", startMin: atClock(16, 30), endMin: atClock(18), junction: true },
@@ -134,9 +124,10 @@ const THREE_DAY: readonly Daypart[] = [
   closedownFrom(atClock(2, 30)),
 ]
 
-/** Afternoons and nights only, and the latest closedown of any of them. */
+/** Six till three: the latest closedown of any of them. */
 const FOUR_DAY: readonly Daypart[] = [
-  offAirUntil(atClock(15)),
+  { id: 'breakfast', name: 'Breakfast', startMin: atClock(6), endMin: atClock(10), junction: false },
+  { id: 'mid-morning', name: 'Mid-Morning', startMin: atClock(10), endMin: atClock(15), junction: false },
   { id: 'afternoon', name: 'Afternoon', startMin: atClock(15), endMin: atClock(17, 30), junction: false },
   { id: 'evening', name: 'Evening', startMin: atClock(17, 30), endMin: atClock(21), junction: false },
   { id: 'prime', name: 'Peak Time', startMin: atClock(21), endMin: atClock(23, 30), junction: true, afterWatershed: true },
@@ -289,10 +280,8 @@ export function stationById(id: number): Station | undefined {
 
 /**
  * The wall-clock hour this station opens up: the start of the first part of
- * its day that carries programmes.
- *
- * The closedown card says when service resumes, and on a station that does not
- * open until the afternoon that is not six in the morning.
+ * its day that carries programmes. The closedown card says when service
+ * resumes, and takes the hour from here.
  */
 export function opensAt(station: Station): number {
   const first = station.dayparts.find((daypart) => !daypart.offAir)

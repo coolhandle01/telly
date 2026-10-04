@@ -23,6 +23,26 @@ describe('every station', () => {
     ])
   })
 
+  it('bills itself with a line of its own', () => {
+    const billings = STATIONS.map((station) => station.billing)
+
+    for (const billing of billings) expect(billing).not.toBe('')
+    expect(new Set(billings).size).toBe(STATIONS.length)
+  })
+
+  it('paints its ident in two colours of its own', () => {
+    for (const { name, ident } of STATIONS) {
+      expect(ident.ground, name).toMatch(/^#[0-9a-f]{6}$/)
+      expect(ident.ink, name).toMatch(/^#[0-9a-f]{6}$/)
+      expect(ident.ink, name).not.toBe(ident.ground)
+    }
+    expect(new Set(STATIONS.map((station) => station.ident.ground)).size).toBe(STATIONS.length)
+  })
+
+  it('has a test card to put up', () => {
+    for (const station of STATIONS) expect(station.cards.length, station.name).toBeGreaterThan(0)
+  })
+
   it('has nights with a habit, each on a daypart it has on air and naming a genre', () => {
     for (const station of STATIONS) {
       expect(station.themes.length, station.name).toBeGreaterThan(0)

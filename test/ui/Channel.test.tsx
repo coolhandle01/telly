@@ -551,6 +551,173 @@ describe('Channel', () => {
       expect(await screen.findByRole('button', { name: /programming/i })).toHaveTextContent('Programming 0%')
     })
 
+    /** A load the test settles by hand, once it has started. */
+    const heldLoad = () => {
+      const held: { resolve?: (pool: Awaited<ReturnType<PoolSource['load']>>) => void; reject?: (error: unknown) => void } = {}
+      const source: PoolSource = {
+        load: () =>
+          new Promise((resolve, reject) => {
+            held.resolve = resolve
+            held.reject = reject
+          }),
+      }
+      return { source, held }
+    }
+
+    // The grant or the saved copy may still stand, and the viewer has to know.
+    it('says so when signing out fails, rather than swallowing it', async () => {
+      const view = render_(
+        fakeSession({
+          resume: async () => true,
+          signOut: async () => {
+            throw new Error('revoke failed')
+          },
+        }).session,
+      )
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+
+      await view.user.click(signOutButton()!)
+
+      expect(await screen.findByRole('alert')).not.toBeEmptyDOMElement()
+    })
+
+    it('ignores the button while it is signing out, and says it is', async () => {
+      const { session, calls } = fakeSession({
+        resume: async () => true,
+        signOut: () => {
+          calls.signOut += 1
+          return new Promise(() => {})
+        },
+      })
+      const view = render_(session)
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+
+      await view.user.click(signOutButton()!)
+      const busy = screen.getByRole('button', { name: /signing out/i })
+      await view.user.click(busy)
+
+      expect(busy).toBeDisabled()
+      expect(calls.signOut).toBe(1)
+    })
+
+    it('can sign out again in the next session', async () => {
+      const { session, announce } = fakeSession({ resume: async () => true })
+      const view = render_(session)
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+      await view.user.click(signOutButton()!)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+
+      act(() => announce(true))
+
+      await waitFor(() => expect(signOutButton()).toBeEnabled())
+    })
+
+    // A slow load that lands after the viewer has signed out belongs to them,
+    // and must not put their programmes back on the screen.
+    it('keeps a load that lands after signing out off the screen', async () => {
+      const { source, held } = heldLoad()
+      const view = render_(fakeSession({ resume: async () => true }).session, source)
+      await waitFor(() => expect(held.resolve).toBeDefined())
+      await view.user.click(signOutButton()!)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+      await switchOn(view.user)
+
+      await act(async () => held.resolve!(await new FixturePoolSource().load()))
+
+      expect(glass()).toHaveTextContent('NO PROGRAMME INFORMATION AVAILABLE')
+    })
+
+    it('keeps a load that fails after signing out off the screen too', async () => {
+      const { source, held } = heldLoad()
+      const view = render_(fakeSession({ resume: async () => true }).session, source)
+      await waitFor(() => expect(held.reject).toBeDefined())
+      await view.user.click(signOutButton()!)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+
+      await act(async () => held.reject!(new Error('youtube subscriptions failed: 500')))
+
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    // A grant that cannot be taken up is no grant: the corner offers sign-in.
+    it('offers sign-in when taking up a grant fails', async () => {
+      render_(
+        fakeSession({
+          resume: async () => {
+            throw new Error('storage unavailable')
+          },
+        }).session,
+      )
+
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+    })
+
+    it('takes the last error off the screen when signing in again', async () => {
+      let attempts = 0
+      const view = render_(
+        fakeSession({
+          signIn: () => {
+            attempts += 1
+            return attempts === 1 ? Promise.reject(new SignInError('popup_closed')) : new Promise(() => {})
+          },
+        }).session,
+      )
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+      await view.user.click(signInButton()!)
+      await screen.findByRole('alert')
+
+      await view.user.click(signInButton()!)
+
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    it('takes the last error off the screen when signing out', async () => {
+      const { session, announce } = fakeSession({
+        signIn: async () => {
+          throw new SignInError('popup_closed')
+        },
+      })
+      const view = render_(session)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+      await view.user.click(signInButton()!)
+      await screen.findByRole('alert')
+      act(() => announce(true)) // signed in after all, by another route
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+
+      await view.user.click(signOutButton()!)
+
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    it('takes a load error off the screen when signing out', async () => {
+      const refused: PoolSource = {
+        load: async () => {
+          throw new YouTubeApiError(401, 'authError', 'youtube subscriptions failed: 401')
+        },
+      }
+      const view = render_(fakeSession({ resume: async () => true }).session, refused)
+      await screen.findByRole('alert')
+
+      await view.user.click(signOutButton()!)
+
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    // The key looks for the source of the render it is pressed in, not the
+    // one there was before anybody signed in.
+    it('opens the paper on i once someone has signed in', async () => {
+      const view = render_(fakeSession().session)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+      await view.user.click(signInButton()!)
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+
+      await view.user.keyboard('i')
+
+      expect(await screen.findByRole('dialog', { name: /listings/i })).toBeInTheDocument()
+    })
+
     it('has no programmes to show while nobody is signed in', async () => {
       const view = render_(fakeSession().session)
       await waitFor(() => expect(signInButton()).toBeInTheDocument())

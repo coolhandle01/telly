@@ -768,6 +768,37 @@ describe('plan, at the exact edges', () => {
 
     expect(programmes(schedule)).toHaveLength(1)
   })
+
+  // Shown from 06.00 to 07.00, then offered again at 11.00: four hours after
+  // it ended, to the second, which is far enough apart.
+  it('shows a programme again exactly four hours after it ended', () => {
+    const dayparts: readonly Daypart[] = [
+      { id: 'breakfast', name: 'Breakfast', startMin: 0, endMin: 60, junction: false },
+      { id: 'closedown', name: 'Closedown', startMin: 60, endMin: 300, junction: true, offAir: true },
+      { id: 'breakfast', name: 'Breakfast', startMin: 300, endMin: 360, junction: true },
+      { id: 'closedown', name: 'Closedown', startMin: 360, endMin: MINUTES_PER_DAY, junction: true, offAir: true },
+    ]
+    const { videos, classifier } = only('a', 60 * MINUTE)
+    const schedule = plan(poolOf(videos), { dayStart: DAY_START, dayparts, classifier })
+
+    expect(programmes(schedule).map((p) => p.videoId)).toEqual(['a', 'a'])
+  })
+
+  // The mark at a quarter past is also the end of the daypart. A programme
+  // that fits the last three minutes is offered them, rather than the symbol.
+  it('offers a programme the last minutes before a mark that ends the daypart', () => {
+    const videos = [
+      video({ id: 'a', channelId: 'UC-a', durationSec: 12 * MINUTE }),
+      video({ id: 'b', channelId: 'UC-b', durationSec: 3 * MINUTE }),
+    ]
+    const schedule = plan(poolOf(videos), {
+      dayStart: DAY_START,
+      dayparts: twoPartDay(15),
+      classifier: classifierOf({ a: { breakfast: 1 }, b: { breakfast: 0.2 } }),
+    })
+
+    expect(programmes(schedule).map((p) => p.videoId)).toEqual(['a', 'b'])
+  })
 })
 
 describe('assertCoversDay', () => {

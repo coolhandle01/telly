@@ -1,4 +1,4 @@
-import { atClock, DAY_START_HOUR, MINUTES_PER_DAY, type Daypart } from '../domain'
+import { atClock, MINUTES_PER_DAY, type Daypart } from '../domain'
 import type { CardDesignId } from '../testcard/model'
 import type { Genre } from './genre'
 
@@ -276,15 +276,4 @@ export const DEFAULT_STATION: StationId = 1
 
 export function stationById(id: number): Station | undefined {
   return STATIONS.find((station) => station.id === id)
-}
-
-/**
- * The wall-clock hour this station opens up: the start of the first part of
- * its day that carries programmes. The closedown card says when service
- * resumes, and takes the hour from here.
- */
-export function opensAt(station: Station): number {
-  const first = station.dayparts.find((daypart) => !daypart.offAir)
-  if (first === undefined) return DAY_START_HOUR
-  return Math.floor((DAY_START_HOUR * 60 + first.startMin) / 60) % 24
 }

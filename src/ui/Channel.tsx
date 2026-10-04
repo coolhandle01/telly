@@ -3,7 +3,7 @@ import { SystemClock, type Clock } from '../clock/clock'
 import { broadcastDayStart, type Pool } from '../domain'
 import type { PoolSource, Session } from '../library'
 import { PlayerSurface, type Player, type PlayerFault } from '../player'
-import { opensAt, planStations, stationById, STATIONS, type Listings } from '../programming'
+import { planStations, stationById, STATIONS, type Listings } from '../programming'
 import type { PlanOptions } from '../schedule/plan'
 import { TestCard } from '../testcard/TestCard'
 import { nextServiceResume } from '../testcard/serviceResume'
@@ -438,11 +438,8 @@ export function Channel({
         ? channelName
         : station.name
 
-  // When this station opens up again.
-  const resumesAt = useMemo(
-    () => nextServiceResume(new Date(dayStartMs), station ? opensAt(station) : undefined),
-    [dayStartMs, station],
-  )
+  // Every station opens up again at six.
+  const resumesAt = nextServiceResume(new Date(dayStartMs))
 
   // The on-screen displays, as the set did them: shown for a moment when
   // something moves, then gone again.

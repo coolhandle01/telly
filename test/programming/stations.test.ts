@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { atClock, type Daypart, type DaypartId } from '@/domain'
+import { atClock, type DaypartId } from '@/domain'
 import { SLOTS } from '@/programming/slots'
-import { opensAt, STATIONS, type Station } from '@/programming/stations'
+import { STATIONS, type Station } from '@/programming/stations'
 
 /*
   The rules the five stations are built on, checked over every one of them,
@@ -9,6 +9,19 @@ import { opensAt, STATIONS, type Station } from '@/programming/stations'
 */
 describe('every station', () => {
   const onAir = (station: Station) => station.dayparts.filter((daypart) => !daypart.offAir)
+
+  // The closedown card says service resumes at six, whichever station it is on.
+  it('opens every station at six in the morning', () => {
+    expect(
+      STATIONS.map((station) => [station.name, station.dayparts[0].startMin, station.dayparts[0].offAir ?? false]),
+    ).toEqual([
+      ['CHANNEL ONE', atClock(6), false],
+      ['CHANNEL TWO', atClock(6), false],
+      ['CHANNEL THREE', atClock(6), false],
+      ['CHANNEL FOUR', atClock(6), false],
+      ['CHANNEL FIVE', atClock(6), false],
+    ])
+  })
 
   it('has nights with a habit, each on a daypart it has on air and naming a genre', () => {
     for (const station of STATIONS) {
@@ -78,46 +91,5 @@ describe('every slot', () => {
         expect(want, `${id} ${genre}`).toBeGreaterThan(0)
       }
     }
-  })
-})
-
-const offAir = (startMin: number, endMin: number): Daypart => ({
-  id: 'closedown',
-  name: 'Closedown',
-  startMin,
-  endMin,
-  junction: false,
-  offAir: true,
-})
-
-const withDay = (dayparts: readonly Daypart[]): Station => ({ ...STATIONS[0], dayparts })
-
-/*
-  The closedown card says when service resumes, and it takes the hour from
-  here.
-*/
-describe('opensAt', () => {
-  // Every station opens at six, when the broadcast day does.
-  it('opens every station at six in the morning', () => {
-    expect(STATIONS.map((station) => [station.name, opensAt(station)])).toEqual([
-      ['CHANNEL ONE', 6],
-      ['CHANNEL TWO', 6],
-      ['CHANNEL THREE', 6],
-      ['CHANNEL FOUR', 6],
-      ['CHANNEL FIVE', 6],
-    ])
-  })
-
-  it('reads the clock past midnight for a station that opens in the small hours', () => {
-    const lateStarter = withDay([
-      offAir(atClock(6), atClock(1, 30)),
-      { id: 'late-night', name: 'Late Night', startMin: atClock(1, 30), endMin: atClock(5, 59), junction: false },
-    ])
-
-    expect(opensAt(lateStarter)).toBe(1)
-  })
-
-  it('is the start of the day for a station that never opens', () => {
-    expect(opensAt(withDay([offAir(atClock(6), atClock(5, 59))]))).toBe(6)
   })
 })

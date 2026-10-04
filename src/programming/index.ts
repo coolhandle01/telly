@@ -23,7 +23,6 @@ export {
   STATION_IDS,
   DEFAULT_STATION,
   stationById,
-  opensAt,
   type Ident,
   type IdentMotif,
   type Station,

@@ -589,6 +589,20 @@ describe('YouTubePoolSource', () => {
       expect(channel?.topics).toEqual(['Music'])
     })
 
+    it('reads past a trailing slash on a topic URL', async () => {
+      const channel = await loadChannel({
+        items: [
+          {
+            id: 'UC1',
+            contentDetails: { relatedPlaylists: { uploads: 'UU1' } },
+            topicDetails: { topicCategories: ['https://en.wikipedia.org/wiki/Music/'] },
+          },
+        ],
+      })
+
+      expect(channel?.topics).toEqual(['Music'])
+    })
+
     it('leaves the subscriber count absent where the channel hides it', async () => {
       const channel = await loadChannel({
         items: [
@@ -1045,6 +1059,24 @@ describe('YouTubePoolSource', () => {
         await expect(load).resolves.toEqual({ videos: [], channels: new Map() })
         expect(callsTo('subscriptions')).toHaveLength(2)
       })
+    })
+
+    // Up to a second on top of the step, so two clients refused together do
+    // not come back together.
+    it('adds up to a second of jitter to each wait', async () => {
+      const random = vi.spyOn(Math, 'random').mockReturnValue(0.5)
+      try {
+        const { waits, sleep } = recorder()
+        const { fetch } = fakeYouTube({
+          subscriptions: (_params, call) => (call < 1 ? apiError(429, 'rateLimitExceeded') : subscriptionPage([])),
+        })
+
+        await new YouTubePoolSource({ fetch, tokens, sleep }).load()
+
+        expect(waits).toEqual([RATE_LIMIT_BACKOFF_MS[0] + 500])
+      } finally {
+        random.mockRestore()
+      }
     })
 
     it('gives up after a bounded number of attempts and fails the load with the limit', async () => {

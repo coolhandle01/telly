@@ -1191,6 +1191,47 @@ describe('Channel', () => {
     const filler = (variant: 'interlude' | 'ident') => (item: ScheduleItem) =>
       item.content.kind === 'filler' && item.content.variant === variant
 
+    it('says when normal service will resume at closedown', async () => {
+      const { view } = setUp(SMALL_HOURS)
+      await switchOn(view.user)
+      await programmed()
+
+      expect(glass()).toHaveTextContent('NORMAL SERVICE WILL RESUME AT 06.00')
+    })
+
+    it('names a key with no station behind it in words', async () => {
+      const { view } = setUp()
+      await switchOn(view.user)
+
+      await tuneTo(view.user, EMPTY_PRESET)
+
+      expect(screen.getByRole('region', { name: /CHANNEL SIX/ })).toBeInTheDocument()
+    })
+
+    it('lights the fault lamp when the pool will not load', async () => {
+      const failing: PoolSource = {
+        load: async () => {
+          throw new YouTubeApiError(403, 'quotaExceeded', 'youtube videos failed: 403')
+        },
+      }
+      const { view } = setUp(AFTERNOON, failing)
+      await switchOn(view.user)
+      await screen.findByRole('alert')
+
+      expect(document.querySelector('.tv-fascia__lamp--tune')).toHaveAttribute('data-lit', 'true')
+    })
+
+    it('leaves nothing playing when the set is taken away', async () => {
+      const { sound, view } = setUp(SMALL_HOURS)
+      await switchOn(view.user)
+      await waitFor(() => expect(sound.tone).toHaveBeenCalled())
+      const stops = sound.stop.mock.calls.length
+
+      view.unmount()
+
+      expect(sound.stop.mock.calls.length).toBeGreaterThan(stops)
+    })
+
     it('rolls on to the new day at six in the morning', async () => {
       const { clock, player, view } = setUp(new Date(2026, 8, 10, 5, 30, 0))
       await switchOn(view.user)

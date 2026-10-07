@@ -14,8 +14,6 @@ export const DAY_START_HOUR = 6
 export const MINUTES_PER_DAY = 24 * 60
 export const SECONDS_PER_DAY = MINUTES_PER_DAY * 60
 
-export const minutes = (m: number): number => m * 60
-
 /** Minutes from the 06.00 anchor, for a wall-clock time written as HH:MM. */
 export function atClock(hour: number, minute = 0): number {
   const fromMidnight = hour * 60 + minute

@@ -141,6 +141,28 @@ describe('PlayerSurface', () => {
     expect(player.destroys).toBe(0)
   })
 
+  it('reports to the handlers of its latest render, not its first', () => {
+    const onAir = programme('vid-1', 90)
+    const { player, onFault, rerender } = mount(onAir)
+    const laterFault = vi.fn()
+    const laterPicture = vi.fn()
+
+    rerender(
+      <PlayerSurface
+        onAir={onAir}
+        player={player}
+        onFault={laterFault}
+        onPicture={laterPicture}
+      />,
+    )
+    act(() => player.fault({ videoId: 'vid-1', code: 150, reason: 'not embeddable' }))
+    act(() => player.picture(true))
+
+    expect(onFault).not.toHaveBeenCalled()
+    expect(laterFault).toHaveBeenCalledTimes(1)
+    expect(laterPicture).toHaveBeenCalledWith(true)
+  })
+
   it('stops the picture when the screen goes away, and lets go of the fault line', () => {
     const { player, unmount } = mount()
     expect(player.faultListenerCount).toBe(1)

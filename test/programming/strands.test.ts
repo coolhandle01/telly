@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Subscription } from '@/programming/profile'
+import { SLOTS } from '@/programming/slots'
 import { isStrandLength, strandsFor } from '@/programming/strands'
 import { stationById, type Station } from '@/programming/stations'
 
@@ -68,12 +69,41 @@ describe('strandsFor', () => {
     expect(nights[6]).toBe(0)
   })
 
-  // Its night has to be one it could actually go out on.
+  // Its night has to be one it could actually go out on. A travel series sits
+  // best in Channel Four's afternoon, so only the watershed moves it.
   it('gives a restricted supplier a slot after the watershed', () => {
-    const strands = strandsFor(four, [sub({ channelId: 'UC1', restricted: true, genre: 'film' })])
-    const daypart = four.dayparts.find((entry) => entry.id === strands.get('UC1')?.daypart)
+    const slotOf = (restricted: boolean) => {
+      const strands = strandsFor(four, [sub({ channelId: 'UC1', restricted, genre: 'travel' })])
+      return four.dayparts.find((entry) => entry.id === strands.get('UC1')?.daypart)
+    }
 
-    expect(daypart?.afterWatershed).toBe(true)
+    expect(slotOf(false)?.id).toBe('afternoon')
+    expect(slotOf(true)?.afterWatershed).toBe(true)
+  })
+
+  // A feature-length news series: the bulletins want news most, and take no
+  // features at all.
+  it('gives a supplier a night in a daypart that takes its length', () => {
+    const strand = strandsFor(one, [sub({ channelId: 'UC1', genre: 'news', format: 'feature' })]).get('UC1')
+
+    expect(strand).toBeDefined()
+    expect(SLOTS[strand!.daypart].lengths.feature).toBeGreaterThan(0)
+  })
+
+  // Peak time weighs standing and the afternoon does not, so standing is what
+  // carries a well-watched series into the evening.
+  it('gives a well-watched series its night in peak time', () => {
+    const strand = strandsFor(one, [sub({ channelId: 'UC1', standing: 1 })]).get('UC1')
+
+    expect(strand?.daypart).toBe('prime')
+  })
+
+  // With no standing to weigh, a factual hour scores the same in the
+  // afternoon as in peak time, and the earlier of the two keeps it.
+  it('leaves a tie with the earlier daypart', () => {
+    const strand = strandsFor(one, [sub({ channelId: 'UC1', standing: 0 })]).get('UC1')
+
+    expect(strand?.daypart).toBe('afternoon')
   })
 
   it('is a fact rather than a decision', () => {

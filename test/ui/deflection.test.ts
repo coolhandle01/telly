@@ -77,4 +77,26 @@ describe('deflection', () => {
     const tearingOnly = deflection(LOCK, 1)
     expect(tearingOnly.rollPeriodSec).toBeUndefined()
   })
+
+  // At the stop each oscillator is at its worst: a roll every 0.09 s, a slip
+  // every 0.055 s, and 26 degrees of shear.
+  it('runs each oscillator at its fastest at the stop', () => {
+    const worst = deflection(1, 1)
+
+    expect(worst.rollPeriodSec).toBeCloseTo(0.09, 6)
+    expect(worst.slipPeriodSec).toBeCloseTo(0.055, 6)
+    expect(worst.shearDeg).toBeCloseTo(26, 6)
+  })
+
+  // Halfway out, the period is the geometric mean of its slowest and fastest,
+  // not the average: the slow creep takes as much of the knob as the blur.
+  it('speeds up geometrically, and shears in proportion, on the way out', () => {
+    const halfway = LOCK + PULL_IN + 0.5 * (0.5 - PULL_IN)
+    const half = deflection(halfway, halfway)
+
+    expect(drift(halfway)).toBeCloseTo(0.5, 6)
+    expect(half.rollPeriodSec).toBeCloseTo(Math.sqrt(2.6 * 0.09), 6)
+    expect(half.slipPeriodSec).toBeCloseTo(Math.sqrt(0.9 * 0.055), 6)
+    expect(half.shearDeg).toBeCloseTo(13, 6)
+  })
 })

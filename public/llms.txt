@@ -35,8 +35,8 @@ Subscriptions are divided between five broadcasters and belong to one each.
 Which station a channel goes to comes from what YouTube says it is about;
 when it goes out comes from how long its videos run, how often it posts and how
 well watched it is. Nothing age-rated goes out before nine and nothing made for
-children goes out after six. One station opens at eleven, another at three in
-the afternoon, and a fifth never closes down at all.
+children goes out after six. Every station opens at six in the morning, and
+one never closes down at all.
 
 ## The set
 

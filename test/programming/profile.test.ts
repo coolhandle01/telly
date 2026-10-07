@@ -53,6 +53,20 @@ describe('formatOf', () => {
     expect(formatOf(48 * 60)).toBe('hour')
     expect(formatOf(95 * 60)).toBe('feature')
   })
+
+  // Each ceiling belongs to the slot above it.
+  it.each([
+    [64, 'short'],
+    [65, 'segment'],
+    [10 * 60 - 1, 'segment'],
+    [10 * 60, 'half-hour'],
+    [35 * 60 - 1, 'half-hour'],
+    [35 * 60, 'hour'],
+    [70 * 60 - 1, 'hour'],
+    [70 * 60, 'feature'],
+  ])('reads %i seconds as %s', (durationSec, format) => {
+    expect(formatOf(durationSec)).toBe(format)
+  })
 })
 
 describe('profile', () => {
@@ -80,6 +94,51 @@ describe('profile', () => {
 
     expect(profiles.get('UC1')?.cadence).toBe('occasional')
     expect(profiles.get('UC1')?.uploads).toBe(1)
+  })
+
+  it("takes a channel's title from its details", () => {
+    const profiles = profile(poolOf(series('UC1', 3, 1), [{ id: 'UC1', title: 'The Channel' }]))
+
+    expect(profiles.get('UC1')?.title).toBe('The Channel')
+  })
+
+  // A pool can carry uploads from a channel it has no details for. Its id
+  // stands in for the title, and it has nothing to rank on.
+  it('reads a channel the pool has no details for', () => {
+    const pool = poolOf(series('UC1', 3, 1))
+    const read = profile({ ...pool, channels: new Map() }).get('UC1')
+
+    expect(read?.title).toBe('UC1')
+    expect(read?.standing).toBe(0.5)
+  })
+
+  it('reads a rhythm off as few as two uploads', () => {
+    const profile2 = profile(poolOf(series('UC1', 2, 1))).get('UC1')
+
+    expect(profile2?.cadenceDays).toBeCloseTo(1)
+    expect(profile2?.cadence).toBe('daily')
+  })
+
+  // Up to two and a half days apart is daily, up to ten is weekly, and past
+  // that a channel turns up when it turns up.
+  it.each([
+    [2.5, 'daily'],
+    [3, 'weekly'],
+    [10, 'weekly'],
+    [11, 'occasional'],
+  ])('calls uploads %d days apart %s', (everyDays, cadence) => {
+    expect(profile(poolOf(series('UC1', 4, everyDays))).get('UC1')?.cadence).toBe(cadence)
+  })
+
+  // The API sends an empty string when a snippet has no date, which parses to
+  // NaN. It is left out of the gaps rather than spoiling them: with only two
+  // dated uploads, a NaN gap would be half the median.
+  it('reads the rhythm past an upload with no publish date', () => {
+    const videos = [...series('UC1', 2, 1), video({ id: 'UC1-undated', channelId: 'UC1', publishedAt: '' })]
+    const read = profile(poolOf(videos)).get('UC1')
+
+    expect(read?.cadenceDays).toBeCloseTo(1)
+    expect(read?.cadence).toBe('daily')
   })
 
   it('ignores what cannot be scheduled when reading a channel', () => {
@@ -121,14 +180,16 @@ describe('profile', () => {
       expect(profiles.get('UC-huge')?.standing).toBe(1)
     })
 
+    // The ids sort the other way from the ranking, so a comparison that fell
+    // through to the tie-break on id would put them in the wrong order.
     it('falls back to subscribers where a channel hides its views', () => {
       const profiles = profile(
-        poolOf([...series('UC-shy', 3, 1), ...series('UC-open', 3, 1, { viewCount: 10 })], [
-          { id: 'UC-shy', title: 'Shy', subscriberCount: 900_000 },
+        poolOf([...series('UC-hidden', 3, 1), ...series('UC-open', 3, 1, { viewCount: 10 })], [
+          { id: 'UC-hidden', title: 'Hidden', subscriberCount: 900_000 },
         ]),
       )
 
-      expect(profiles.get('UC-shy')?.standing).toBe(1)
+      expect(profiles.get('UC-hidden')?.standing).toBe(1)
       expect(profiles.get('UC-open')?.standing).toBe(0)
     })
 
@@ -136,6 +197,17 @@ describe('profile', () => {
       const profiles = profile(poolOf(series('UC1', 3, 1)))
 
       expect(profiles.get('UC1')?.standing).toBe(0.5)
+    })
+
+    // One figure is no ranking: placed first of one, its standing would be
+    // 0 / 0, and a NaN standing reaches the draft.
+    it('does not rank a lone channel with a figure against those without', () => {
+      const profiles = profile(
+        poolOf([...series('UC-seen', 3, 1, { viewCount: 10 }), ...series('UC-unseen', 3, 1)]),
+      )
+
+      expect(profiles.get('UC-seen')?.standing).toBe(0.5)
+      expect(profiles.get('UC-unseen')?.standing).toBe(0.5)
     })
   })
 

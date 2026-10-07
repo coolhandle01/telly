@@ -12,8 +12,7 @@ Vite 8, React 19, TypeScript, Vitest 5, oxlint. `.nvmrc` pins Node 24.
 ```
 npm run dev        # the set; needs VITE_YOUTUBE_CLIENT_ID in .env or .env.local
 npm test           # watch
-npm run test:ci    # coverage, then the DST suite under TZ=Europe/London
-npm run test:dst   # the clocks-change suite on its own (see below on Windows)
+npm run test:ci    # coverage, every test in every zone in vite.config.ts
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # oxlint
 npm run build      # typecheck, then vite build
@@ -21,11 +20,11 @@ npm run mutate     # stryker
 ```
 
 Run `npm run lint`, `npm run typecheck` and `npm run test:ci` before you push.
-The DST suite is separate because it needs a fixed zone, and it is the one that
-catches the 23 hour and 25 hour broadcast days. `test:dst` sets `TZ=` with POSIX
-shell syntax, which the default npm shell on Windows does not run; there, run
-`TZ=Europe/London npx vitest run --config vite.dst.config.ts` from a POSIX
-shell.
+Every test runs once in each zone in `ZONES` in `vite.config.ts`, UTC and
+Europe/London, as a project named after the zone that sets `TZ` itself, so it
+works in any shell. The clocks-change tests, `*.dst.test.ts`, are a project of
+their own pinned to Europe/London: they catch the 23 hour and 25 hour broadcast
+days.
 
 ## The shape of it
 

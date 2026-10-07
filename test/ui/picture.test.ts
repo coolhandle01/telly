@@ -32,6 +32,25 @@ describe('picture', () => {
         expect(shown.gain === 1 || shown.lift === 0).toBe(true)
       }
     })
+
+    // Straight lines from centre to each stop: the beam falls to 0.12 of its
+    // gain turned right down, and the blacks lift by 0.42 turned right up.
+    it('ramps each fault evenly from centre to its stop', () => {
+      expect(asSet(0).gain).toBeCloseTo(0.12, 6)
+      expect(asSet(0.25).gain).toBeCloseTo((1 + 0.12) / 2, 6)
+      expect(asSet(1).lift).toBeCloseTo(0.42, 6)
+      expect(asSet(0.75).lift).toBeCloseTo(0.21, 6)
+    })
+  })
+
+  // Any one control out of place is enough.
+  it.each([
+    ['the gain', { gain: 0.9 }],
+    ['the black level', { lift: 0.1 }],
+    ['the colour', { saturation: 0.9 }],
+    ['the snow', { snow: 0.1 }],
+  ])('does not call it as transmitted with %s off', (_name, off) => {
+    expect(isAsTransmitted({ ...asSet(), ...off })).toBe(false)
   })
 
   describe('colour', () => {

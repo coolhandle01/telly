@@ -259,7 +259,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
   #token: string | undefined
   #expiresAtMs = 0
   #pending: Promise<string> | undefined
-  #ready: Promise<void> | undefined
+  #ready: Promise<TokenClient> | undefined
   // The token client is built once but every flight has its own settlers, so
   // the callback has to reach the *current* one rather than close over the
   // first — otherwise a second sign-in never settles at all.
@@ -384,6 +384,11 @@ export class GoogleTokenProvider implements AccessTokenProvider {
    * anyone clicks, `signIn` has nothing left to wait for.
    */
   prepare(): Promise<void> {
+    return this.#prepared().then(() => undefined)
+  }
+
+  /** The token client, built once. */
+  #prepared(): Promise<TokenClient> {
     this.#ready ??= this.#loadGis()
       .then((gis) => {
         this.#client ??= gis.accounts.oauth2.initTokenClient({
@@ -392,6 +397,7 @@ export class GoogleTokenProvider implements AccessTokenProvider {
           callback: (response) => this.#onResponse(response),
           error_callback: (error) => this.#fail(error.type ?? 'dismissed'),
         })
+        return this.#client
       })
       .catch((error: unknown) => {
         // Sign-in stays available after a failed load: an extension, a
@@ -419,12 +425,12 @@ export class GoogleTokenProvider implements AccessTokenProvider {
       throw error instanceof SignInError ? error : new SignInError(UNAVAILABLE)
     }
 
-    if (this.#client) return this.#requestSynchronously('consent').catch(asSignInError)
+    if (this.#client) return this.#request(this.#client).catch(asSignInError)
 
     // Not ready: ask anyway, and the popup may well be blocked. Better to
     // report that than to silently do nothing.
-    return this.prepare()
-      .then(() => this.#requestToken('consent'))
+    return this.#prepared()
+      .then((client) => this.#request(client))
       .catch(asSignInError)
   }
 
@@ -454,43 +460,18 @@ export class GoogleTokenProvider implements AccessTokenProvider {
     if (token === this.#token) this.#discard()
   }
 
-  /** Opens the popup in the caller's own task: no await before the request. */
-  #requestSynchronously(prompt: TokenPrompt): Promise<string> {
-    const client = this.#client
-    if (!client) return Promise.reject(new Error('YouTube sign-in is not ready yet'))
-
+  /**
+   * Opens the consent popup in the caller's own task: no await before the
+   * request. One flight at a time, so two callers never open two popups.
+   */
+  #request(client: TokenClient): Promise<string> {
     this.#pending ??= new Promise<string>((resolve, reject) => {
       this.#settle = { resolve, reject }
-      client.requestAccessToken({ prompt })
+      client.requestAccessToken({ prompt: 'consent' })
     }).finally(() => {
       this.#pending = undefined
     })
     return this.#pending
-  }
-
-  #requestToken(prompt: TokenPrompt): Promise<string> {
-    // One flight at a time: two callers must not open two popups.
-    this.#pending ??= this.#openFlight(prompt).finally(() => {
-      this.#pending = undefined
-    })
-    return this.#pending
-  }
-
-  async #openFlight(prompt: TokenPrompt): Promise<string> {
-    const gis = await this.#loadGis()
-
-    return new Promise<string>((resolve, reject) => {
-      this.#settle = { resolve, reject }
-
-      this.#client ??= gis.accounts.oauth2.initTokenClient({
-        client_id: this.#clientId,
-        scope: this.#scope,
-        callback: (response) => this.#onResponse(response),
-        error_callback: (error) => this.#fail(error.type ?? 'dismissed'),
-      })
-
-      this.#client.requestAccessToken({ prompt })
-    })
   }
 
   #onResponse(response: TokenResponse): void {

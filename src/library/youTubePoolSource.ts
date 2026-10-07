@@ -145,10 +145,10 @@ interface ApiErrorBody {
  * make the genre table break the day Google changed a prefix.
  */
 export function topicSlugs(urls: readonly string[] | undefined): string[] | undefined {
-  if (!urls || urls.length === 0) return undefined
+  if (!urls) return undefined
   const slugs = urls
     .map((url) => url.split('/').filter(Boolean).pop())
-    .filter((slug): slug is string => slug !== undefined && slug.length > 0)
+    .filter((slug): slug is string => slug !== undefined)
     // Percent-decoded, because some of them are: `Children%27s_music`.
     .map(decodeSegment)
   return slugs.length > 0 ? [...new Set(slugs)] : undefined
@@ -165,7 +165,7 @@ function decodeSegment(slug: string): string {
 
 /** The API sends counts as strings, and omits them where they are hidden. */
 function countOf(raw: string | undefined): number | undefined {
-  if (raw === undefined) return undefined
+  // Undefined converts to NaN, which is not finite either.
   const value = Number(raw)
   return Number.isFinite(value) ? value : undefined
 }

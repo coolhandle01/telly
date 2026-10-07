@@ -41,6 +41,14 @@ function publicDirectoryIndex(): Plugin {
   }
 }
 
+/**
+ * Every test runs once in each of these zones, as a Vitest project named after
+ * the zone. Adding a zone is adding it here.
+ */
+const ZONES = ['UTC', 'Europe/London']
+
+const EXCLUDE = ['**/node_modules/**', '**/dist/**', '.stryker-tmp/**']
+
 // One config for the app and its tests: aliases and plugins resolve identically
 // in the bundle and in the suite, so a test cannot pass against a module graph
 // the build will not produce.
@@ -62,18 +70,36 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    // The app is src/ and its tests are test/, so nothing in src/ is test code.
-    include: ['test/**/*.test.{ts,tsx}'],
     // Stryker's sandbox is a full copy of the project, tests and all. Without
-    // this, a mutation run makes `vitest` find every test file twice — and the
+    // this, a mutation run makes `vitest` find every test file twice, and the
     // copies it finds are instrumented.
-    // `*.dst.test.ts` runs under its own config with TZ=Europe/London — see
-    // `npm run test:dst`. Here, on a machine that is probably UTC, it would
-    // fail for the right reason and the wrong one.
-    exclude: ['**/node_modules/**', '**/dist/**', '.stryker-tmp/**', '**/*.dst.test.ts'],
+    exclude: EXCLUDE,
     globals: true, // describe/it/expect without imports
     setupFiles: './test/support/setup.ts',
     restoreMocks: true, // no spy leaks between tests
+    // `env` sets TZ inside each test process, so no shell has to. The app is
+    // src/ and its tests are test/, so nothing in src/ is test code. The
+    // clocks-change tests are about Europe/London's clocks, so they are a
+    // project of their own, pinned there, whatever ZONES holds.
+    projects: [
+      ...ZONES.map((zone) => ({
+        extends: true,
+        test: {
+          name: zone,
+          env: { TZ: zone },
+          include: ['test/**/*.test.{ts,tsx}'],
+          exclude: [...EXCLUDE, '**/*.dst.test.ts'],
+        },
+      })),
+      {
+        extends: true,
+        test: {
+          name: 'clocks-change',
+          env: { TZ: 'Europe/London' },
+          include: ['test/**/*.dst.test.ts'],
+        },
+      },
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],

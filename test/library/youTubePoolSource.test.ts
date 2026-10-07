@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { QuotaExceededError, YouTubeApiError } from '@/library/errors'
 import type { FetchLike, HttpResponseLike } from '@/library/http'
 import type { AccessTokenProvider } from '@/library/tokenProvider'
@@ -11,6 +11,7 @@ interface RecordedCall {
   endpoint: Endpoint
   url: URL
   params: URLSearchParams
+  method: string
   headers: Record<string, string>
 }
 
@@ -40,6 +41,10 @@ function fakeYouTube(handlers: Partial<Record<Endpoint, Handler>>): {
   const calls: RecordedCall[] = []
 
   const fetch: FetchLike = async (url, init) => {
+    // A browser refuses a request whose method is not an HTTP token.
+    if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(init.method)) {
+      throw new TypeError(`'${init.method}' is not a valid HTTP method`)
+    }
     const parsed = new URL(url)
     const endpoint = parsed.pathname.split('/').pop() as Endpoint
     const handler = handlers[endpoint]
@@ -50,6 +55,7 @@ function fakeYouTube(handlers: Partial<Record<Endpoint, Handler>>): {
       endpoint,
       url: parsed,
       params: parsed.searchParams,
+      method: init.method,
       headers: { ...init.headers },
     })
     return handler(parsed.searchParams, seen)
@@ -583,6 +589,20 @@ describe('YouTubePoolSource', () => {
       expect(channel?.topics).toEqual(['Music'])
     })
 
+    it('reads past a trailing slash on a topic URL', async () => {
+      const channel = await loadChannel({
+        items: [
+          {
+            id: 'UC1',
+            contentDetails: { relatedPlaylists: { uploads: 'UU1' } },
+            topicDetails: { topicCategories: ['https://en.wikipedia.org/wiki/Music/'] },
+          },
+        ],
+      })
+
+      expect(channel?.topics).toEqual(['Music'])
+    })
+
     it('leaves the subscriber count absent where the channel hides it', async () => {
       const channel = await loadChannel({
         items: [
@@ -779,11 +799,16 @@ describe('YouTubePoolSource', () => {
 
     // The fake caps itself so a loop with no cap fails as an assertion here
     // instead of hanging the run.
+    // Each page brings a channel, so an empty page does not end the loop
+    // first and hide whether the repeated token did.
     it('stops when the peer keeps handing back the same nextPageToken', async () => {
       const PEER_GIVES_UP_AFTER = 20
       const { fetch, callsTo } = fakeYouTube({
         subscriptions: (_params, call) =>
-          call < PEER_GIVES_UP_AFTER ? subscriptionPage([], 'same-page') : subscriptionPage([]),
+          subscriptionPage([`UC${String(call)}`], call < PEER_GIVES_UP_AFTER ? 'same-page' : undefined),
+        channels: (params) => channelsPage(params.get('id')!.split(',')),
+        playlistItems: () => playlistItemsPage([]),
+        videos: () => videosPage([]),
       })
 
       await new YouTubePoolSource({ fetch, tokens }).load()
@@ -791,7 +816,7 @@ describe('YouTubePoolSource', () => {
       // A token already followed once is a peer that is not paging. Following
       // it again spends quota the 24h cache cannot give back, because a load
       // that never finishes is never cached.
-      expect(callsTo('subscriptions').length).toBeLessThanOrEqual(2)
+      expect(callsTo('subscriptions')).toHaveLength(2)
     })
 
     // Fresh tokens get past the repeat check, so only a limit ends this loop.
@@ -942,6 +967,24 @@ describe('YouTubePoolSource', () => {
       expect(tokensAsked).toBeGreaterThan(0)
     })
 
+    // The grant is read-only, and every call this source makes is a read.
+    it('only ever reads, and asks for JSON', async () => {
+      const { fetch, calls } = fakeYouTube({
+        subscriptions: () => subscriptionPage(['UC1']),
+        channels: (params) => channelsPage(params.get('id')!.split(',')),
+        playlistItems: () => playlistItemsPage(['v1']),
+        videos: (params) => videosPage(params.get('id')!.split(',').map((id) => ({ id }))),
+      })
+
+      await new YouTubePoolSource({ fetch, tokens }).load()
+
+      expect(calls).not.toHaveLength(0)
+      for (const call of calls) {
+        expect(call.method).toBe('GET')
+        expect(call.headers.Accept).toBe('application/json')
+      }
+    })
+
     it('never puts the token, or any key, in the URL', async () => {
       const { fetch, calls } = fakeYouTube({
         subscriptions: () => subscriptionPage(['UC1']),
@@ -972,6 +1015,7 @@ describe('YouTubePoolSource', () => {
       ['a 429 rateLimitExceeded', () => apiError(429, 'rateLimitExceeded')],
       ['a 429 userRateLimitExceeded', () => apiError(429, 'userRateLimitExceeded')],
       ['a 403 rateLimitExceeded', () => apiError(403, 'rateLimitExceeded')],
+      ['a 403 userRateLimitExceeded', () => apiError(403, 'userRateLimitExceeded')],
       ['a 429 that names no reason', () => json({ error: { code: 429, message: 'too many requests' } }, 429)],
     ])('backs off and asks again after %s, and the load succeeds', async (_name, limited) => {
       const { waits, sleep } = recorder()
@@ -993,6 +1037,48 @@ describe('YouTubePoolSource', () => {
       expect(waits[0]).toBeGreaterThanOrEqual(1000)
     })
 
+    // Every other test hands in its own sleep, so this is the one that shows
+    // the source's own waits on the clock rather than going straight back.
+    describe('without a sleep of its own', () => {
+      afterEach(() => {
+        vi.useRealTimers()
+      })
+
+      it('waits the backoff out on the clock before asking again', async () => {
+        vi.useFakeTimers()
+        const { fetch, callsTo } = fakeYouTube({
+          subscriptions: (_params, call) => (call < 1 ? apiError(429, 'rateLimitExceeded') : subscriptionPage([])),
+        })
+
+        const load = new YouTubePoolSource({ fetch, tokens }).load()
+        await vi.advanceTimersByTimeAsync(RATE_LIMIT_BACKOFF_MS[0] - 1)
+        expect(callsTo('subscriptions')).toHaveLength(1)
+
+        // The wait is the step plus up to a second of jitter.
+        await vi.advanceTimersByTimeAsync(1001)
+        await expect(load).resolves.toEqual({ videos: [], channels: new Map() })
+        expect(callsTo('subscriptions')).toHaveLength(2)
+      })
+    })
+
+    // Up to a second on top of the step, so two clients refused together do
+    // not come back together.
+    it('adds up to a second of jitter to each wait', async () => {
+      const random = vi.spyOn(Math, 'random').mockReturnValue(0.5)
+      try {
+        const { waits, sleep } = recorder()
+        const { fetch } = fakeYouTube({
+          subscriptions: (_params, call) => (call < 1 ? apiError(429, 'rateLimitExceeded') : subscriptionPage([])),
+        })
+
+        await new YouTubePoolSource({ fetch, tokens, sleep }).load()
+
+        expect(waits).toEqual([RATE_LIMIT_BACKOFF_MS[0] + 500])
+      } finally {
+        random.mockRestore()
+      }
+    })
+
     it('gives up after a bounded number of attempts and fails the load with the limit', async () => {
       const { waits, sleep } = recorder()
       const { fetch, callsTo } = fakeYouTube({
@@ -1007,19 +1093,27 @@ describe('YouTubePoolSource', () => {
       expect(waits).toHaveLength(RATE_LIMIT_BACKOFF_MS.length)
     })
 
+    // The class is asserted exactly: a QuotaExceededError is also a
+    // YouTubeApiError, and the screen shows a different card for each.
     it.each([
-      ['the daily quota', () => apiError(403, 'quotaExceeded')],
-      ['the daily limit', () => apiError(403, 'dailyLimitExceeded')],
-      ['a refused token', () => apiError(401, 'authError')],
-      ['a refused request', () => apiError(403, 'forbidden')],
-      ['a server error', () => json({ error: { code: 500, message: 'backend error' } }, 500)],
-    ])('does not wait out %s', async (_name, refused) => {
+      ['the daily quota', () => apiError(403, 'quotaExceeded'), QuotaExceededError],
+      ['the daily limit', () => apiError(403, 'dailyLimitExceeded'), QuotaExceededError],
+      ['a refused token', () => apiError(401, 'authError'), YouTubeApiError],
+      ['a refused request', () => apiError(403, 'forbidden'), YouTubeApiError],
+      [
+        'a server error',
+        () => json({ error: { code: 500, message: 'backend error' } }, 500),
+        YouTubeApiError,
+      ],
+    ])('does not wait out %s', async (_name, refused, Expected) => {
       const { waits, sleep } = recorder()
       const { fetch, callsTo } = fakeYouTube({ subscriptions: refused })
 
-      await expect(new YouTubePoolSource({ fetch, tokens, sleep }).load()).rejects.toBeInstanceOf(
-        YouTubeApiError,
-      )
+      const error = await new YouTubePoolSource({ fetch, tokens, sleep })
+        .load()
+        .catch((caught: unknown) => caught)
+
+      expect((error as object).constructor).toBe(Expected)
       expect(callsTo('subscriptions')).toHaveLength(1)
       expect(waits).toEqual([])
     })
@@ -1137,17 +1231,39 @@ describe('YouTubePoolSource, two hundred subscriptions', () => {
     expect(pool.videos.map((video) => video.id)).toEqual(channelIds.map(videoOf))
   })
 
-  it('climbs to one and never goes back', async () => {
+  // The Guide button shows this fraction, so it has to mean something before
+  // the end: one step per call after the subscription list, rising at every
+  // step, and reaching one only when the last call is answered. Five uploads
+  // a channel make three `videos` calls, so the steps after the estimate is
+  // replaced with the real count are there to see. One channel's uploads are
+  // gone, and a call that failed is still a step taken.
+  it('climbs a step at every call and reaches one only at the end', async () => {
+    const account = fakeYouTube({
+      subscriptions: () => subscriptionPage(channelIds),
+      channels: (params) => channelsPage(params.get('id')!.split(',')),
+      playlistItems: (params) => {
+        const playlist = params.get('playlistId')!
+        if (playlist === 'UU007') return apiError(404, 'playlistNotFound')
+        return playlistItemsPage(ids(5, `${playlist}-v`))
+      },
+      videos: (params) => videosPage(params.get('id')!.split(',').map((id) => ({ id }))),
+    })
     const fractions: number[] = []
 
-    await new YouTubePoolSource({ fetch: fakeAccount().fetch, tokens }).load((fraction) =>
+    const pool = await new YouTubePoolSource({ fetch: account.fetch, tokens }).load((fraction) =>
       fractions.push(fraction),
     )
+    expect(pool.videos).toHaveLength(29 * 5)
 
-    expect(fractions.length).toBeGreaterThan(1)
-    expect(fractions.at(-1)).toBe(1)
-    expect([...fractions].sort((a, b) => a - b)).toEqual(fractions)
-    expect(fractions.every((fraction) => fraction > 0 && fraction <= 1)).toBe(true)
+    const calls = ['channels', 'playlistItems', 'videos'] as const
+    const steps = calls.reduce((sum, endpoint) => sum + account.callsTo(endpoint).length, 0)
+    const [last, done] = fractions.slice(-2)
+    const climbing = fractions.slice(0, -1)
+
+    expect(fractions).toHaveLength(steps + 1)
+    expect(climbing[0]).toBeGreaterThan(0)
+    for (let i = 1; i < climbing.length; i += 1) expect(climbing[i]).toBeGreaterThan(climbing[i - 1])
+    expect([last, done]).toEqual([1, 1])
   })
 
   it('abandons the rest of the playlists once the token is refused', async () => {

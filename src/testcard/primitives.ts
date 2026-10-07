@@ -66,6 +66,64 @@ export function band(picture: Picture, [from, to]: readonly [number, number]): {
   return { y: picture.y + picture.height * from, height: picture.height * (to - from) }
 }
 
+export interface CardFrame {
+  width: number
+  height: number
+  border: number
+  picture: Picture
+  centre: { x: number; y: number }
+}
+
+/**
+ * The card's size, the border round it and the picture inside that, centred
+ * on the card. `borderFraction` is the border's share of the shorter side.
+ */
+export function cardFrame(spec: TestCardSpec, borderFraction: number = BORDER_FRACTION): CardFrame {
+  const width = spec.width ?? DEFAULTS.width
+  const height = spec.height ?? DEFAULTS.height
+  const border = Math.round(Math.min(width, height) * borderFraction)
+  return {
+    width,
+    height,
+    border,
+    picture: { x: border, y: border, width: width - 2 * border, height: height - 2 * border },
+    centre: { x: width / 2, y: height / 2 },
+  }
+}
+
+/** The ground, the castellated border on it, and the framed picture inside. */
+export function castellatedFrame(frame: CardFrame, spec: TestCardSpec, pictureFill: string): RectShape[] {
+  const { width, height, border, picture } = frame
+  return [
+    {
+      id: 'background',
+      role: 'background',
+      kind: 'rect',
+      x: 0,
+      y: 0,
+      width,
+      height,
+      fill: PALETTE.surround,
+    },
+    ...castellations(
+      width,
+      height,
+      border,
+      spec.castellationsAcross ?? DEFAULTS.castellationsAcross,
+      spec.castellationsDown ?? DEFAULTS.castellationsDown,
+    ),
+    {
+      id: 'picture',
+      role: 'picture',
+      kind: 'rect',
+      ...picture,
+      fill: pictureFill,
+      stroke: PALETTE.frame,
+      strokeWidth: Math.max(1, Math.round(border / 16)),
+    },
+  ]
+}
+
 /**
  * The castellated border: alternating blocks around all four edges. The counts
  * are odd so each strip is its own palindrome and the border mirrors cleanly

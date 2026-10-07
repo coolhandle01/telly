@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.0.11](https://github.com/coolhandle01/telly/compare/v0.0.10...v0.0.11) (2026-10-07)
+
+### Fixes
+
+* open every station at six; run every test in each zone, and npm run mutate in any shell ([#14](https://github.com/coolhandle01/telly/issues/14)) ([b54ba82](https://github.com/coolhandle01/telly/commit/b54ba82428bac2272040038e9df85e589c963b43)), references [#17](https://github.com/coolhandle01/telly/issues/17)
+
 ## [0.0.10](https://github.com/coolhandle01/telly/compare/v0.0.9...v0.0.10) (2026-10-04)
 
 ## [0.0.9](https://github.com/coolhandle01/telly/compare/v0.0.8...v0.0.9) (2026-09-27)

@@ -142,6 +142,39 @@ describe('HeuristicClassifier', () => {
     expect(mix['late-night']).toBeGreaterThan(plain['late-night'] as number)
   })
 
+  // Ten minutes of margin: five minutes outside a band is half a fit, on
+  // either side of it.
+  it('falls away across the margin either side of a band', () => {
+    // Breakfast runs to five minutes, and the evening starts at twenty-five.
+    expect(heuristic.classify(video({ id: 'v', durationSec: 10 * MINUTE })).breakfast).toBeCloseTo(0.5)
+    expect(heuristic.classify(video({ id: 'v', durationSec: 20 * MINUTE })).evening).toBeCloseTo(0.5)
+  })
+
+  // Each at a length that only half fits the daypart it lifts, so the lift
+  // has room to show. The news needs its category to reach a bulletin at all.
+  it.each([
+    ['news', 'The News at One', 35 * MINUTE, 'lunchtime-news', '25'],
+    ['live', 'Live at the Harbour', 55 * MINUTE, 'late-night', undefined],
+    ['podcast', 'The Harbour Podcast', 55 * MINUTE, 'late-night', undefined],
+    ['podcasts', 'Harbour Podcasts', 55 * MINUTE, 'late-night', undefined],
+    ['review', 'Weekly Review', 30 * MINUTE, 'mid-morning', undefined],
+    ['reviews', 'Weekly Reviews', 30 * MINUTE, 'mid-morning', undefined],
+    ['essay', 'An Essay on Harbours', 20 * MINUTE, 'evening', undefined],
+    ['essays', 'Harbour Essays', 20 * MINUTE, 'evening', undefined],
+    ['mix', 'Harbour Mix', 55 * MINUTE, 'late-night', undefined],
+    ['mixes', 'Harbour Mixes', 55 * MINUTE, 'late-night', undefined],
+    ['documentary', 'A Harbour Documentary', 20 * MINUTE, 'evening', undefined],
+    ['documentaries', 'Harbour Documentaries', 55 * MINUTE, 'afternoon', undefined],
+    ['part 1', 'Harbours, Part 1', 55 * MINUTE, 'afternoon', undefined],
+    ['part1', 'Harbours Part1', 55 * MINUTE, 'afternoon', undefined],
+  ] as const)('lifts a title with "%s" in it', (_word, title, durationSec, daypart, categoryId) => {
+    const plain = heuristic.classify(video({ id: 'v', title: 'Harbours', durationSec, categoryId }))
+    const lifted = heuristic.classify(video({ id: 'v', title, durationSec, categoryId }))
+
+    expect(plain[daypart]).toBeGreaterThan(0)
+    expect(lifted[daypart]).toBeGreaterThan(plain[daypart] as number)
+  })
+
   it('does not read a keyword out of the middle of a longer word', () => {
     const plain = heuristic.classify(video({ id: 'v', title: 'Harbour Notes', durationSec: 55 * MINUTE }))
     const mixture = heuristic.classify(
@@ -162,6 +195,21 @@ describe('HeuristicClassifier', () => {
     const informed = observed.classify(subject)
 
     expect(informed.evening).toBeGreaterThan(blind.evening as number)
+  })
+
+  // Forty minutes is an evening habit, not a mid-morning one, so a
+  // half-hour upload from the same channel gets nothing extra there.
+  it("lifts only the dayparts the channel's habit fits", () => {
+    const channelId = 'UC-essays'
+    const backCatalogue = [0, 1, 2].map((i) => video({ id: `back-${i}`, channelId, durationSec: 40 * MINUTE }))
+    const subject = video({ id: 'subject', channelId, durationSec: 30 * MINUTE })
+    const observed = new HeuristicClassifier(poolOf([...backCatalogue, subject]))
+
+    const blind = heuristic.classify(subject)
+    const informed = observed.classify(subject)
+
+    expect(blind['mid-morning']).toBeGreaterThan(0)
+    expect(informed['mid-morning']).toBe(blind['mid-morning'])
   })
 
   it('keeps every affinity within nought to one', () => {

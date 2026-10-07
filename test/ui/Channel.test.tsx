@@ -7,6 +7,8 @@ import { SignInError, YouTubeApiError } from '@/library'
 import { FixturePoolSource } from '../support/fixturePoolSource'
 import type { PoolSource, Session } from '@/library'
 import { createFakeSound } from '../support/fakeAudio'
+import { broadcastDayStart, type Schedule, type ScheduleItem } from '@/domain'
+import { planStations } from '@/programming'
 
 const CHANNEL = 'CHANNEL ONE'
 /** Mid-afternoon: a programme is certainly on air. */
@@ -53,6 +55,13 @@ const switchOn = async (user: { click: (el: Element) => Promise<void> }) =>
  * being the way to the paper once there is a paper to go to.
  */
 const programmed = () => screen.findByRole('button', { name: /telly guide/i })
+
+/**
+ * Lets the effects of the last render run. The sound follows what is on the
+ * screen from an effect, so a test that asserts the sound did *not* happen has
+ * to give that effect its chance first, or it passes before the effect fires.
+ */
+const settle = () => act(async () => {})
 
 describe('Channel', () => {
   // A set that is off is a dark screen. It does not caption itself: the only
@@ -551,6 +560,213 @@ describe('Channel', () => {
       expect(await screen.findByRole('button', { name: /programming/i })).toHaveTextContent('Programming 0%')
     })
 
+    /** A load the test settles by hand, once it has started. */
+    const heldLoad = () => {
+      const held: { resolve?: (pool: Awaited<ReturnType<PoolSource['load']>>) => void; reject?: (error: unknown) => void } = {}
+      const source: PoolSource = {
+        load: () =>
+          new Promise((resolve, reject) => {
+            held.resolve = resolve
+            held.reject = reject
+          }),
+      }
+      return { source, held }
+    }
+
+    // The grant or the saved copy may still stand, and the viewer has to know.
+    it('says so when signing out fails, rather than swallowing it', async () => {
+      const view = render_(
+        fakeSession({
+          resume: async () => true,
+          signOut: async () => {
+            throw new Error('revoke failed')
+          },
+        }).session,
+      )
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+
+      await view.user.click(signOutButton()!)
+
+      expect(await screen.findByRole('alert')).not.toBeEmptyDOMElement()
+    })
+
+    it('ignores the button while it is signing out, and says it is', async () => {
+      const { session, calls } = fakeSession({
+        resume: async () => true,
+        signOut: () => {
+          calls.signOut += 1
+          return new Promise(() => {})
+        },
+      })
+      const view = render_(session)
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+
+      await view.user.click(signOutButton()!)
+      const busy = screen.getByRole('button', { name: /signing out/i })
+      await view.user.click(busy)
+
+      expect(busy).toBeDisabled()
+      expect(calls.signOut).toBe(1)
+    })
+
+    it('can sign out again in the next session', async () => {
+      const { session, announce } = fakeSession({ resume: async () => true })
+      const view = render_(session)
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+      await view.user.click(signOutButton()!)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+
+      act(() => announce(true))
+
+      await waitFor(() => expect(signOutButton()).toBeEnabled())
+    })
+
+    // A slow load that lands after the viewer has signed out belongs to them,
+    // and must not put their programmes back on the screen.
+    it('keeps a load that lands after signing out off the screen', async () => {
+      const { source, held } = heldLoad()
+      const view = render_(fakeSession({ resume: async () => true }).session, source)
+      await waitFor(() => expect(held.resolve).toBeDefined())
+      await view.user.click(signOutButton()!)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+      await switchOn(view.user)
+
+      await act(async () => held.resolve!(await new FixturePoolSource().load()))
+
+      expect(glass()).toHaveTextContent('NO PROGRAMME INFORMATION AVAILABLE')
+    })
+
+    it('keeps a load that fails after signing out off the screen too', async () => {
+      const { source, held } = heldLoad()
+      const view = render_(fakeSession({ resume: async () => true }).session, source)
+      await waitFor(() => expect(held.reject).toBeDefined())
+      await view.user.click(signOutButton()!)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+
+      await act(async () => held.reject!(new Error('youtube subscriptions failed: 500')))
+
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    // A grant that cannot be taken up is no grant: the corner offers sign-in.
+    it('offers sign-in when taking up a grant fails', async () => {
+      render_(
+        fakeSession({
+          resume: async () => {
+            throw new Error('storage unavailable')
+          },
+        }).session,
+      )
+
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+    })
+
+    it('takes the last error off the screen when signing in again', async () => {
+      let attempts = 0
+      const view = render_(
+        fakeSession({
+          signIn: () => {
+            attempts += 1
+            return attempts === 1 ? Promise.reject(new SignInError('popup_closed')) : new Promise(() => {})
+          },
+        }).session,
+      )
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+      await view.user.click(signInButton()!)
+      await screen.findByRole('alert')
+
+      await view.user.click(signInButton()!)
+
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    it('takes the last error off the screen when signing out', async () => {
+      const { session, announce } = fakeSession({
+        signIn: async () => {
+          throw new SignInError('popup_closed')
+        },
+      })
+      const view = render_(session)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+      await view.user.click(signInButton()!)
+      await screen.findByRole('alert')
+      act(() => announce(true)) // signed in after all, by another route
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+
+      await view.user.click(signOutButton()!)
+
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    it('takes a load error off the screen when signing out', async () => {
+      const refused: PoolSource = {
+        load: async () => {
+          throw new YouTubeApiError(401, 'authError', 'youtube subscriptions failed: 401')
+        },
+      }
+      const view = render_(fakeSession({ resume: async () => true }).session, refused)
+      await screen.findByRole('alert')
+
+      await view.user.click(signOutButton()!)
+
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    // The key looks for the source of the render it is pressed in, not the
+    // one there was before anybody signed in.
+    it('opens the paper on i once someone has signed in', async () => {
+      const view = render_(fakeSession().session)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+      await view.user.click(signInButton()!)
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+
+      await view.user.keyboard('i')
+
+      expect(await screen.findByRole('dialog', { name: /listings/i })).toBeInTheDocument()
+    })
+
+    // The paper is the signed-in viewer's own listings, and they go with them.
+    it('puts the paper down when its viewer signs out', async () => {
+      const view = render_(fakeSession({ resume: async () => true }).session)
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+      await view.user.click(await screen.findByRole('button', { name: /telly guide/i }))
+      await screen.findByRole('dialog', { name: /listings/i })
+
+      await view.user.click(signOutButton()!)
+
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+      expect(screen.queryByRole('dialog', { name: /listings/i })).toBeNull()
+    })
+
+    it('ignores i while nobody is signed in, and does not save it for later', async () => {
+      const view = render_(fakeSession().session)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+
+      await view.user.keyboard('i')
+      await view.user.click(signInButton()!)
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+
+      expect(screen.queryByRole('dialog', { name: /listings/i })).toBeNull()
+    })
+
+    // One listener for the key, however many times the source has changed.
+    it('opens the paper on i after signing in, out and in again', async () => {
+      const view = render_(fakeSession().session)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+      await view.user.click(signInButton()!)
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+      await view.user.click(signOutButton()!)
+      await waitFor(() => expect(signInButton()).toBeInTheDocument())
+      await view.user.click(signInButton()!)
+      await waitFor(() => expect(signOutButton()).toBeInTheDocument())
+
+      await view.user.keyboard('i')
+
+      expect(await screen.findByRole('dialog', { name: /listings/i })).toBeInTheDocument()
+    })
+
     it('has no programmes to show while nobody is signed in', async () => {
       const view = render_(fakeSession().session)
       await waitFor(() => expect(signInButton()).toBeInTheDocument())
@@ -1003,5 +1219,233 @@ describe('Channel', () => {
     await switchOn(view.user)
     await waitFor(() => expect(player.volumes.length).toBeGreaterThan(0))
     expect(player.volumes.at(-1)).toBeCloseTo(0.8)
+  })
+
+  describe('what goes with the picture, and what the card says', () => {
+    /** Channel one's day, planned the way the set plans it for `now`. */
+    async function dayOf(now: Date) {
+      const pool = await new FixturePoolSource().load()
+      const dayStart = broadcastDayStart(now)
+      return { pool, schedule: planStations(pool, { dayStart }).schedules.get(1)! }
+    }
+
+    /** A second into the first item of the day that `test` picks. */
+    const momentOf = (schedule: Schedule, test: (item: ScheduleItem) => boolean) => {
+      const item = schedule.items.find(test)
+      return item && new Date(schedule.startsAt.getTime() + (item.startSec + 1) * 1000)
+    }
+
+    const filler = (variant: 'interlude' | 'ident') => (item: ScheduleItem) =>
+      item.content.kind === 'filler' && item.content.variant === variant
+
+    it('says when normal service will resume at closedown', async () => {
+      const { view } = setUp(SMALL_HOURS)
+      await switchOn(view.user)
+      await programmed()
+
+      expect(glass()).toHaveTextContent('NORMAL SERVICE WILL RESUME AT 06.00')
+    })
+
+    it('names a key with no station behind it in words', async () => {
+      const { view } = setUp()
+      await switchOn(view.user)
+
+      await tuneTo(view.user, EMPTY_PRESET)
+
+      expect(screen.getByRole('region', { name: /CHANNEL SIX/ })).toBeInTheDocument()
+    })
+
+    // A reload that fails takes the last pool off the screen with it: what is
+    // left is the card and the reason, not yesterday's programmes.
+    it('drops the programmes it had when a reload fails', async () => {
+      let loads = 0
+      const failsSecondTime: PoolSource = {
+        load: () => {
+          loads += 1
+          if (loads === 1) return new FixturePoolSource().load()
+          return Promise.reject(new YouTubeApiError(403, 'quotaExceeded', 'youtube videos failed: 403'))
+        },
+      }
+      const { view } = setUp(AFTERNOON, failsSecondTime)
+      await switchOn(view.user)
+      await view.user.click(await programmed()) // the paper, which loads again
+      await screen.findByRole('alert')
+      await view.user.keyboard('{Escape}')
+
+      expect(glass()).toHaveTextContent('NO PROGRAMME INFORMATION AVAILABLE')
+    })
+
+    it('lights the fault lamp when the pool will not load', async () => {
+      const failing: PoolSource = {
+        load: async () => {
+          throw new YouTubeApiError(403, 'quotaExceeded', 'youtube videos failed: 403')
+        },
+      }
+      const { view } = setUp(AFTERNOON, failing)
+      await switchOn(view.user)
+      await screen.findByRole('alert')
+
+      expect(document.querySelector('.tv-fascia__lamp--tune')).toHaveAttribute('data-lit', 'true')
+    })
+
+    it('leaves nothing playing when the set is taken away', async () => {
+      const { sound, view } = setUp(SMALL_HOURS)
+      await switchOn(view.user)
+      await waitFor(() => expect(sound.tone).toHaveBeenCalled())
+      const stops = sound.stop.mock.calls.length
+
+      view.unmount()
+
+      expect(sound.stop.mock.calls.length).toBeGreaterThan(stops)
+    })
+
+    it('rolls on to the new day at six in the morning', async () => {
+      const { clock, player, view } = setUp(new Date(2026, 8, 10, 5, 30, 0))
+      await switchOn(view.user)
+      await programmed()
+      expect(player.loads).toHaveLength(0)
+
+      act(() => clock.set(new Date(2026, 8, 10, 6, 30, 0)))
+
+      await waitFor(() => expect(player.loads).toHaveLength(1))
+    })
+
+    // The power click is the one gesture a browser accepts for audio, and
+    // closedown is hours after it.
+    it('opens the sound from the power switch, and stops the picture with it', async () => {
+      const { player, sound, view } = setUp()
+      expect(sound.prepare).not.toHaveBeenCalled()
+
+      await switchOn(view.user)
+      expect(sound.prepare).toHaveBeenCalledOnce()
+
+      const stops = player.stops
+      await switchOn(view.user) // and off again
+      expect(player.stops).toBeGreaterThan(stops)
+    })
+
+    it('turns the sound with the volume knob', async () => {
+      const { sound, view } = setUp()
+
+      screen.getByRole('slider', { name: /volume/i }).focus()
+      await view.user.keyboard('{ArrowUp}')
+
+      expect(sound.setLevel.mock.calls.at(-1)?.[0]).toBeCloseTo(0.85)
+    })
+
+    it('sounds the tone at closedown, and not over an interlude or an ident', async () => {
+      const { schedule } = await dayOf(AFTERNOON)
+      for (const variant of ['interlude', 'ident'] as const) {
+        const at = momentOf(schedule, filler(variant))
+        expect(at, variant).toBeDefined()
+        const { sound, view } = setUp(at)
+        await switchOn(view.user)
+        await programmed()
+        await settle()
+
+        expect(sound.tone, variant).not.toHaveBeenCalled()
+        view.unmount()
+      }
+    })
+
+    it('keeps quiet at closedown while the set is off', async () => {
+      const { sound, view } = setUp(SMALL_HOURS)
+
+      await view.user.click(screen.getByRole('button', { name: /telly guide/i }))
+      await screen.findByRole('heading', { name: CHANNEL })
+      await settle()
+
+      expect(sound.tone).not.toHaveBeenCalled()
+    })
+
+    // A fault is the set saying it cannot provide a service. Nobody
+    // transmitted that, so nothing goes out with it.
+    it('sounds no tone over a fault', async () => {
+      const sound = createFakeSound()
+      const view = render(
+        <Channel
+          channelName={CHANNEL}
+          clock={new FakeClock(SMALL_HOURS)}
+          poolSource={new FixturePoolSource()}
+          player={new FakePlayer()}
+          sound={sound}
+          fault={{ code: 'Fault 01', detail: ['This receiver is broken.'] }}
+        />,
+      )
+
+      await switchOn(view.user)
+      await programmed()
+      await settle()
+
+      expect(sound.tone).not.toHaveBeenCalled()
+    })
+
+    it('hisses on a station the tuner is not on', async () => {
+      const { sound, view } = setUp()
+      await switchOn(view.user)
+
+      await tuneTo(view.user, MISTUNED_PRESET)
+
+      await waitFor(() => expect(sound.hiss).toHaveBeenCalled())
+    })
+
+    it('raises no alert over subscriptions that have videos in them', async () => {
+      const { player, view } = setUp()
+      await switchOn(view.user)
+
+      await waitFor(() => expect(player.loads).toHaveLength(1))
+
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    it('says programmes will continue over an interlude, and not at closedown', async () => {
+      const { schedule } = await dayOf(AFTERNOON)
+      const interlude = setUp(momentOf(schedule, filler('interlude')))
+      await switchOn(interlude.view.user)
+      await programmed()
+      expect(glass()).toHaveTextContent('PROGRAMMES WILL CONTINUE SHORTLY')
+      interlude.view.unmount()
+
+      const closedown = setUp(SMALL_HOURS)
+      await switchOn(closedown.view.user)
+      await programmed()
+      expect(glass()).not.toHaveTextContent('PROGRAMMES WILL CONTINUE SHORTLY')
+    })
+
+    it('captions the card under a programme with its title, in capitals', async () => {
+      const { pool } = await dayOf(AFTERNOON)
+      const { player, view } = setUp()
+      await switchOn(view.user)
+
+      await waitFor(() => expect(player.loads).toHaveLength(1))
+
+      const title = pool.videos.find((video) => video.id === player.loads[0].videoId)!.title
+      expect(title).not.toBe(title.toUpperCase())
+      expect(glass()).toHaveTextContent(title.toUpperCase())
+    })
+
+    // A video that would not play yesterday gets another chance today.
+    it('forgives yesterday\'s faults on a new day', async () => {
+      const today = await dayOf(AFTERNOON)
+      const tomorrow = await dayOf(new Date(2026, 8, 10, 12, 0, 0))
+      const videoOf = (item: ScheduleItem) =>
+        item.content.kind === 'programme' ? item.content.videoId : undefined
+      const shownToday = new Set(today.schedule.items.map(videoOf).filter(Boolean))
+      const again = tomorrow.schedule.items.find((item) => shownToday.has(videoOf(item)))
+      expect(again).toBeDefined()
+      const videoId = videoOf(again!)!
+      const { clock, player, view } = setUp(
+        momentOf(today.schedule, (item) => videoOf(item) === videoId),
+      )
+      await switchOn(view.user)
+      await waitFor(() => expect(player.loads).toHaveLength(1))
+      act(() => player.fault({ videoId, code: 150, reason: 'not embeddable' }))
+      await waitFor(() => expect(glass()).toHaveTextContent(/NORMAL SERVICE WILL BE RESUMED/))
+
+      act(() => clock.set(momentOf(tomorrow.schedule, (item) => item === again)!))
+
+      await waitFor(() => expect(player.loads.at(-1)?.videoId).toBe(videoId))
+      expect(glass()).not.toHaveTextContent(/NORMAL SERVICE WILL BE RESUMED/)
+    })
   })
 })

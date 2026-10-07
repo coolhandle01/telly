@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { broadcastDayLength, broadcastDayStart } from '@/domain'
 import { fixturePool } from '../support/pool'
 import { assertCoversDay } from '@/schedule/plan'
-import { planStations } from '@/programming/schedules'
+import { planStation, planStations } from '@/programming/schedules'
 import { STATIONS } from '@/programming/stations'
 
 const pool = fixturePool()
@@ -70,10 +70,13 @@ describe('planStations', () => {
   })
 
   it('keeps the station off air when the station is off air', () => {
-    // Channel Four does not open until the afternoon.
-    const morning = listings.schedules.get(4)?.items.find((item) => item.startSec === 0)
+    // Channel One closes down at half past one, so three in the morning is
+    // twenty-one hours into its day and off air.
+    const night = listings.schedules
+      .get(1)
+      ?.items.find((item) => item.startSec <= 21 * 3600 && item.endSec > 21 * 3600)
 
-    expect(morning?.content).toEqual({ kind: 'filler', variant: 'closedown' })
+    expect(night?.content).toEqual({ kind: 'filler', variant: 'closedown' })
   })
 
   it('never closes Channel Five down', () => {
@@ -94,6 +97,19 @@ describe('planStations', () => {
         if (item.content.kind !== 'programme') continue
         expect(item.endSec - item.startSec).toBeGreaterThan(65)
       }
+    }
+  })
+
+  // Another station's weekly series take nights in nobody's week but their own:
+  // a station's day comes out the same with only its own suppliers' profiles.
+  it("plans a station's week without the other stations' series", () => {
+    for (const station of STATIONS) {
+      const mine = new Map(
+        [...listings.profiles].filter(([channelId]) => listings.lineup.get(channelId) === station.id),
+      )
+      const alone = planStation(station, pool, mine, listings.lineup, { dayStart: THURSDAY })
+
+      expect(listings.schedules.get(station.id), station.name).toEqual(alone)
     }
   })
 

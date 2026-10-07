@@ -1,0 +1,63 @@
+.tv-push {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0.42rem 0.4rem;
+  border: 0;
+  border-radius: 0.22rem;
+  cursor: pointer;
+  font: 700 0.58rem/1.25 var(--tv-legend-font);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #2b1d10;
+  text-shadow: 0 0.05rem 0 rgba(255, 255, 255, 0.6);
+  /* Under the drawn face, and all that is left of it without filters. */
+  background: linear-gradient(#f7efdd, #d8c7a3);
+  /* The collar is part of the fascia, and the fascia is aluminium now: a
+     brown collar under the key read as a wooden surround it no longer has. */
+  box-shadow:
+    0 0.16rem 0 #7c776e,
+    0 0.3rem 0.42rem rgba(0, 0, 0, 0.45);
+  transform: translateY(0);
+  transition: transform 60ms linear, box-shadow 60ms linear;
+}
+.tv-push__face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.tv-push__legend { position: relative; }
+/*
+  The key is a slim rectangle because that is what it was. Rather than draw a
+  taller one, the target reaches a little past the moulding top and bottom —
+  short of the gap to its neighbours, so no two targets overlap.
+*/
+.tv-push::after {
+  content: '';
+  position: absolute;
+  inset: -0.3rem 0;
+}
+/*
+  Pressed: the key sits down into its collar, so the body of the shadow goes
+  with it and only a short one is left. The highlight moves too, but that is
+  the filter's job below — the light does not travel with the button.
+*/
+.tv-push:active, .tv-push--in {
+  transform: translateY(0.13rem);
+  box-shadow:
+    0 0.03rem 0 #7c776e,
+    0 0.07rem 0.16rem rgba(0, 0, 0, 0.5);
+}
+.tv-push--in { color: #3a2712; }
+.tv-push:focus-visible {
+  outline: 0.18rem solid #ffe6a8;
+  outline-offset: 0.2rem;
+}

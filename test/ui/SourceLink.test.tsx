@@ -25,8 +25,6 @@ describe('SourceLink', () => {
     expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     // The accessible name has to contain the visible word, or someone saying
     // "Source" to a voice control is naming something the page won't match.
-    // Read from the label span, not the anchor: the anchor also holds the
-    // component's stylesheet, and `textContent` would hand back the CSS.
     const label = link.querySelector('.source-link__label')?.textContent
     expect(label).toBe('Source')
     expect(link.getAttribute('aria-label')).toContain(label)

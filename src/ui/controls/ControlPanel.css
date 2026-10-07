@@ -1,0 +1,401 @@
+.tv-fascia {
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  padding: 0.5rem 0.42rem 0;
+  color: #2b1a0c;
+  /* Under the veneer, and all that is left of it without filters. */
+  background: #7d5a35;
+  /*
+    The control column is its own board, laid on the front of the carcass —
+    which the reference sets bear out: the Marconiphone's slotted grille is
+    plainly a separate insert. A board on a board shows four edges, and it had
+    only two. Lit along the top and left where the light reaches the arris,
+    dark along the bottom and right, with a tight contact shadow under it
+    before the soft one. Two edges alone read as a stripe of veneer painted on
+    the front; four read as a piece of wood lying on another.
+  */
+  box-shadow:
+    inset 0.07rem 0 0 rgba(255, 231, 190, 0.3),
+    inset 0 0.06rem 0 rgba(255, 231, 190, 0.22),
+    inset -0.07rem 0 0 rgba(46, 24, 7, 0.75),
+    inset 0 -0.06rem 0 rgba(46, 24, 7, 0.6),
+    0 0.06rem 0.1rem rgba(20, 10, 3, 0.5),
+    0 0.4rem 1rem rgba(0, 0, 0, 0.4);
+}
+.tv-fascia > * { position: relative; z-index: 1; }
+.tv-fascia > .tv-fascia__veneer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+}
+/* The routed grooves that separate the column from the rest of the cabinet. */
+.tv-fascia::before,
+.tv-fascia::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 0.2rem;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    rgba(30, 14, 3, 0.75) 0 35%,
+    rgba(20, 9, 2, 0.55) 35% 65%,
+    rgba(255, 226, 178, 0.32) 65% 100%);
+}
+.tv-fascia::before { left: 0.12rem; }
+.tv-fascia::after { right: 0.12rem; transform: scaleX(-1); }
+/* The shared surfaces: one set of definitions for every cap on the fascia. */
+.tv-fascia__defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/*
+  The fascia proper: a linished silver plate let into the teak, not a panel of
+  teak with controls on it. It is a separate pressing dropped into a routed
+  rebate, so the veneer shows all the way round it and runs on below it to the
+  lip — and the rebate is what the shadows describe. Light from the upper left,
+  as everywhere else on this set: the wood shades the top and left of the
+  plate, and the plate's own lower edge is what catches.
+*/
+.tv-fascia__plate {
+  position: relative;
+  z-index: 1;
+  /* The plate fills the opening cut for it. It used to stop at 86% of the
+     column, which left fifty-odd pixels of bare veneer under it against eight
+     above — and an inset panel with one margin seven times another reads as a
+     mistake rather than as a panel. Even reveal all round; the controls space
+     out to fill, and what grows is the speaker grille, which is what a console
+     set had most of. */
+  flex: 1 1 auto;
+  margin-bottom: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 0.55rem;
+  padding: 0.85rem 0.38rem 0.9rem;
+  border-radius: 0.08rem;
+  /* Under the linishing, and all that is left of it without filters. */
+  background: #bab6af;
+  /*
+    The rebate. A metal panel let into a wooden carcass is read entirely at its
+    edge, and the edge has four parts — all of them lit from the upper left,
+    like everything else on this set:
+
+      the cut edge of the veneer, hard against the plate;
+      the arris below and right of the opening, catching the light;
+      the walls of the recess above and left, throwing shadow onto the plate;
+      the walls below and right, which the light reaches.
+
+    Miss the pair that catch the light and the panel reads as printed on.
+  */
+  box-shadow:
+    0 0 0 0.055rem rgba(38, 20, 6, 0.85),
+    0 0.1rem 0 rgba(255, 231, 190, 0.26),
+    0.06rem 0 0 rgba(255, 231, 190, 0.14),
+    inset 0 0.13rem 0.2rem rgba(26, 13, 4, 0.55),
+    inset 0.1rem 0 0.18rem rgba(26, 13, 4, 0.4),
+    inset 0 -0.085rem 0.14rem rgba(255, 255, 255, 0.45),
+    inset -0.07rem 0 0.12rem rgba(255, 255, 255, 0.26),
+    0 0.2rem 0.42rem rgba(0, 0, 0, 0.42);
+}
+.tv-fascia__plate > * { position: relative; z-index: 1; }
+.tv-fascia__plate > .tv-fascia__linish {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+/* Engraved into the plate, not a badge screwed onto it: the cut is dark and
+   the burr under it catches, which is the whole of why lettering reads as
+   cut metal rather than printed on. */
+.tv-fascia__badge {
+  align-self: center;
+  font: 600 0.6rem/1 var(--tv-badge-font);
+  letter-spacing: -0.01em;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  color: #4a4640;
+  text-shadow: 0 0.045rem 0 rgba(255, 255, 255, 0.62);
+}
+
+/*
+  The preset bank sits in an aperture cut through the plate: dark inside,
+  with the bright cut edge of the aluminium showing along the bottom of it.
+*/
+.tv-fascia__presets {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.26rem 0.3rem;
+  width: min(100%, 4.3rem);
+  margin: 0 auto;
+  padding: 0.3rem 0.28rem;
+  border-radius: 0.1rem;
+  background: linear-gradient(#23211e, #131211);
+  box-shadow:
+    inset 0 0.09rem 0.24rem rgba(0, 0, 0, 0.85),
+    0 0.05rem 0 rgba(255, 255, 255, 0.42);
+}
+/*
+  Small, square, generously cornered: the 1970s preset key is a soft-cornered
+  rectangle a fingertip wide, not the big round dome a kitchen appliance got.
+*/
+.tv-fascia__preset {
+  position: relative;
+  display: grid;
+  place-items: center;
+  /* The drawn cap's box and corners: its viewBox is 86 by 100 and its corner
+     radius 22, as CAP_W, CAP_H and CAP_R in ControlPanel.tsx. */
+  aspect-ratio: 86 / 100;
+  border-radius: calc(100% * 22 / 86) / 22%;
+  cursor: pointer;
+  font: 600 0.46rem/1 var(--tv-legend-font);
+  letter-spacing: 0.04em;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  color: #6d5c44;
+  /* Under the drawn cap, for a browser that refuses filters. */
+  background: linear-gradient(#f5eddb, #cdbc9a);
+}
+/* The input is the control; the cap is its face. Kept in the layout rather
+   than display:none so it stays focusable and announceable. */
+.tv-fascia__radio {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+/* The cap is a face, not a target: it must not intercept the click meant for
+   the input beneath it, which is the thing that actually carries the state. */
+.tv-fascia__cap-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+/* Pressed in: the cap sits lower, its shadow shortens, the digit dims. */
+.tv-fascia__radio:checked ~ .tv-fascia__cap-label {
+  transform: translateY(7%) scale(0.97);
+  filter: brightness(0.9) saturate(0.95);
+}
+.tv-fascia__radio:focus-visible ~ .tv-fascia__cap-label {
+  outline: 0.1rem solid #9ecbff;
+  outline-offset: 0.08rem;
+  border-radius: 0.18rem;
+}
+/* Overflowing, because each cap drops a shadow into the aperture behind it. */
+.tv-fascia__cap { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+/* The legend is moulded in, so the shadow under it moves with the light. */
+.tv-fascia__digit {
+  position: relative;
+  text-shadow: 0 0.04rem 0 rgba(255, 252, 240, 0.6);
+}
+
+.tv-fascia__well { display: grid; justify-items: center; padding: 0.15rem 0 0.1rem; }
+
+.tv-fascia__stack { display: grid; gap: 0.45rem; }
+
+/*
+  The tuning adjusters, in a row under the presets they used to hide behind.
+  Bare aluminium collars on black bodies, and their legends engraved into the
+  plate beneath them rather than printed on the knobs — a trimmer is too small
+  to carry a letter.
+*/
+/*
+  The row is wider than the trimmers in it, on purpose. A slotted trimmer is
+  the size of a screwdriver head and drawing it any bigger would be drawing a
+  different control — so the *target* grows instead of the ink: each cell is
+  comfortably over the 24px minimum and the drawing sits in the middle of it.
+*/
+.tv-fascia__tuners {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.14rem;
+  width: min(100%, 8.4rem);
+  margin: 0 auto;
+}
+/*
+  Each cell keeps its 24px whatever the column does, and the row wraps to two
+  when there is not room for five. Which is period anyway — the reference
+  Philips carries its small controls in two rows, not one.
+*/
+.tv-fascia__tuner { min-width: 1.62rem; }
+.tv-fascia__tuner {
+  flex: 1 1 auto;
+  display: grid;
+  justify-items: center;
+  gap: 0.08rem;
+  font: 600 0.34rem/1 var(--tv-legend-font);
+  letter-spacing: 0.04em;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  color: #4e4a45;
+}
+.tv-fascia__trim {
+  width: 100%;
+  max-width: 0.92rem;
+  aspect-ratio: 1;
+  /* Overflowing, because the trimmer drops its shadow onto the plate. */
+  overflow: visible;
+}
+.tv-fascia__legend {
+  text-shadow: 0 0.04rem 0 rgba(255, 255, 255, 0.55);
+}
+/* A trimmer you can actually turn. Small, so it gets a generous focus ring. */
+.tv-fascia__grip {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 1.6rem;
+  cursor: ns-resize;
+  touch-action: none;
+  border-radius: 0.2rem;
+}
+.tv-fascia__grip:focus-visible {
+  outline: 0.14rem solid #ffe6a8;
+  outline-offset: 0.14rem;
+}
+
+.tv-fascia__grille {
+  flex: 1 1 auto;
+  min-height: 2.5rem;
+  margin: 0.15rem 0.1rem;
+  border-radius: 0.06rem;
+  /*
+    Slotted, not punched. Every reference set has a slatted or slotted speaker
+    panel — horizontal wooden louvres, vertical fluting, or what the
+    Marconiphone brochure calls "a contrasting black slotted speaker grille".
+    A drilled panel of round holes reads as a wireless, or as a set fifteen
+    years older than this one.
+
+    Each period is one slot and one rib, and the rib is where the drawing is:
+    lit on its left face and shadowed on its right, because the light comes
+    from the upper left like everything else on this set. Without those two
+    faces it is a barcode.
+  */
+  background-color: #14161a;
+  background-image: repeating-linear-gradient(
+    90deg,
+    #0b0d0f 0 0.17rem,
+    #16191c 0.17rem 0.2rem,
+    rgba(255, 244, 224, 0.34) 0.2rem 0.225rem,
+    #4b4d50 0.225rem 0.265rem,
+    #26282b 0.265rem 0.3rem
+  );
+  box-shadow:
+    inset 0 0.07rem 0.16rem rgba(0, 0, 0, 0.75),
+    inset 0 -0.04rem 0.08rem rgba(255, 255, 255, 0.14),
+    0 0 0 0.04rem rgba(28, 18, 8, 0.6);
+}
+
+.tv-fascia__lamps {
+  display: flex;
+  gap: 0.28rem;
+  align-self: center;
+  justify-content: center;
+  margin-top: auto;
+  padding: 0.26rem 0.3rem;
+  border-radius: 0.1rem;
+  background: linear-gradient(#201e1b, #0e0d0c);
+  box-shadow:
+    inset 0 0.08rem 0.2rem rgba(0, 0, 0, 0.85),
+    0 0.05rem 0 rgba(255, 255, 255, 0.42);
+}
+.tv-fascia__lamp {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  opacity: 0.35;
+  /* A lens, not a dot: the light catches the top of the moulding. */
+  background-image: radial-gradient(circle at 34% 28%,
+    rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0) 52%);
+  box-shadow: inset 0 -0.04rem 0.06rem rgba(0, 0, 0, 0.55);
+}
+.tv-fascia__lamp[data-lit='true'] { opacity: 1; }
+.tv-fascia__lamp--power { background-color: #e8492a; }
+.tv-fascia__lamp--power[data-lit='true'] { box-shadow: 0 0 0.4rem #ff5b3a; }
+.tv-fascia__lamp--tune { background-color: #e0a21f; }
+.tv-fascia__lamp--tune[data-lit='true'] { box-shadow: 0 0 0.4rem #ffc23d; }
+.tv-fascia__lamp--signal { background-color: #57c163; }
+.tv-fascia__lamp--signal[data-lit='true'] { box-shadow: 0 0 0.4rem #6fe07a; }
+
+.tv-fascia__lip {
+  margin: auto -0.42rem 0;
+  height: 0.5rem;
+  background: linear-gradient(#efe3cb 0%, #e6d8bd 38%, #c4b295 72%, #a9987c 100%);
+  box-shadow:
+    inset 0 0.06rem 0 rgba(255, 255, 255, 0.75),
+    0 -0.06rem 0.12rem rgba(0, 0, 0, 0.45);
+}
+
+/* A portable on the kitchen table: the column goes under the screen, so the
+   plate stops being a column and becomes a strip. */
+/*
+  A small set, tightened.
+
+  The fascia's controls are sized in rem, so below a certain cabinet width they
+  stop shrinking and the cabinet stops obeying its own aspect ratio — it gets
+  taller than the height cap expects and a short window scrolls. This is the
+  floor, lowered: the same controls, the same 24px targets, less air between
+  them and a shallower speaker.
+*/
+@container cabinet (max-width: 58rem) {
+  .tv-fascia { padding: 0.35rem 0.3rem 0; }
+  .tv-fascia__plate { gap: 0.3rem; padding: 0.5rem 0.28rem 0.5rem; }
+  .tv-fascia__tuners { gap: 0.08rem; }
+  .tv-fascia__grille { min-height: 1.5rem; margin: 0.1rem 0.06rem; }
+  .tv-fascia__badge { font-size: 0.52rem; }
+  .tv-fascia__well { padding-bottom: 0; }
+}
+
+/* Smaller again. Same controls, same targets, no air left to give. */
+@container cabinet (max-width: 46rem) {
+  .tv-fascia { padding: 0.25rem 0.24rem 0; }
+  .tv-fascia__plate { gap: 0.18rem; padding: 0.34rem 0.22rem 0.34rem; }
+  .tv-fascia__presets { gap: 0.16rem 0.2rem; padding: 0.2rem 0.18rem; }
+  .tv-fascia__grille { min-height: 0.5rem; margin: 0.05rem 0.04rem; }
+  .tv-fascia__lamps { gap: 0.2rem; padding: 0.12rem 0.2rem; }
+}
+
+@media (max-width: 40rem) {
+  .tv-fascia { height: auto; padding: 0.55rem 0.55rem 0; }
+  .tv-fascia__plate {
+    min-height: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem 0.7rem;
+    padding: 0.5rem 0.55rem 0.55rem;
+  }
+  .tv-fascia__plate > * { flex: 0 1 auto; }
+  .tv-fascia__badge { flex-basis: 100%; text-align: center; }
+  .tv-fascia__presets { width: auto; grid-template-columns: repeat(6, 1fr); }
+  .tv-fascia__preset { width: 1.7rem; }
+  .tv-fascia__stack { flex: 0 1 7rem; min-width: 5rem; }
+  .tv-fascia__well { padding: 0; }
+  /* Trimmers and lamps drop to the end: on a strip they are what you look
+     past, not what you reach through. */
+  .tv-fascia__tuners { order: 1; flex: 1 1 100%; width: auto; justify-content: center; gap: 0.55rem; }
+  .tv-fascia__tuner { flex: 0 0 1.7rem; }
+  .tv-fascia__lamps { order: 2; margin-top: 0; }
+  .tv-fascia__lip { margin: 0.5rem -0.55rem 0; }
+}

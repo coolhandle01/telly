@@ -1,11 +1,10 @@
 import {
   BANDS,
-  BORDER_FRACTION,
   CLOCK_WIDTH_FRACTION,
-  DEFAULTS,
   band,
   captionBox,
-  castellations,
+  cardFrame,
+  castellatedFrame,
   clockBox,
   type Picture,
 } from '../primitives'
@@ -52,16 +51,8 @@ const CLOCK_PLATE_WIDTH_RATIO = 1.16
 const CLOCK_PLATE_HEIGHT_RATIO = 1.34
 
 export function buildIdentCard(spec: TestCardSpec): TestCardModel {
-  const width = spec.width ?? DEFAULTS.width
-  const height = spec.height ?? DEFAULTS.height
-  const border = Math.round(Math.min(width, height) * BORDER_FRACTION)
-  const picture: Picture = {
-    x: border,
-    y: border,
-    width: width - 2 * border,
-    height: height - 2 * border,
-  }
-  const centre = { x: width / 2, y: height / 2 }
+  const frame = cardFrame(spec)
+  const { width, height, picture, centre } = frame
   // The wheel is sized to stop short of the caption box, the way the line-up
   // chart sizes its convergence circle; only the star oversteps it, the way
   // that card's crosshair does.
@@ -71,34 +62,9 @@ export function buildIdentCard(spec: TestCardSpec): TestCardModel {
   )
 
   const shapes: Shape[] = [
-    {
-      id: 'background',
-      role: 'background',
-      kind: 'rect',
-      x: 0,
-      y: 0,
-      width,
-      height,
-      fill: PALETTE.surround,
-    },
-    ...castellations(
-      width,
-      height,
-      border,
-      spec.castellationsAcross ?? DEFAULTS.castellationsAcross,
-      spec.castellationsDown ?? DEFAULTS.castellationsDown,
-    ),
-    {
-      id: 'picture',
-      role: 'picture',
-      kind: 'rect',
-      ...picture,
-      // A dark field rather than the line-up chart's mid grey: this card is
-      // meant to be looked at, and the colour reads off black.
-      fill: PALETTE.captionBox,
-      stroke: PALETTE.frame,
-      strokeWidth: Math.max(1, Math.round(border / 16)),
-    },
+    // A dark field rather than the line-up chart's mid grey: this card is
+    // meant to be looked at, and the colour reads off black.
+    ...castellatedFrame(frame, spec, PALETTE.captionBox),
     ...rings(centre, radius),
     // The interlude card is the same card with the busier signal taken out:
     // the wheel and the name stay, the star goes.

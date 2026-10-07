@@ -31,11 +31,8 @@ export function parseIso8601Duration(iso: string): number {
   const match = ISO_8601_DURATION.exec(iso)
   if (!match) return 0
 
+  // A bare `P` matches with every component absent, and totals 0.
   const [, years, months, weeks, days, hours, minutes, seconds] = match
-  if ([years, months, weeks, days, hours, minutes, seconds].every((part) => part === undefined)) {
-    return 0
-  }
-
   const total =
     Number(years ?? 0) * SECONDS_PER.years +
     Number(months ?? 0) * SECONDS_PER.months +

@@ -49,6 +49,11 @@ describe('genreOf', () => {
     expect(genreOf(channel({ topics: ['Humour', 'Entertainment'] }), [])).toBe('comedy')
   })
 
+  it('takes the first of two equally specific topics', () => {
+    expect(genreOf(channel({ topics: ['Politics', 'Business'] }), [])).toBe('news')
+    expect(genreOf(channel({ topics: ['Business', 'Politics'] }), [])).toBe('society')
+  })
+
   it('falls back to what most of the uploads are filed under', () => {
     const videos = [video({ categoryId: '25' }), video({ categoryId: '25' }), video({ categoryId: '10' })]
 
@@ -65,6 +70,11 @@ describe('genreOf', () => {
   it('reads the channel name when there is nothing else to read', () => {
     expect(genreOf(channel({ title: 'The News at Ten' }), [video()])).toBe('news')
     expect(genreOf(channel({ title: 'Kitchen Table Cookery' }), [video()])).toBe('food')
+  })
+
+  it('reads a word in the singular or the plural', () => {
+    expect(genreOf(channel({ title: 'Movie Night' }), [video()])).toBe('film')
+    expect(genreOf(channel({ title: 'Classic Movies' }), [video()])).toBe('film')
   })
 
   // Word-bounded on purpose: a newsagent is not a news programme.

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { App, CHANNEL_NAME } from '@/App'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { App } from '@/App'
 import { FixturePoolSource } from './support/fixturePoolSource'
 import type { PoolSource } from '@/library'
 import { FakePlayer } from './support/fakePlayer'
@@ -31,8 +31,92 @@ describe('App', () => {
 
   it('mounts the channel, switched off', () => {
     mount()
-    expect(screen.getByRole('region', { name: new RegExp(CHANNEL_NAME, 'i') })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /CHANNEL ONE/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Power' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Source on GitHub' })).toHaveAttribute(
+      'href',
+      'https://github.com/coolhandle01/telly',
+    )
+  })
+
+  // Given no player, it builds the YouTube one, which asks for the IFrame API
+  // when the first programme goes on air and not before.
+  it('builds its own player when it is given none', async () => {
+    try {
+      const view = render(
+        <App
+          clock={new FakeClock(new Date(2026, 8, 9, 14, 32, 7))}
+          sound={createFakeSound()}
+          poolSource={new FixturePoolSource()}
+        />,
+      )
+      expect(document.querySelector('script[src*="youtube.com"]')).toBeNull()
+
+      await view.user.click(screen.getByRole('button', { name: 'Power' }))
+
+      await waitFor(() =>
+        expect(document.querySelector('script[src*="youtube.com"]')).not.toBeNull(),
+      )
+    } finally {
+      document.querySelectorAll('script[src*="youtube.com"]').forEach((script) => script.remove())
+      delete (window as { onYouTubeIframeAPIReady?: unknown }).onYouTubeIframeAPIReady
+    }
+  })
+
+  it('plays the pool it was given on the player it was given', async () => {
+    const player = new FakePlayer()
+    const view = render(
+      <App
+        clock={new FakeClock(new Date(2026, 8, 9, 14, 32, 7))}
+        sound={createFakeSound()}
+        poolSource={new FixturePoolSource()}
+        player={player}
+      />,
+    )
+
+    await view.user.click(screen.getByRole('button', { name: 'Power' }))
+
+    await waitFor(() => expect(player.loads.length).toBeGreaterThan(0))
+  })
+
+  describe('with a client id configured', () => {
+    afterEach(() => {
+      vi.unstubAllEnvs()
+      delete (window as { google?: unknown }).google
+    })
+
+    /** A client id with space around it, and Google's script already loaded. */
+    const configure = () => {
+      vi.stubEnv('VITE_YOUTUBE_CLIENT_ID', '  client-1.apps.googleusercontent.com  ')
+      const initTokenClient = vi.fn(() => ({ requestAccessToken: vi.fn() }))
+      ;(window as { google?: unknown }).google = {
+        accounts: { oauth2: { initTokenClient, revoke: vi.fn() } },
+      }
+      return initTokenClient
+    }
+
+    // A popup has to come from the click, so Google's client is readied on
+    // load rather than when the button is pressed.
+    it('readies Google sign-in on load, for the client id without its spaces', async () => {
+      const initTokenClient = configure()
+
+      render(<App sound={createFakeSound()} player={new FakePlayer()} />)
+
+      await waitFor(() => expect(initTokenClient).toHaveBeenCalledOnce())
+      expect(initTokenClient.mock.calls[0]).toEqual([
+        expect.objectContaining({ client_id: 'client-1.apps.googleusercontent.com' }),
+      ])
+    })
+
+    it('offers sign-in rather than the fault card', async () => {
+      configure()
+      const view = render(<App sound={createFakeSound()} player={new FakePlayer()} />)
+
+      await view.user.click(screen.getByRole('button', { name: 'Power' }))
+
+      expect(await screen.findByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument()
+      expect(screen.queryByText(/service configuration/i)).toBeNull()
+    })
   })
 
   it('builds no audio context and fetches no iframe API on mount', () => {

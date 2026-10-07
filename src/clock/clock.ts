@@ -29,7 +29,7 @@ export class SystemClock implements Clock {
 
     return () => {
       this.#listeners.delete(listener)
-      if (this.#listeners.size === 0 && this.#timer !== undefined) {
+      if (this.#listeners.size === 0) {
         clearInterval(this.#timer)
         this.#timer = undefined
       }

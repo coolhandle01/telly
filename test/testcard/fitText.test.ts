@@ -10,6 +10,12 @@ describe('fitFontSize', () => {
     expect(fitFontSize('SHORT', 1000, 40)).toBe(40)
   })
 
+  it('leaves a line alone when it fits with only a little room to spare', () => {
+    const text = 'SHORT'
+
+    expect(fitFontSize(text, widthOf(text, 40) * 1.5, 40)).toBe(40)
+  })
+
   it('shrinks a line that would overflow until it fits', () => {
     const text = 'NORMAL SERVICE WILL BE RESUMED AS SOON AS POSSIBLE'
     const maxWidth = 600
@@ -30,6 +36,16 @@ describe('fitFontSize', () => {
     expect(widthOf(text, size, spacing)).toBeLessThanOrEqual(maxWidth)
     // Ignoring the spacing would have produced something too wide.
     expect(widthOf(text, fitFontSize(text, maxWidth, 60), spacing)).toBeGreaterThan(maxWidth)
+  })
+
+  it('shrinks a line that fits only until its letter-spacing is counted', () => {
+    const text = 'TEN LETTER'
+    const maxWidth = (widthOf(text, 10) + widthOf(text, 10, 1)) / 2
+
+    const size = fitFontSize(text, maxWidth, 10, 1)
+
+    expect(size).toBeLessThan(10)
+    expect(widthOf(text, size, 1)).toBeCloseTo(maxWidth, 6)
   })
 
   it('never returns a size at or below zero, however cramped', () => {

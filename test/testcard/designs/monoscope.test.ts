@@ -442,6 +442,8 @@ describe('buildMonoscopeCard — resolution gratings', () => {
     left.forEach((frame, i) => {
       if (i > 0) expect(frame.y - left[i - 1].y).toBeCloseTo(pitch, 9)
       expect(frame.height).toBeLessThan(pitch)
+      // The gutter separates the patches; it does not take the place of one.
+      expect(frame.height).toBeGreaterThan(pitch / 2)
     })
     const last = left[left.length - 1]
     expect(left[0].y - y).toBeCloseTo(y + height - (last.y + last.height), 9)
@@ -473,6 +475,8 @@ describe('buildMonoscopeCard — resolution gratings', () => {
       expect(bar.fill).toBe(i % 2 === 0 ? bars[0].fill : bars[1].fill)
     })
     expect(bars[0].fill).not.toBe(bars[1].fill)
+    // The end bars are light, so the patch's edges read against the frame.
+    expect(bars[0].fill).not.toBe(frame.fill)
   })
 
   it('puts more bars in a higher-frequency patch, in both directions', () => {

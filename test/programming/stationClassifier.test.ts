@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { Video } from '@/domain'
-import { profile, type Subscription } from '@/programming/profile'
+import { profile, SHORT_MAX_SEC, type Subscription } from '@/programming/profile'
 import { StationClassifier } from '@/programming/stationClassifier'
 import { STATIONS, stationById, type Station } from '@/programming/stations'
+import { strandsFor } from '@/programming/strands'
 
 const MINUTE = 60
 /** A Thursday, which is comedy night on Channel Two. */
@@ -58,11 +59,12 @@ describe('StationClassifier', () => {
   })
 
   it('offers nothing this station has no daypart for', () => {
-    // Channel Four is off air all morning, so nothing can go out then.
+    // Channel Four carries no lunchtime news, so not even a news bulletin from
+    // a news supplier can go out there.
     const four = stationById(4) as Station
-    const offered = classify(four, MONDAY, { channelId: 'UC1' }, video({ id: 'v' }))
+    const offered = classify(four, MONDAY, { channelId: 'UC1', genre: 'news' }, video({ id: 'v', categoryId: '25' }))
 
-    expect(Object.keys(offered)).not.toContain('breakfast')
+    expect(Object.keys(offered)).not.toContain('lunchtime-news')
   })
 
   /*
@@ -122,6 +124,13 @@ describe('StationClassifier', () => {
 
       expect(Object.keys(offered)).not.toContain('clip-show')
     })
+
+    it('offers a video of exactly the longest a short can be as a programme', () => {
+      const offered = classify(five, MONDAY, { channelId: 'UC1' }, video({ id: 'v', durationSec: SHORT_MAX_SEC }))
+
+      expect(Object.keys(offered)).not.toHaveLength(0)
+      expect(Object.keys(offered)).not.toContain('clip-show')
+    })
   })
 
   describe('the news', () => {
@@ -136,12 +145,16 @@ describe('StationClassifier', () => {
 
     // Damped elsewhere rather than barred: a station with a thin afternoon
     // would rather repeat the lunchtime bulletin than show the card.
+    // Measured against the same upload without the news category, in the same
+    // daypart, so nothing but the damping differs between the two.
     it('is damped outside the bulletins rather than barred from them', () => {
-      const offered = classify(one, MONDAY, { channelId: 'UC1', genre: 'news' }, bulletin)
+      const supplier = { channelId: 'UC1', genre: 'news' } as const
+      const offered = classify(one, MONDAY, supplier, bulletin)
+      const undamped = classify(one, MONDAY, supplier, { ...bulletin, categoryId: undefined })
 
       expect(offered['lunchtime-news']).toBeGreaterThan(0)
       expect(offered.afternoon ?? 0).toBeGreaterThan(0)
-      expect(offered.afternoon ?? 0).toBeLessThan(offered['lunchtime-news'] ?? 0)
+      expect(offered.afternoon ?? 0).toBeLessThan(undamped.afternoon ?? 0)
     })
   })
 
@@ -165,24 +178,61 @@ describe('StationClassifier', () => {
 
       expect(thursday).toBeLessThan(monday)
     })
+
+    // Channel Two's Thursday themes are its peak time and its late night.
+    // The evening before them is an ordinary evening.
+    it('leaves the rest of the night alone', () => {
+      const thursday = classify(two, THURSDAY, comic, sitcom).evening
+      const monday = classify(two, MONDAY, comic, sitcom).evening
+
+      expect(thursday).toBeGreaterThan(0)
+      expect(thursday).toBe(monday)
+    })
+  })
+
+  // Being well watched counts at nine and counts for nothing at ten in the
+  // morning.
+  it('weighs standing in peak time and not in mid-morning', () => {
+    const programme = video({ id: 'v', durationSec: 30 * MINUTE })
+    const at = (standing: number) =>
+      classify(one, MONDAY, { channelId: 'UC1', genre: 'factual', standing }, programme)
+
+    expect(at(1).prime).toBeGreaterThan(at(0).prime as number)
+    expect(at(1)['mid-morning']).toBe(at(0)['mid-morning'])
+  })
+
+  // The evening takes a half-hour more readily than an hour, so between two
+  // uploads of the same supplier the half-hour is the better fit there.
+  it('scores a better fit for the slot higher', () => {
+    const supplier = { channelId: 'UC1', genre: 'entertainment' } as const
+    const halfHour = classify(one, MONDAY, supplier, video({ id: 'v', durationSec: 28 * MINUTE })).evening
+    const hour = classify(one, MONDAY, supplier, video({ id: 'v', durationSec: 55 * MINUTE })).evening
+
+    expect(halfHour).toBeGreaterThan(hour as number)
   })
 
   describe('a weekly series', () => {
     const hourLong = video({ id: 'v', durationSec: 55 * MINUTE })
-    const weekly = { channelId: 'UC1', cadence: 'weekly', format: 'hour' } as const
+    // Society, because no theme on Channel One names it: a genre a theme
+    // lifts would make its theme's night stand out with no strand at all.
+    const weekly = { channelId: 'UC1', genre: 'society', cadence: 'weekly', format: 'hour' } as const
 
     it('is worth far more on its own night than on any other', () => {
-      const classifier = new StationClassifier(one, profiles(weekly), MONDAY)
-      const scores = new Set<number>()
-      for (let day = 0; day < 7; day++) {
+      const strand = strandsFor(one, [...profiles(weekly).values()]).get('UC1')
+      const week = Array.from({ length: 7 }, (_, day) => {
         const on = new Date(2026, 8, 7 + day, 6, 0, 0)
         const offered = new StationClassifier(one, profiles(weekly), on).classify(hourLong)
-        scores.add(Math.max(0, ...Object.values(offered)))
-      }
+        const [daypart, score] = Object.entries(offered).sort(([, a], [, b]) => (b ?? 0) - (a ?? 0))[0]
+        return { weekday: on.getDay(), daypart, score: score ?? 0 }
+      })
+      const [best, ...rest] = [...week].sort((a, b) => b.score - a.score)
 
-      expect(classifier.classify(hourLong)).toBeDefined()
-      // One night stands out from the other six.
-      expect(scores.size).toBeGreaterThan(1)
+      expect(strand).toBeDefined()
+      expect({ weekday: best.weekday, daypart: best.daypart }).toEqual({
+        weekday: strand?.weekday,
+        daypart: strand?.daypart,
+      })
+      for (const other of rest) expect(other.score).toBeLessThan(best.score)
     })
 
     // Without the holding back, a series simply goes out on the first day of

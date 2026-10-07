@@ -20,7 +20,7 @@ export function fitFontSize(
   preferred: number,
   letterSpacing = 0,
 ): number {
-  if (text.length === 0 || maxWidth <= 0) return preferred
+  if (maxWidth <= 0) return preferred
 
   const widthAt = (size: number) => text.length * (size * MONO_ADVANCE + letterSpacing)
   if (widthAt(preferred) <= maxWidth) return preferred

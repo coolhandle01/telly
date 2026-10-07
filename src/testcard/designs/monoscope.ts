@@ -1,11 +1,11 @@
 import {
-  BORDER_FRACTION,
   DEFAULTS,
   GRATING_GUTTER,
   band,
   barsForFrequency,
   captionBox,
-  castellations,
+  cardFrame,
+  castellatedFrame,
   clockBox,
   gratings,
   greyscaleWedge,
@@ -192,45 +192,12 @@ function verticalGratings(
 }
 
 export function buildMonoscopeCard(spec: TestCardSpec): TestCardModel {
-  const width = spec.width ?? DEFAULTS.width
-  const height = spec.height ?? DEFAULTS.height
-  const border = Math.round(Math.min(width, height) * BORDER_FRACTION)
-  const picture: Picture = {
-    x: border,
-    y: border,
-    width: width - 2 * border,
-    height: height - 2 * border,
-  }
-  const centre = { x: width / 2, y: height / 2 }
+  const frame = cardFrame(spec)
+  const { width, height, picture, centre } = frame
   const frequencies = spec.gratingFrequencies ?? [...DEFAULTS.gratingFrequencies]
 
   const shapes: Shape[] = [
-    {
-      id: 'background',
-      role: 'background',
-      kind: 'rect',
-      x: 0,
-      y: 0,
-      width,
-      height,
-      fill: PALETTE.surround,
-    },
-    ...castellations(
-      width,
-      height,
-      border,
-      spec.castellationsAcross ?? DEFAULTS.castellationsAcross,
-      spec.castellationsDown ?? DEFAULTS.castellationsDown,
-    ),
-    {
-      id: 'picture',
-      role: 'picture',
-      kind: 'rect',
-      ...picture,
-      fill: PALETTE.picture,
-      stroke: PALETTE.frame,
-      strokeWidth: Math.max(1, Math.round(border / 16)),
-    },
+    ...castellatedFrame(frame, spec, PALETTE.picture),
     // The interlude card is the closedown card with the test signals taken
     // out: the star and its circles stay, because they are the card.
     ...(spec.variant === 'closedown'

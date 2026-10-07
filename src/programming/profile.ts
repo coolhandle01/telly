@@ -1,4 +1,4 @@
-import type { Channel, Pool, Video } from '../domain'
+import { median, type Channel, type Pool, type Video } from '../domain'
 import { isEligible } from '../schedule/classify'
 import { genreOf, type Genre } from './genre'
 
@@ -117,7 +117,7 @@ export function profile(pool: Pool): ReadonlyMap<string, Subscription> {
       title: channel?.title ?? channelId,
       genre: genreOf(channel, videos),
       cadenceDays,
-      cadence: cadenceOf(cadenceDays, videos.length),
+      cadence: cadenceOf(cadenceDays),
       typicalDurationSec,
       format: formatOf(typicalDurationSec),
       standing: standings.get(channelId) ?? UNRANKED_STANDING,
@@ -137,10 +137,7 @@ export function formatOf(durationSec: number): Format {
   return 'feature'
 }
 
-function cadenceOf(days: number, uploads: number): Cadence {
-  // One upload is not a rhythm. Treat it as occasional rather than inventing
-  // a gap from a single date.
-  if (uploads < 2) return 'occasional'
+function cadenceOf(days: number): Cadence {
   if (days <= DAILY_MAX_DAYS) return 'daily'
   return days <= WEEKLY_MAX_DAYS ? 'weekly' : 'occasional'
 }
@@ -155,6 +152,8 @@ function observedCadence(videos: readonly Video[]): number {
     .map((video) => Date.parse(video.publishedAt))
     .filter((time) => Number.isFinite(time))
     .sort((a, b) => a - b)
+  // One upload is not a rhythm. Infinity reads as occasional, rather than a
+  // gap invented from a single date.
   if (times.length < 2) return Infinity
 
   const gaps: number[] = []
@@ -193,10 +192,4 @@ function rank(
     standings.set(entry.channelId, scored.length < 2 ? UNRANKED_STANDING : index / (scored.length - 1))
   }
   return standings
-}
-
-function median(values: readonly number[]): number {
-  const sorted = [...values].sort((a, b) => a - b)
-  const middle = Math.floor(sorted.length / 2)
-  return sorted.length % 2 === 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
 }

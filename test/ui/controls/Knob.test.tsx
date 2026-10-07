@@ -245,6 +245,33 @@ describe('Knob', () => {
       expect(knob()).toHaveAttribute('aria-valuenow', '0')
     })
 
+    it('turns only for the primary button', async () => {
+      const { user } = render(<Holder initial={0.5} />)
+      const target = knob()
+
+      await user.pointer([
+        { keys: '[MouseRight>]', target, coords: { clientX: 40, clientY: 100 } },
+        { target, coords: { clientX: 40, clientY: 70 } },
+        { keys: '[/MouseRight]', target, coords: { clientX: 40, clientY: 70 } },
+      ])
+
+      expect(knob()).toHaveAttribute('aria-valuenow', '0.5')
+    })
+
+    it('follows the pointer that took hold of it, not another one passing', async () => {
+      const { user } = render(<Holder initial={0.5} />)
+      const target = knob()
+
+      await user.pointer([
+        { keys: '[MouseLeft>]', target, coords: { clientX: 40, clientY: 100 } },
+        // A finger that came down elsewhere, sliding across the knob.
+        { keys: '[TouchA>]', target: document.body, coords: { clientX: 40, clientY: 100 } },
+        { pointerName: 'TouchA', target, coords: { clientX: 40, clientY: 40 } },
+      ])
+
+      expect(knob()).toHaveAttribute('aria-valuenow', '0.5')
+    })
+
     it('ignores a press that never moves', async () => {
       const onChange = vi.fn()
       const { user } = render(<Holder initial={0.5} onChange={onChange} />)

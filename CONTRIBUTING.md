@@ -102,7 +102,7 @@ Open the pull request and wait for the checks.
 | Check | What it is |
 |---|---|
 | `oxlint` | the lint |
-| `conventional commits` | the pull request title, which is what `main` keeps — it re-runs when you rename, so a bad title can be fixed in place |
+| `conventional commits` | the pull request title, which is what `main` keeps |
 | `tsc` | the typecheck, separate because Vite strips types without checking them |
 | `vite build` | proves it bundles |
 | `vitest` | the suite in every zone, and the clocks-change tests, with coverage |

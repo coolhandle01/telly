@@ -16,7 +16,7 @@ describe('Ident', () => {
   it("takes the station's own colours", () => {
     const { container } = render(<Ident ident={one.ident} name="CHANNEL ONE" number={1} />)
 
-    expect(container.querySelector('.ident')).toHaveStyle({ background: one.ident.ground })
+    expect(container.querySelector('.ident')).toHaveStyle({ backgroundColor: one.ident.ground })
   })
 
   // Each mark is a different mechanism, not a different colour of the same

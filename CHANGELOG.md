@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.0.14](https://github.com/coolhandle01/telly/compare/v0.0.13...v0.0.14) (2026-10-30)
+
 ## [0.0.13](https://github.com/coolhandle01/telly/compare/v0.0.12...v0.0.13) (2026-10-20)
 
 ## [0.0.12](https://github.com/coolhandle01/telly/compare/v0.0.11...v0.0.12) (2026-10-13)
